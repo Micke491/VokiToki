@@ -20,6 +20,9 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [isGroup, setIsGroup] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const router = useRouter();
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -27,6 +30,9 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
     if (!isOpen) {
       setSearchQuery('');
       setUsers([]);
+      setIsGroup(false);
+      setGroupName('');
+      setSelectedUsers([]);
     }
   }, [isOpen]);
 
@@ -64,7 +70,11 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
       if (!response.ok) throw new Error('Search failed');
 
       const data = await response.json();
-      setUsers(data.users || []);
+      // Filter out already selected users in group mode
+      const filteredUsers = data.users.filter((u: User) => 
+        !selectedUsers.some(selected => selected._id === u._id)
+      );
+      setUsers(filteredUsers || []);
     } catch (error) {
       console.error('Error searching users:', error);
     } finally {
@@ -73,32 +83,87 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
   };
 
   const startChat = async (recipientId: string) => {
-  try {
-    setCreating(true);
-    const response = await fetch('/api/chats', { 
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ recipientId }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Server error details:', errorData.details || errorData.message);
-      throw new Error('Failed to create chat');
+    if (isGroup) {
+      toggleUserSelection(users.find(u => u._id === recipientId)!);
+      return;
     }
 
-    const chat = await response.json();
-    onClose();
-    router.push(`/chat/${chat._id}`);
-  } catch (error) {
-    console.error('Error creating chat:', error);
-  } finally {
-    setCreating(false);
-  }
-};
+    try {
+      setCreating(true);
+      const response = await fetch('/api/chats', { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ recipientId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Server error details:', errorData.details || errorData.message);
+        throw new Error('Failed to create chat');
+      }
+
+      const chat = await response.json();
+      onClose();
+      router.push(`/chat/${chat._id}`);
+    } catch (error) {
+      console.error('Error creating chat:', error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createGroupChat = async () => {
+    if (!groupName.trim() || selectedUsers.length < 2) return;
+
+    try {
+      setCreating(true);
+      const response = await fetch('/api/chats/GroupChat', { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ 
+          name: groupName, 
+          participants: selectedUsers.map(u => u._id) 
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create group chat');
+      }
+
+      const chat = await response.json();
+      onClose();
+      router.push(`/chat/${chat._id}`);
+    } catch (error) {
+      console.error('Error creating group chat:', error);
+      alert('Failed to create group chat');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleUserSelection = (user: User) => {
+    setSelectedUsers(prev => {
+      const isSelected = prev.some(u => u._id === user._id);
+      if (isSelected) {
+        return prev.filter(u => u._id !== user._id);
+      } else {
+        return [...prev, user];
+      }
+    });
+    setSearchQuery('');
+    setUsers([]);
+  };
+
+  const removeSelectedUser = (userId: string) => {
+    setSelectedUsers(prev => prev.filter(u => u._id !== userId));
+  };
 
   if (!isOpen) return null;
 
@@ -111,11 +176,13 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">New Message</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+            {isGroup ? 'New Group' : 'New Message'}
+          </h2>
           <button 
             className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
             onClick={onClose}
@@ -126,6 +193,52 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
           </button>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="px-5 pt-4">
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                <button
+                    onClick={() => setIsGroup(false)}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${!isGroup ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                >
+                    Direct Message
+                </button>
+                <button
+                    onClick={() => setIsGroup(true)}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${isGroup ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                >
+                    Group Chat
+                </button>
+            </div>
+        </div>
+
+        {/* Group Name Input */}
+        {isGroup && (
+           <div className="px-5 pt-4">
+               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Group Name</label>
+               <input
+                 type="text"
+                 placeholder="Enter group name"
+                 value={groupName}
+                 onChange={(e) => setGroupName(e.target.value)}
+                 className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+               />
+           </div>
+        )}
+
+        {/* Selected Users (Chips) */}
+        {isGroup && selectedUsers.length > 0 && (
+            <div className="px-5 pt-3 flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
+                {selectedUsers.map(user => (
+                    <div key={user._id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-800">
+                        {user.username}
+                        <button onClick={() => removeSelectedUser(user._id)} className="p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-md">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6L18 18"></path></svg>
+                        </button>
+                    </div>
+                ))}
+            </div>
+        )}
+
         {/* Search Container */}
         <div className="relative p-4 border-b border-slate-200 dark:border-slate-800">
           <svg className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-400" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -133,7 +246,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
           </svg>
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder={isGroup ? "Add participants..." : "Search users..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
@@ -142,7 +255,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
         </div>
 
         {/* Users List */}
-        <div className="flex-1 overflow-y-auto min-h-[200px] max-h-[400px]">
+        <div className="flex-1 overflow-y-auto min-h-[150px]">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-10 text-slate-500 gap-3">
               <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
@@ -161,7 +274,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
               {users.map(user => (
                 <div 
                   key={user._id} 
-                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${creating ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${(creating) ? 'opacity-60 cursor-not-allowed' : ''}`}
                   onClick={() => !creating && startChat(user._id)}
                 >
                   {/* Avatar */}
@@ -181,7 +294,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
                     )}
                   </div>
 
-                  {creating && (
+                  {creating && !isGroup && (
                     <div className="w-5 h-5 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
                   )}
                 </div>
@@ -189,6 +302,26 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
             </div>
           )}
         </div>
+
+        {/* Group Action Footer */}
+        {isGroup && (
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                <button
+                    onClick={createGroupChat}
+                    disabled={creating || !groupName.trim() || selectedUsers.length < 2}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                    {creating ? (
+                        <>
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Creating...
+                        </>
+                    ) : (
+                        `Create Group (${selectedUsers.length})`
+                    )}
+                </button>
+            </div>
+        )}
       </div>
     </div>
   );

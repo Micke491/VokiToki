@@ -9,6 +9,7 @@ interface ChatHeaderProps {
   setShowSearch: (show: boolean) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  isGroup?: boolean;
 }
 
 const ChatHeader = ({
@@ -19,6 +20,7 @@ const ChatHeader = ({
   setShowSearch,
   searchQuery,
   setSearchQuery,
+  isGroup,
 }: ChatHeaderProps) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 z-10">
@@ -45,7 +47,7 @@ const ChatHeader = ({
         </button>
         {!showSearch ? (
           <>
-            <div className="flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm overflow-hidden shrink-0">
+            <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} shadow-sm overflow-hidden shrink-0`}>
               {recipientAvatar ? (
                 <img
                   src={recipientAvatar}
@@ -53,7 +55,16 @@ const ChatHeader = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                recipientUsername?.charAt(0).toUpperCase() || "?"
+                isGroup ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                       <circle cx="9" cy="7" r="4"></circle>
+                       <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                       <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                ) : (
+                    recipientUsername?.charAt(0).toUpperCase() || "?"
+                )
               )}
             </div>
             <div className="min-w-0">

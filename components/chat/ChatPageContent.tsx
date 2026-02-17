@@ -16,6 +16,9 @@ interface User {
 
 interface Chat {
   _id: string;
+  name?: string;
+  isGroupChat?: boolean;
+  avatar?: string;
   participants: User[];
 }
 
@@ -89,10 +92,26 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     }
   };
 
-  const getRecipient = () => {
-    if (!selectedChat || !currentUser) return null;
-    return selectedChat.participants.find((p) => p._id !== currentUser._id);
+  const getChatMetadata = () => {
+    if (!selectedChat || !currentUser) return { name: '', avatar: undefined, isGroup: false };
+    
+    if (selectedChat.isGroupChat) {
+      return {
+        name: selectedChat.name || 'Group Chat',
+        avatar: selectedChat.avatar,
+        isGroup: true
+      };
+    }
+
+    const otherMember = selectedChat.participants.find((p) => p._id !== currentUser._id);
+    return {
+      name: otherMember?.username || 'Unknown User',
+      avatar: otherMember?.avatar,
+      isGroup: false
+    };
   };
+
+  const chatMetadata = getChatMetadata();
 
   if (loading) {
     return (
@@ -157,8 +176,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             <ChatWindow
               chatId={chatId}
               currentUserId={currentUser._id}
-              recipientUsername={getRecipient()?.username}
-              recipientAvatar={getRecipient()?.avatar}
+              recipientUsername={chatMetadata.name}
+              recipientAvatar={chatMetadata.avatar}
+              isGroup={chatMetadata.isGroup}
             />
           ) : (
             /* Empty State */

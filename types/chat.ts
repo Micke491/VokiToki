@@ -33,4 +33,5 @@ export interface ChatWindowProps {
   recipientUsername?: string;
   recipientAvatar?: string;
   onClose?: () => void;
+  isGroup?: boolean;
 }

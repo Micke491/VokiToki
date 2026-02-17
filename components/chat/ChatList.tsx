@@ -6,6 +6,9 @@ import { io, Socket } from 'socket.io-client';
 
 interface Chat {
   _id: string;
+  name?: string;
+  isGroupChat?: boolean;
+  avatar?: string;
   participants: Array<{
     _id: string;
     username: string;
@@ -210,6 +213,9 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
             const otherUser = getOtherParticipant(chat);
             const isSelected = selectedChatId === chat._id;
             const isUnread = (chat.unreadCount || 0) > 0;
+            const isGroup = chat.isGroupChat;
+            const chatName = isGroup ? chat.name : (otherUser?.username || 'Unknown');
+            const chatAvatar = isGroup ? chat.avatar : otherUser?.avatar;
             
             return (
               <div 
@@ -222,11 +228,20 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
                 `}
               >
                 {/* Avatar */}
-                <div className="relative flex items-center justify-center flex-shrink-0 w-12 h-12 text-lg font-semibold text-white rounded-full bg-gradient-to-br from-blue-500 to-blue-600 overflow-hidden">
-                  {otherUser?.avatar ? (
-                    <img src={otherUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                <div className={`relative flex items-center justify-center flex-shrink-0 w-12 h-12 text-lg font-semibold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-blue-600'} overflow-hidden`}>
+                  {chatAvatar ? (
+                    <img src={chatAvatar} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    otherUser?.username?.charAt(0).toUpperCase() || '?'
+                     isGroup ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                           <circle cx="9" cy="7" r="4"></circle>
+                           <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                     ) : (
+                        chatName?.charAt(0).toUpperCase() || '?'
+                     )
                   )}
                   {isUnread && (
                     <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
@@ -237,7 +252,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
                 <div className="flex flex-col flex-1 min-w-0 gap-1">
                   <div className="flex items-center justify-between">
                     <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-black dark:text-white' : 'font-semibold text-gray-900'}`}>
-                      {otherUser?.username || 'Unknown'}
+                      {chatName}
                     </span>
                     <span className={`text-xs whitespace-nowrap ml-2 ${isUnread ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
                       {chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : formatTime(chat.updatedAt)}

@@ -20,8 +20,9 @@ export default function ChatWindow({
   currentUserId,
   recipientUsername,
   recipientAvatar,
+  isGroup,
   onClose,
-}: ChatWindowProps) {
+}: ChatWindowProps & { isGroup?: boolean }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -651,6 +652,7 @@ export default function ChatWindow({
       <ChatHeader
         recipientUsername={recipientUsername}
         recipientAvatar={recipientAvatar}
+        isGroup={isGroup}
         onClose={() => (onClose ? onClose() : router.push("/chat"))}
         showSearch={showSearch}
         setShowSearch={setShowSearch}

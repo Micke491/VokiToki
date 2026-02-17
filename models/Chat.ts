@@ -3,6 +3,10 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IChat extends Document {
   participants: mongoose.Types.ObjectId[];
   participantUsernames: string[];
+  name?: string;
+  isGroupChat?: boolean;
+  groupAdmin?: mongoose.Types.ObjectId;
+  avatar?: string;
   lastMessage?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -10,6 +14,22 @@ export interface IChat extends Document {
 
 const ChatSchema = new Schema<IChat>(
   {
+    name: {
+      type: String,
+      default: null,
+    },
+    isGroupChat: {
+      type: Boolean,
+      default: false,
+    },
+    groupAdmin: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    avatar: {
+      type: String,
+      default: null,
+    },
     // Simplified array definition to prevent validation hiccups
     participants: [{
       type: Schema.Types.ObjectId,
