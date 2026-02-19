@@ -20,7 +20,10 @@ export async function GET(request: Request) {
             participants: userId,
         })
             .populate('participants', 'username name avatar email')
-            .populate('lastMessage')
+            .populate({
+                path: 'lastMessage',
+                populate: { path: 'sender', select: 'username name avatar' }
+            })
             .sort({ updatedAt: -1 })
             .lean();
 
