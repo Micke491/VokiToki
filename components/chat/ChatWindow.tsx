@@ -260,34 +260,40 @@ export default function ChatWindow({
     fetchMessages();
   }, [chatId]);
 
-  const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const hasScrolledInitially = useRef(false);
+  const anchorMessageId = useRef<string | null>(null);
 
   useLayoutEffect(() => {
-    setInitialScrollDone(false);
+    hasScrolledInitially.current = false;
   }, [chatId]);
 
   useLayoutEffect(() => {
-    if (!loading && messages.length > 0 && !loadingMore) {
+    if (!loading && messages.length > 0 && !hasScrolledInitially.current) {
       if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollTop =
           messagesContainerRef.current.scrollHeight;
-        requestAnimationFrame(() => {
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop =
-              messagesContainerRef.current.scrollHeight;
-            setInitialScrollDone(true);
-          }
-        });
+        hasScrolledInitially.current = true;
       }
-    } else if (!loading && messages.length === 0) {
-      setInitialScrollDone(true);
     }
-  }, [loading, chatId, messages.length, loadingMore]);
+  }, [loading]);
+
+  useEffect(() => {
+    if (anchorMessageId.current) {
+      const el = document.getElementById(`msg-${anchorMessageId.current}`);
+      if (el) {
+        el.scrollIntoView({ block: "start" });
+      }
+      anchorMessageId.current = null;
+    }
+  }, [messages]);
 
   const fetchMessages = async (beforeDate?: string) => {
     try {
-      if (!beforeDate) setLoading(true);
-      else setLoadingMore(true);
+      if (!beforeDate) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
 
       const url = new URL("/api/chat/message", window.location.href);
       url.searchParams.append("chatId", chatId);
@@ -305,16 +311,6 @@ export default function ChatWindow({
 
       if (beforeDate) {
         setMessages((prev) => [...newMessages, ...prev]);
-        if (messagesContainerRef.current) {
-          const oldScrollHeight = messagesContainerRef.current.scrollHeight;
-          requestAnimationFrame(() => {
-            if (messagesContainerRef.current) {
-              const newScrollHeight = messagesContainerRef.current.scrollHeight;
-              messagesContainerRef.current.scrollTop =
-                newScrollHeight - oldScrollHeight;
-            }
-          });
-        }
       } else {
         setMessages(newMessages);
       }
@@ -331,6 +327,7 @@ export default function ChatWindow({
   const loadMore = () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
     const oldestMessage = messages[0];
+    anchorMessageId.current = oldestMessage._id;
     fetchMessages(oldestMessage.createdAt);
   };
 
@@ -671,7 +668,7 @@ export default function ChatWindow({
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className={`flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth transition-opacity duration-200 ${initialScrollDone ? "opacity-100" : "opacity-0"}`}
+            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6"
           >
         {loadingMore && (
           <div className="flex justify-center py-2">
@@ -687,27 +684,28 @@ export default function ChatWindow({
               new Date(filteredMessages[index - 1].createdAt).toDateString();
 
           return (
-            <MessageItem
-              key={message._id}
-              message={message}
-              currentUserId={currentUserId}
-              searchQuery={searchQuery}
-              isOwn={isOwn}
-              showDate={showDate}
-              dateLabel={formatDate(message.createdAt)}
-              onReply={startReply}
-              onEdit={startEdit}
-              onDelete={handleDelete}
-              onReaction={handleReaction}
-              onRemoveReaction={removeReaction}
-              scrollToBottom={scrollToBottom}
-              showEmojiPicker={showEmojiPicker}
-              setShowEmojiPicker={setShowEmojiPicker}
-              socket={socket}
-              chatId={chatId}
-              isGroup={isGroup}
-              groupAdminId={groupAdminId}
-            />
+            <div key={message._id} id={`msg-${message._id}`}>
+              <MessageItem
+                message={message}
+                currentUserId={currentUserId}
+                searchQuery={searchQuery}
+                isOwn={isOwn}
+                showDate={showDate}
+                dateLabel={formatDate(message.createdAt)}
+                onReply={startReply}
+                onEdit={startEdit}
+                onDelete={handleDelete}
+                onReaction={handleReaction}
+                onRemoveReaction={removeReaction}
+                scrollToBottom={scrollToBottom}
+                showEmojiPicker={showEmojiPicker}
+                setShowEmojiPicker={setShowEmojiPicker}
+                socket={socket}
+                chatId={chatId}
+                isGroup={isGroup}
+                groupAdminId={groupAdminId}
+              />
+            </div>
           );
         })}
         <div ref={messagesEndRef} />
