@@ -30,8 +30,16 @@ export interface Message {
 export interface ChatWindowProps {
   chatId: string;
   currentUserId: string;
+  currentUserUsername?: string;
   recipientUsername?: string;
   recipientAvatar?: string;
   onClose?: () => void;
   isGroup?: boolean;
+  groupAdminId?: string;
+  participants?: Array<{
+    _id: string;
+    username: string;
+    email: string;
+    avatar?: string;
+  }>;
 }

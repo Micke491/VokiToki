@@ -14,15 +14,19 @@ import { Message, ChatWindowProps } from "../../types/chat";
 import ChatHeader from "./ChatHeader";
 import MessageItem from "./MessageItem";
 import MessageInput from "./MessageInput";
+import ChatSidebar from "./ChatSidebar";
 
 export default function ChatWindow({
   chatId,
   currentUserId,
+  currentUserUsername,
   recipientUsername,
   recipientAvatar,
   isGroup,
+  groupAdminId,
+  participants,
   onClose,
-}: ChatWindowProps & { isGroup?: boolean }) {
+}: ChatWindowProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -50,6 +54,7 @@ export default function ChatWindow({
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -457,7 +462,7 @@ export default function ChatWindow({
     if (isTypingRef.current) {
       socket.emit("user-stopped-typing", {
         chatId,
-        username: recipientUsername || "You",
+        username: currentUserUsername || "Someone",
       });
       isTypingRef.current = false;
     }
@@ -615,7 +620,7 @@ export default function ChatWindow({
       if (!isTypingRef.current) {
         socket.emit("user-typing", {
           chatId,
-          username: recipientUsername || "You",
+          username: currentUserUsername || "Someone",
         });
         isTypingRef.current = true;
       }
@@ -624,7 +629,7 @@ export default function ChatWindow({
         if (socket) {
           socket.emit("user-stopped-typing", {
             chatId,
-            username: recipientUsername || "You",
+            username: currentUserUsername || "Someone",
           });
           isTypingRef.current = false;
         }
@@ -658,13 +663,16 @@ export default function ChatWindow({
         setShowSearch={setShowSearch}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
       />
 
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth transition-opacity duration-200 ${initialScrollDone ? "opacity-100" : "opacity-0"}`}
-      >
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleScroll}
+            className={`flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth transition-opacity duration-200 ${initialScrollDone ? "opacity-100" : "opacity-0"}`}
+          >
         {loadingMore && (
           <div className="flex justify-center py-2">
             <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
@@ -697,6 +705,8 @@ export default function ChatWindow({
               setShowEmojiPicker={setShowEmojiPicker}
               socket={socket}
               chatId={chatId}
+              isGroup={isGroup}
+              groupAdminId={groupAdminId}
             />
           );
         })}
@@ -727,27 +737,40 @@ export default function ChatWindow({
         )}
       </div>
 
-      <MessageInput
-        newMessage={newMessage}
-        setNewMessage={handleMessageChange}
-        replyingTo={replyingTo}
-        setReplyingTo={setReplyingTo}
-        editingMessage={editingMessage}
-        setEditingMessage={setEditingMessage}
-        sending={sending}
-        uploading={uploading}
-        isRecording={isRecording}
-        recordingDuration={recordingDuration}
-        handleSend={handleSend}
-        handleFileUpload={handleFileUpload}
-        handleKeyDown={handleKeyDown}
-        startRecording={startRecording}
-        stopRecording={stopRecording}
-        cancelRecording={cancelRecording}
-        fileInputRef={fileInputRef}
-        inputRef={inputRef}
-        formatRecordingTime={formatRecordingTime}
-      />
+          <MessageInput
+            newMessage={newMessage}
+            setNewMessage={handleMessageChange}
+            replyingTo={replyingTo}
+            setReplyingTo={setReplyingTo}
+            editingMessage={editingMessage}
+            setEditingMessage={setEditingMessage}
+            sending={sending}
+            uploading={uploading}
+            isRecording={isRecording}
+            recordingDuration={recordingDuration}
+            handleSend={handleSend}
+            handleFileUpload={handleFileUpload}
+            handleKeyDown={handleKeyDown}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+            cancelRecording={cancelRecording}
+            fileInputRef={fileInputRef}
+            inputRef={inputRef}
+            formatRecordingTime={formatRecordingTime}
+          />
+        </div>
+
+        <ChatSidebar
+          isOpen={showSidebar}
+          onClose={() => setShowSidebar(false)}
+          isGroup={isGroup || false}
+          participants={participants}
+          recipientUsername={recipientUsername}
+          recipientAvatar={recipientAvatar}
+          messages={messages}
+          groupAdminId={groupAdminId}
+        />
+      </div>
     </div>
   );
 }

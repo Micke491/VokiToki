@@ -20,6 +20,7 @@ interface Chat {
   isGroupChat?: boolean;
   avatar?: string;
   participants: User[];
+  groupAdmin?: string;
 }
 
 interface ChatPageContentProps {
@@ -176,9 +177,12 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             <ChatWindow
               chatId={chatId}
               currentUserId={currentUser._id}
+              currentUserUsername={currentUser.username}
               recipientUsername={chatMetadata.name}
               recipientAvatar={chatMetadata.avatar}
               isGroup={chatMetadata.isGroup}
+              groupAdminId={selectedChat?.groupAdmin}
+              participants={selectedChat?.participants}
             />
           ) : (
             /* Empty State */

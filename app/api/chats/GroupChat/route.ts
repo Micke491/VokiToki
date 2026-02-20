@@ -19,9 +19,7 @@ export async function POST(request: Request) {
         if (!name || !participants || !Array.isArray(participants) || participants.length < 2) {
             return NextResponse.json({ message: 'Group name and at least 2 other participants are required' }, { status: 400 });
         }
-
-        // Add current user to participants if not already included (though frontend should probably handle this, safe to ensure)
-        // Actually, let's assume 'participants' from body are the *other* users.
+        
         const participantIds = [...new Set([...participants, currentUserId])].map(id => new mongoose.Types.ObjectId(id));
 
         if (participantIds.length < 3) {

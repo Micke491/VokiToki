@@ -10,6 +10,7 @@ interface ChatHeaderProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   isGroup?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 const ChatHeader = ({
@@ -21,6 +22,7 @@ const ChatHeader = ({
   searchQuery,
   setSearchQuery,
   isGroup,
+  onToggleSidebar,
 }: ChatHeaderProps) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 z-10">
@@ -111,6 +113,25 @@ const ChatHeader = ({
             title="Search"
           >
             <Search className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => onToggleSidebar?.()}
+            className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+            title="Chat Info"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
           </button>
         </div>
       )}
