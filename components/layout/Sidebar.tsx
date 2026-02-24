@@ -91,9 +91,6 @@ export default function SideBar({ currentUser }: SideBarProps) {
               <span className="text-sm font-semibold text-slate-900 dark:text-white truncate w-full text-left">
                 {currentUser?.username || 'User'}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 truncate w-full text-left">
-                {currentUser?.email || 'No email provided'}
-              </span>
             </div>
             <svg className={`hidden md:block w-4 h-4 text-slate-400 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />

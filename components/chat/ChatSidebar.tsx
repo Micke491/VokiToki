@@ -68,9 +68,6 @@ const ChatSidebar = ({
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
             {recipientUsername}
           </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {isGroup ? `${participants.length} Participants` : "Active Now"}
-          </p>
         </div>
 
         {/* Participants Section (Groups) */}
@@ -101,7 +98,6 @@ const ChatSidebar = ({
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
                   </div>
                 </div>
               ))}

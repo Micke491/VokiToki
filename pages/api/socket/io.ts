@@ -223,7 +223,6 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
                  return;
             }
 
-            // Delete from Cloudinary if media exists
             if (message.mediaPublicId) {
                 try {
                     await cloudinary.uploader.destroy(message.mediaPublicId, {
@@ -231,7 +230,6 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
                     });
                 } catch (cloudinaryError) {
                     console.error("Cloudinary deletion error:", cloudinaryError);
-                    // We continue even if Cloudinary fails, as we want to mark it deleted in DB
                 }
             }
 
@@ -241,7 +239,7 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
             message.mediaUrl = undefined;
             message.mediaType = undefined;
             message.mediaPublicId = undefined;
-            message.reactions = []; // Clear reactions
+            message.reactions = []; 
             await message.save();
             
             io.to(chatId).emit("message-deleted", { messageId, chatId });
@@ -280,14 +278,12 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
           const message = await Message.findById(messageId);
           if (!message) return;
 
-          // Check if user already reacted with this emoji
           const existingReaction = message.reactions?.find(
             (r) => r.userId.toString() === userId && r.emoji === emoji
           );
 
           if (existingReaction) return;
 
-          // Add reaction
           message.reactions = message.reactions || [];
           message.reactions.push({
             userId,
@@ -297,7 +293,6 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
 
           await message.save();
 
-          // Populate user info for the reaction
           const reactionWithUser = {
             userId,
             emoji,
@@ -327,7 +322,6 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
           const message = await Message.findById(messageId);
           if (!message) return;
 
-          // Remove reaction
           message.reactions = message.reactions?.filter(
             (r) => !(r.userId.toString() === userId && r.emoji === emoji)
           );

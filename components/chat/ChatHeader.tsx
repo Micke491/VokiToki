@@ -73,12 +73,6 @@ const ChatHeader = ({
               <h3 className="text-base font-semibold text-slate-900 dark:text-white leading-tight truncate">
                 {recipientUsername || "Chat"}
               </h3>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Active now
-                </span>
-              </div>
             </div>
           </>
         ) : (
