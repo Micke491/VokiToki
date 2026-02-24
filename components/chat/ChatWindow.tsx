@@ -340,6 +340,33 @@ export default function ChatWindow({
     }
   };
 
+  const markAllAsRead = useCallback(() => {
+    if (!socket || !currentUserId || messages.length === 0) return;
+
+    const unreadMessageIds = messages
+      .filter((m) => m.sender._id !== currentUserId && !m.read && m.status !== "seen")
+      .map((m) => m._id);
+
+    if (unreadMessageIds.length > 0) {
+      socket.emit("mark-messages-read", {
+        chatId,
+        messageIds: unreadMessageIds,
+      });
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          unreadMessageIds.includes(m._id) ? { ...m, status: "seen", read: true } : m
+        )
+      );
+    }
+  }, [socket, currentUserId, messages, chatId]);
+
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      markAllAsRead();
+    }
+  }, [loading, chatId, messages.length, markAllAsRead]);
+
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
@@ -480,6 +507,8 @@ export default function ChatWindow({
         });
         setReplyingTo(null);
         scrollToBottom();
+        // Proactively mark any existing unread messages as read when user sends a message
+        markAllAsRead();
       }
     } catch (error) {
       setNewMessage(messageText);

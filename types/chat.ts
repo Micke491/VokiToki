@@ -1,5 +1,6 @@
 export interface Message {
   status: "seen" | "sent" | "delivered";
+  read: boolean;
   _id: string;
   chatId: string;
   sender: {

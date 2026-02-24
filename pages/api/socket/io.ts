@@ -258,10 +258,17 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
                   { _id: { $in: messageIds } },
                   { 
                       $addToSet: { readBy: { userId, readAt: new Date() } },
-                      $set: { status: 'seen' } 
+                      $set: { status: 'seen', read: true } 
                   }
               );
+
               io.to(chatId).emit("messages-read", { chatId, messageIds, userId });
+
+              io.to(`user-${userId}`).emit("chat-update", {
+                  chatId,
+                  lastMessage: await Message.findOne({ chatId }).sort({ createdAt: -1 }).populate('sender', 'username email avatar'),
+                  unreadCount: 0
+              });
           } catch(error) {
               console.error("Error marking read:", error);
           }
