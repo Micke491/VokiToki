@@ -152,7 +152,14 @@ export default function ChatWindow({
           setMessages((prev) =>
             prev.map((m) => {
               if (data.messageIds.includes(m._id)) {
-                return { ...m, status: "seen" };
+                return { 
+                  ...m, 
+                  status: "seen",
+                  readBy: [
+                    ...(m.readBy?.filter(r => r.userId !== data.userId) || []),
+                    { userId: data.userId, readAt: new Date().toISOString() }
+                  ]
+                };
               }
               return m;
             }),
@@ -344,7 +351,7 @@ export default function ChatWindow({
     if (!socket || !currentUserId || messages.length === 0) return;
 
     const unreadMessageIds = messages
-      .filter((m) => m.sender._id !== currentUserId && !m.read && m.status !== "seen")
+      .filter((m) => m.sender._id !== currentUserId && !m.readBy?.some(r => r.userId === currentUserId))
       .map((m) => m._id);
 
     if (unreadMessageIds.length > 0) {
@@ -355,7 +362,15 @@ export default function ChatWindow({
 
       setMessages((prev) =>
         prev.map((m) =>
-          unreadMessageIds.includes(m._id) ? { ...m, status: "seen", read: true } : m
+          unreadMessageIds.includes(m._id) ? { 
+            ...m, 
+            status: "seen", 
+            read: true,
+            readBy: [
+              ...(m.readBy?.filter(r => r.userId !== currentUserId) || []),
+              { userId: currentUserId, readAt: new Date().toISOString() }
+            ]
+          } : m
         )
       );
     }

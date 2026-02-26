@@ -32,7 +32,7 @@ export async function GET(request: Request) {
                 $match: {
                     chatId: { $in: chats.map(c => c._id) },
                     sender: { $ne: new mongoose.Types.ObjectId(userId) },
-                    read: false
+                    "readBy.userId": { $ne: new mongoose.Types.ObjectId(userId) }
                 }
             },
             {

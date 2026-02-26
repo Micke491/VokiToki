@@ -93,7 +93,11 @@ export async function GET(req: Request) {
         const nextCursor = hasMore ? messagesToReturn[messagesToReturn.length - 1].createdAt.toISOString() : null;
 
         const unreadMessageIds = messagesToReturn
-            .filter(msg => msg.sender.toString() !== auth.id && msg.status !== 'seen')
+            .filter(msg => {
+                const senderId = msg.sender._id ? msg.sender._id.toString() : msg.sender.toString();
+                const hasRead = msg.readBy?.some((r: any) => r.userId.toString() === auth.id);
+                return senderId !== auth.id && !hasRead;
+            })
             .map(msg => msg._id);
 
         if (unreadMessageIds.length > 0) {

@@ -255,9 +255,12 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
               const userId = socket.data.userId;
 
               await Message.updateMany(
-                  { _id: { $in: messageIds } },
                   { 
-                      $addToSet: { readBy: { userId, readAt: new Date() } },
+                      _id: { $in: messageIds },
+                      'readBy.userId': { $ne: userId }
+                  },
+                  { 
+                      $push: { readBy: { userId, readAt: new Date() } },
                       $set: { status: 'seen', read: true } 
                   }
               );

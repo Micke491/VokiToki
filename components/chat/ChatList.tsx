@@ -46,6 +46,11 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
     fetchChats();
   }, []);
 
+  const selectedChatIdRef = useRef(selectedChatId);
+  useEffect(() => {
+    selectedChatIdRef.current = selectedChatId;
+  }, [selectedChatId]);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token || !currentUserId) return;
@@ -65,23 +70,29 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       socket.connect();
     }
 
-    socket.on('connect', () => {
+    const onConnect = () => {
        console.log("ChatList socket connected, joining notifications");
-       socket.emit('join-notifications');
-    });
+       socket?.emit('join-notifications');
+    };
+
+    socket.on('connect', onConnect);
 
     if (socket.connected) {
        socket.emit('join-notifications');
     }
     
-    socket.on('chat-update', (data: { chatId: string, lastMessage: any, unreadCount: number }) => {
+    const onChatUpdate = (data: { chatId: string, lastMessage: any, unreadCount: number }) => {
       setChats(prevChats => {
         const otherChats = prevChats.filter(c => c._id !== data.chatId);
         const existingChat = prevChats.find(c => c._id === data.chatId);
-        const isCurrentChat = data.chatId === selectedChatId;
-        const newUnreadCount = isCurrentChat 
-          ? 0 
-          : (existingChat ? (existingChat.unreadCount || 0) + 1 : 1);
+        const isCurrentChat = data.chatId === selectedChatIdRef.current;
+        
+        let newUnreadCount = 0;
+        if (isCurrentChat || data.unreadCount === 0) {
+            newUnreadCount = 0;
+        } else {
+            newUnreadCount = (existingChat?.unreadCount || 0) + 1;
+        }
 
         const updatedChat: Chat = {
           ...(existingChat || {}),
@@ -105,16 +116,19 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
 
         return [updatedChat, ...otherChats];
       });
-    });
+    };
+
+    socket.on('chat-update', onChatUpdate);
 
     return () => {
-      socket?.off('chat-update');
+      socket?.off('chat-update', onChatUpdate);
+      socket?.off('connect', onConnect);
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, [currentUserId, selectedChatId]); 
+  }, [currentUserId]); 
   
   const fetchChats = async () => {
     try {

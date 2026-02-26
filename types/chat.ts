@@ -26,6 +26,10 @@ export interface Message {
       avatar?: string;
     };
   }[];
+  readBy?: {
+    userId: string;
+    readAt: string;
+  }[];
 }
 
 export interface ChatWindowProps {
