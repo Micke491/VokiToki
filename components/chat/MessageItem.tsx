@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from "react";
 import { Mic, Smile } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import { motion, useAnimation } from "framer-motion";
+import { useDrag } from "@use-gesture/react";
 import { Message } from "../../types/chat";
 import MessageStatusIcon from "../ui/MessageStatusIcon";
 import AudioPlayer from "../ui/AudioPlayer";
@@ -50,6 +52,7 @@ const MessageItem = ({
   groupAdminId,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -65,6 +68,44 @@ const MessageItem = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [setShowEmojiPicker]);
+
+  const bind = useDrag(
+    ({ down, movement: [mx, my], velocity: [vx, vy], direction: [dx, dy] }) => {
+      // Only enable on mobile
+      if (typeof window !== "undefined" && window.innerWidth >= 768) return;
+
+      const triggerDistance = 60;
+      const isSwipingCorrectDirection = isOwn ? mx < 0 : mx > 0;
+
+      if (!isSwipingCorrectDirection) {
+        if (!down) controls.start({ x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } });
+        return;
+      }
+
+      if (down) {
+        controls.start({
+          x: mx,
+          transition: { type: "spring", stiffness: 400, damping: 40 },
+        });
+      } else {
+        controls.start({
+          x: 0,
+          transition: { type: "spring", stiffness: 300, damping: 30 },
+        });
+        if (
+          Math.abs(mx) > triggerDistance ||
+          (Math.abs(vx) > 0.5 && Math.abs(mx) > 20)
+        ) {
+          onReply(message);
+        }
+      }
+    },
+    { axis: "x", filterTaps: true }
+  );
+
+  useEffect(() => {
+    controls.set({ x: 0 });
+  }, [controls]);
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
@@ -89,18 +130,37 @@ const MessageItem = ({
   };
 
   return (
-    <div key={message._id}>
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 25 }}
+      key={message._id}
+      className="relative"
+    >
       {showDate && dateLabel && (
-        <div className="flex justify-center sticky top-0 z-10 mb-4 pt-2">
+        <div className="flex justify-center sticky top-0 z-10 mb-4 pt-2 pointer-events-none">
           <span className="px-3 py-1 text-xs font-semibold text-slate-500 bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
             {dateLabel}
           </span>
         </div>
       )}
 
-      <div
+      {/* Swipe Reply Icon absolute background */}
+      <div 
+        className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 z-0
+        ${isOwn ? "right-2" : "left-2"}
+        `}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+        </svg>
+      </div>
+
+      <motion.div
         id={`message-${message._id}`}
-        className={`group flex flex-col ${isOwn ? "items-end" : "items-start"} mb-2 transition-all duration-300`}
+        className={`group flex flex-col ${isOwn ? "items-end" : "items-start"} mb-2 transition-all duration-300 relative z-10 touch-pan-y`}
+        {...(bind() as any)}
+        animate={controls}
       >
         {/* Reply Context */}
         {message.replyTo && !message.isDeletedForEveryone && (
@@ -479,8 +539,8 @@ const MessageItem = ({
             />
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

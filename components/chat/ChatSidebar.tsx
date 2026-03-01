@@ -2,12 +2,16 @@
 
 import React, { useMemo } from "react";
 import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 
 interface ChatSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   isGroup: boolean;
+  chatId?: string;
+  wallpaper?: string | null;
+  setWallpaper?: (url: string | null) => void;
   participants?: Array<{
     _id: string;
     username: string;
@@ -24,6 +28,9 @@ const ChatSidebar = ({
   isOpen,
   onClose,
   isGroup,
+  chatId,
+  wallpaper,
+  setWallpaper,
   participants = [],
   recipientUsername,
   recipientAvatar,
@@ -34,12 +41,19 @@ const ChatSidebar = ({
     return messages.filter((m) => m.mediaUrl && !m.isDeletedForEveryone);
   }, [messages]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300 z-20">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: 320, opacity: 1 }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ duration: 0.3, type: "spring", bounce: 0, stiffness: 300, damping: 30 }}
+          className="border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full overflow-hidden z-20 flex-shrink-0"
+        >
+          <div className="w-80 flex flex-col h-full min-w-[320px]">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
         <h2 className="font-bold text-slate-800 dark:text-white">
           {isGroup ? "Group Info" : "User Info"}
         </h2>
@@ -146,8 +160,55 @@ const ChatSidebar = ({
             </div>
           )}
         </div>
+        {/* Wallpaper Section */}
+        {setWallpaper && (
+          <div className="p-4 border-t border-slate-100 dark:border-slate-900">
+            <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <ImageIcon className="w-3.5 h-3.5" />
+              Chat Wallpaper
+            </h4>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[
+                "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=800",
+                "https://images.unsplash.com/photo-1557682250-33bd709cbe85?auto=format&fit=crop&q=80&w=800",
+                "https://images.unsplash.com/photo-1620121692029-d088224ddc74?auto=format&fit=crop&q=80&w=800",
+                "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=800",
+                "https://images.unsplash.com/photo-1553095066-5014bc7b7f2d?auto=format&fit=crop&q=80&w=800",
+                "https://images.unsplash.com/photo-1604079628040-94301bb21b91?auto=format&fit=crop&q=80&w=800",
+              ].map((url) => (
+                <button
+                  key={url}
+                  onClick={() => {
+                    if (chatId) localStorage.setItem(`chat-wallpaper-${chatId}`, url);
+                    setWallpaper(url);
+                  }}
+                  className={`h-14 rounded-lg bg-cover bg-center border-2 transition-all hover:scale-105 ${
+                    wallpaper === url
+                      ? "border-blue-500 shadow-md shadow-blue-500/30"
+                      : "border-transparent hover:border-slate-300 dark:hover:border-slate-600"
+                  }`}
+                  style={{ backgroundImage: `url(${url})` }}
+                />
+              ))}
+            </div>
+            {wallpaper && (
+              <button
+                onClick={() => {
+                  if (chatId) localStorage.removeItem(`chat-wallpaper-${chatId}`);
+                  setWallpaper(null);
+                }}
+                className="w-full py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              >
+                Remove Wallpaper
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

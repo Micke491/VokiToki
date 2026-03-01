@@ -10,6 +10,8 @@ import {
 import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { EmojiClickData } from "emoji-picker-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import { Message, ChatWindowProps } from "../../types/chat";
 import ChatHeader from "./ChatHeader";
 import MessageItem from "./MessageItem";
@@ -55,6 +57,15 @@ export default function ChatWindow({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
+  const [showScrollBadge, setShowScrollBadge] = useState(false);
+  const [unreadCountBelow, setUnreadCountBelow] = useState(0);
+  const [wallpaper, setWallpaper] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
+    setWallpaper(saved || null);
+  }, [chatId]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -119,6 +130,8 @@ export default function ChatWindow({
           const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
           if (isNearBottom) {
             setTimeout(scrollToBottom, 100);
+          } else {
+            setUnreadCountBelow((prev) => prev + 1);
           }
         }
       });
@@ -316,6 +329,15 @@ export default function ChatWindow({
 
       const newMessages = data.messages || [];
 
+      if (!beforeDate) {
+        const firstUnread = newMessages.find(
+          (m: Message) => m.sender._id !== currentUserId && !m.readBy?.some((r: any) => r.userId === currentUserId)
+        );
+        if (firstUnread) {
+          setFirstUnreadId(firstUnread._id);
+        }
+      }
+
       if (beforeDate) {
         setMessages((prev) => [...newMessages, ...prev]);
       } else {
@@ -340,9 +362,15 @@ export default function ChatWindow({
 
   const handleScroll = () => {
     if (messagesContainerRef.current) {
-      const { scrollTop } = messagesContainerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
       if (scrollTop < 50 && hasMore && !loadingMore) {
         loadMore();
+      }
+      
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollBadge(!isNearBottom);
+      if (isNearBottom) {
+        setUnreadCountBelow(0);
       }
     }
   };
@@ -708,11 +736,22 @@ export default function ChatWindow({
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          {wallpaper && (
+             <div 
+                className="absolute inset-0 pointer-events-none z-0" 
+                style={{ 
+                  backgroundImage: `url(${wallpaper})`, 
+                  backgroundSize: "cover", 
+                  backgroundPosition: "center",
+                  opacity: 0.15 
+                }}
+             />
+          )}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6"
+            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 relative z-10"
           >
         {loadingMore && (
           <div className="flex justify-center py-2">
@@ -729,6 +768,16 @@ export default function ChatWindow({
 
           return (
             <div key={message._id} id={`msg-${message._id}`}>
+              {message._id === firstUnreadId && (
+                <div className="flex items-center justify-center my-4 relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-blue-500/30"></div>
+                  </div>
+                  <div className="relative bg-white dark:bg-slate-950 px-4 text-xs font-medium text-blue-500 uppercase tracking-widest shadow-sm rounded-full py-1 border border-blue-500/20">
+                    Unread Messages
+                  </div>
+                </div>
+              )}
               <MessageItem
                 message={message}
                 currentUserId={currentUserId}
@@ -777,9 +826,28 @@ export default function ChatWindow({
             </span>
           </div>
         )}
-      </div>
+        </div>
+        
+        <AnimatePresence>
+          {showScrollBadge && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              onClick={scrollToBottom}
+              className="absolute bottom-24 right-6 w-10 h-10 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-blue-500 z-20 cursor-pointer"
+            >
+              <ChevronDown className="w-5 h-5" />
+              {unreadCountBelow > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800">
+                  {unreadCountBelow > 99 ? "99+" : unreadCountBelow}
+                </span>
+              )}
+            </motion.button>
+          )}
+        </AnimatePresence>
 
-          <MessageInput
+        <MessageInput
             newMessage={newMessage}
             setNewMessage={handleMessageChange}
             replyingTo={replyingTo}
@@ -806,6 +874,9 @@ export default function ChatWindow({
           isOpen={showSidebar}
           onClose={() => setShowSidebar(false)}
           isGroup={isGroup || false}
+          chatId={chatId}
+          wallpaper={wallpaper}
+          setWallpaper={setWallpaper}
           participants={participants}
           recipientUsername={recipientUsername}
           recipientAvatar={recipientAvatar}

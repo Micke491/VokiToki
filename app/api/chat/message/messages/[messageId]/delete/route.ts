@@ -6,7 +6,7 @@ import cloudinary from '@/lib/cloudinary';
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
     await connectDB();
@@ -15,9 +15,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messageId } = params;
-    const { searchParams } = new URL(req.url);
-    const deleteForEveryone = searchParams.get('forEveryone') === 'true';
+    const { messageId } = await params;
+    const url = new URL(req.url);
+    const deleteForEveryone = url.searchParams.get('forEveryone') === 'true';
 
     const message = await Message.findById(messageId);
     if (!message) {

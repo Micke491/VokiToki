@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
     await connectDB();
@@ -14,7 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messageId } = params;
+    const { messageId } = await params;
     const { text } = await req.json();
 
     if (!text || !text.trim()) {
