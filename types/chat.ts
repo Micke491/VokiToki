@@ -13,10 +13,13 @@ export interface Message {
   createdAt: string;
   updatedAt: string;
   isEdited?: boolean;
+  isPinned?: boolean;
+  isForwarded?: boolean;
   replyTo?: Message;
   isDeletedForEveryone?: boolean;
   mediaUrl?: string;
   mediaType?: "image" | "video" | "audio";
+  mediaPublicId?: string;
   reactions?: {
     userId: string;
     emoji: string;

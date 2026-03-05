@@ -23,6 +23,9 @@
     deletedBy: mongoose.Types.ObjectId[];
     deletedForEveryoneAt?: Date;
     
+    isPinned: boolean;
+    isForwarded: boolean;
+
     replyTo?: mongoose.Types.ObjectId;
     
     mediaUrl?: string;
@@ -123,6 +126,15 @@
       }],
       deletedForEveryoneAt: {
         type: Date,
+      },
+
+      isPinned: {
+        type: Boolean,
+        default: false,
+      },
+      isForwarded: {
+        type: Boolean,
+        default: false,
       },
       
       replyTo: {

@@ -17,6 +17,8 @@ import ChatHeader from "./ChatHeader";
 import MessageItem from "./MessageItem";
 import MessageInput from "./MessageInput";
 import ChatSidebar from "./ChatSidebar";
+import ForwardMessageModal from "./ForwardMessageModal";
+import ReadReceiptModal from "./ReadReceiptModal";
 
 export default function ChatWindow({
   chatId,
@@ -61,6 +63,9 @@ export default function ChatWindow({
   const [showScrollBadge, setShowScrollBadge] = useState(false);
   const [unreadCountBelow, setUnreadCountBelow] = useState(0);
   const [wallpaper, setWallpaper] = useState<string | null>(null);
+  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -108,7 +113,13 @@ export default function ChatWindow({
         socketInstance?.emit("join-chat", chatId);
       });
 
+      if (socketInstance.connected) {
+        socketInstance.emit("join-chat", chatId);
+      }
+
       socketInstance.on("receive-message", (message: Message) => {
+        if (message.chatId !== chatId) return;
+        
         setMessages((prev) => {
           const exists = prev.some(
             (m) => String(m._id) === String(message._id),
@@ -263,6 +274,19 @@ export default function ChatWindow({
         },
       );
 
+      socketInstance.on("message-pinned", (pinnedMessage: Message) => {
+        setPinnedMessages((prev) => {
+          if (prev.some(m => m._id === pinnedMessage._id)) return prev;
+          return [pinnedMessage, ...prev];
+        });
+        setMessages((prev) => prev.map(m => m._id === pinnedMessage._id ? { ...m, isPinned: true } : m));
+      });
+
+      socketInstance.on("message-unpinned", (data: { messageId: string }) => {
+        setPinnedMessages((prev) => prev.filter(m => m._id !== data.messageId));
+        setMessages((prev) => prev.map(m => m._id === data.messageId ? { ...m, isPinned: false } : m));
+      });
+
       setSocket(socketInstance);
     };
 
@@ -277,6 +301,11 @@ export default function ChatWindow({
   }, [chatId, currentUserId]);
 
   useEffect(() => {
+    setNewMessage("");
+    setForwardingMessage(null);
+    setViewingReceiptsFor(null);
+    setReplyingTo(null);
+    setEditingMessage(null);
     fetchMessages();
   }, [chatId]);
 
@@ -311,18 +340,22 @@ export default function ChatWindow({
     try {
       if (!beforeDate) {
         setLoading(true);
+        setMessages([]);
+        setPinnedMessages([]);
       } else {
         setLoadingMore(true);
       }
 
       const url = new URL("/api/chat/message", window.location.href);
       url.searchParams.append("chatId", chatId);
+      url.searchParams.append("t", Date.now().toString()); // Cache buster
       if (beforeDate) url.searchParams.append("before", beforeDate);
 
       const response = await fetch(url.toString(), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
+        cache: 'no-store'
       });
       if (!response.ok) throw new Error("Failed");
       const data = await response.json();
@@ -342,6 +375,16 @@ export default function ChatWindow({
         setMessages((prev) => [...newMessages, ...prev]);
       } else {
         setMessages(newMessages);
+        
+        // Also fetch pinned messages
+        fetch(`/api/chat/${chatId}/pinned`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (Array.isArray(data)) setPinnedMessages(data);
+        })
+        .catch(err => console.error("Failed to fetch pinned messages", err));
       }
 
       setHasMore(data.hasMore);
@@ -706,6 +749,39 @@ export default function ChatWindow({
     }
   };
 
+  useEffect(() => {
+    const handleForwardMessage = (e: Event) => {
+       const detail = (e as CustomEvent).detail;
+       if (detail) setForwardingMessage(detail);
+    };
+    const handleViewReceipts = (e: Event) => {
+       const detail = (e as CustomEvent).detail;
+       if (detail) setViewingReceiptsFor(detail);
+    };
+    window.addEventListener('forward-message', handleForwardMessage);
+    window.addEventListener('view-receipts', handleViewReceipts);
+    return () => {
+        window.removeEventListener('forward-message', handleForwardMessage);
+        window.removeEventListener('view-receipts', handleViewReceipts);
+    };
+  }, []);
+
+  const handleForwardSelection = async (targetChatIds: string[]) => {
+      if (!socket || !forwardingMessage || targetChatIds.length === 0) return;
+      
+      for (const targetChatId of targetChatIds) {
+          socket.emit("send-new-message", {
+              chatId: targetChatId,
+              text: forwardingMessage.text ? `[Forwarded]\n${forwardingMessage.text}` : undefined,
+              mediaUrl: forwardingMessage.mediaUrl,
+              mediaType: forwardingMessage.mediaType,
+              mediaPublicId: forwardingMessage.mediaPublicId,
+              isForwarded: true
+          });
+      }
+      setForwardingMessage(null);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
@@ -714,7 +790,6 @@ export default function ChatWindow({
       </div>
     );
   }
-
   const filteredMessages = searchQuery.trim()
     ? messages.filter((m) =>
         m.text?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -723,6 +798,24 @@ export default function ChatWindow({
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-950">
+      
+      {forwardingMessage && (
+        <ForwardMessageModal
+          currentUserId={currentUserId}
+          currentChatId={chatId}
+          onForward={handleForwardSelection}
+          onClose={() => setForwardingMessage(null)}
+        />
+      )}
+
+      {viewingReceiptsFor && (
+        <ReadReceiptModal
+          message={viewingReceiptsFor}
+          currentUserId={currentUserId}
+          onClose={() => setViewingReceiptsFor(null)}
+        />
+      )}
+
       <ChatHeader
         recipientUsername={recipientUsername}
         recipientAvatar={recipientAvatar}
@@ -753,6 +846,41 @@ export default function ChatWindow({
             onScroll={handleScroll}
             className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 relative z-10"
           >
+        
+        {pinnedMessages.length > 0 && (
+          <div className="sticky top-0 z-30 mb-6 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden text-sm">
+            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 dark:bg-slate-950">
+              <span className="flex-1">Pinned Messages ({pinnedMessages.length})</span>
+            </div>
+            <div className="max-h-32 overflow-y-auto custom-scrollbar">
+              {pinnedMessages.map(msg => (
+                <div 
+                  key={`pinned-${msg._id}`} 
+                  className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer border-b last:border-0 border-slate-100 dark:border-slate-800/50 flex flex-col gap-1 transition-colors"
+                  onClick={() => {
+                    const el = document.getElementById(`msg-${msg._id}`);
+                    if (el) {
+                       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                       el.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/20');
+                       setTimeout(() => {
+                           el.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/20');
+                       }, 2000);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{msg.sender.username}</span>
+                    <span>{new Date(msg.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="text-slate-600 dark:text-slate-400 line-clamp-1">
+                    {msg.text || (msg.mediaUrl ? `Attached ${msg.mediaType}` : 'Pinned Message')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loadingMore && (
           <div className="flex justify-center py-2">
             <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />

@@ -145,17 +145,6 @@ const MessageItem = ({
         </div>
       )}
 
-      {/* Swipe Reply Icon absolute background */}
-      <div 
-        className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 z-0
-        ${isOwn ? "right-2" : "left-2"}
-        `}
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-        </svg>
-      </div>
-
       <motion.div
         id={`message-${message._id}`}
         className={`group flex flex-col ${isOwn ? "items-end" : "items-start"} mb-2 transition-all duration-300 relative z-10 touch-pan-y`}
@@ -201,6 +190,24 @@ const MessageItem = ({
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
                   {message.sender.username}
                 </span>
+              </div>
+            )}
+            
+            {message.isForwarded && (
+               <div className={`flex items-center gap-1 mb-1 text-[10.5px] font-semibold text-slate-500/70 italic ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                  Forwarded
+               </div>
+            )}
+
+            {message.isPinned && (
+              <div className={`flex items-center gap-1 mb-1 text-[10px] font-bold text-slate-400 capitalize ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                   <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                Pinned
               </div>
             )}
             <div
@@ -516,6 +523,42 @@ const MessageItem = ({
                       </svg>
                     </button>
                   </>
+                )}
+                <button
+                  onClick={() => {
+                    if (!socket) return;
+                    if (message.isPinned) {
+                      socket.emit("unpin-message", { chatId, messageId: message._id });
+                    } else {
+                      socket.emit("pin-message", { chatId, messageId: message._id });
+                    }
+                  }}
+                  className={`p-1.5 rounded transition-colors ${message.isPinned ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                  title={message.isPinned ? "Unpin" : "Pin"}
+                >
+                   <svg className="w-4 h-4" fill={message.isPinned ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                   </svg>
+                </button>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('forward-message', { detail: message }))}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-blue-500 transition-colors"
+                  title="Forward"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                </button>
+                {isOwn && isGroup && (
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('view-receipts', { detail: message }))}
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-blue-500 transition-colors"
+                    title="Info"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
                 )}
               </div>
             )}

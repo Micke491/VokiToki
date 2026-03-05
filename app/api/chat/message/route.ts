@@ -85,6 +85,10 @@ export async function GET(req: Request) {
                 path: 'reactions.userId',
                 select: 'username avatar'
             })
+            .populate({
+                path: 'readBy.userId',
+                select: 'username avatar'
+            })
             .sort({ createdAt: -1 })
             .limit(limit + 1);
 

@@ -81,10 +81,10 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
          console.log(`User ${socket.data.userId} joined notification channel ${userRoom}`);
       });
 
-      socket.on("send-new-message", async (messageData: { chatId: string; text?: string; replyTo?: string; mediaUrl?: string; mediaType?: 'image' | 'video'; mediaPublicId?: string }) => {
+      socket.on("send-new-message", async (messageData: { chatId: string; text?: string; replyTo?: string; mediaUrl?: string; mediaType?: 'image' | 'video'; mediaPublicId?: string; isForwarded?: boolean }) => {
         try {
           await connectDB();
-          const { chatId, text, replyTo, mediaUrl, mediaType, mediaPublicId } = messageData;
+          const { chatId, text, replyTo, mediaUrl, mediaType, mediaPublicId, isForwarded } = messageData;
           const senderId = socket.data.userId; 
 
           if (!chatId || (!text?.trim() && !mediaUrl)) return;
@@ -104,6 +104,7 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
             mediaUrl,
             mediaType,
             mediaPublicId,
+            isForwarded: isForwarded || false,
           });
 
           await Chat.findByIdAndUpdate(chatId, { 
@@ -246,6 +247,49 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
         } catch (error) {
             console.error("Error deleting message:", error);
         }
+      });
+
+      socket.on("pin-message", async (data: { chatId: string; messageId: string }) => {
+          try {
+              await connectDB();
+              const { chatId, messageId } = data;
+              const userId = socket.data.userId;
+
+              const chat = await Chat.findById(chatId);
+              if (!chat || !chat.participants.includes(userId)) return;
+
+              const message = await Message.findById(messageId);
+              if (!message || message.chatId.toString() !== chatId || message.isDeletedForEveryone) return;
+
+              message.isPinned = true;
+              await message.save();
+
+              const populatedMessage = await message.populate('sender', 'username email avatar');
+              io.to(chatId).emit("message-pinned", populatedMessage);
+          } catch (error) {
+              console.error("Error pinning message:", error);
+          }
+      });
+
+      socket.on("unpin-message", async (data: { chatId: string; messageId: string }) => {
+          try {
+              await connectDB();
+              const { chatId, messageId } = data;
+              const userId = socket.data.userId;
+
+              const chat = await Chat.findById(chatId);
+              if (!chat || !chat.participants.includes(userId)) return;
+
+              const message = await Message.findById(messageId);
+              if (!message || message.chatId.toString() !== chatId) return;
+
+              message.isPinned = false;
+              await message.save();
+
+              io.to(chatId).emit("message-unpinned", { messageId, chatId });
+          } catch (error) {
+              console.error("Error unpinning message:", error);
+          }
       });
 
       socket.on("mark-messages-read", async (data: { chatId: string; messageIds: string[] }) => {
