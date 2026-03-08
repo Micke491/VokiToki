@@ -84,40 +84,53 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
     
     const onChatUpdate = (data: { chatId: string, lastMessage: any, unreadCount: number }) => {
       setChats(prevChats => {
-        const otherChats = prevChats.filter(c => c._id !== data.chatId);
-        const existingChat = prevChats.find(c => c._id === data.chatId);
+        const existingChatIndex = prevChats.findIndex(c => c._id === data.chatId);
+        if (existingChatIndex === -1) {
+          fetchChats();
+          return prevChats;
+        }
+
+        const existingChat = prevChats[existingChatIndex];
         const isCurrentChat = data.chatId === selectedChatIdRef.current;
         
         let newUnreadCount = 0;
         if (isCurrentChat) {
-            newUnreadCount = 0;
+          newUnreadCount = 0;
         } else if (data.unreadCount !== undefined && data.unreadCount > 0) {
-            newUnreadCount = (existingChat?.unreadCount || 0) + data.unreadCount;
+          newUnreadCount = (existingChat.unreadCount || 0) + data.unreadCount;
         } else {
-            newUnreadCount = existingChat?.unreadCount || 0;
+          newUnreadCount = existingChat.unreadCount || 0;
         }
 
         const updatedChat: Chat = {
-          ...(existingChat || {}),
-          _id: data.chatId,
+          ...existingChat,
           updatedAt: new Date().toISOString(),
-          lastMessage: {
-             text: data.lastMessage.text,
-             mediaUrl: data.lastMessage.mediaUrl,
-             mediaType: data.lastMessage.mediaType,
-             sender: data.lastMessage.sender,
-             createdAt: data.lastMessage.createdAt
-          },
-          participants: existingChat?.participants || [], 
+          lastMessage: data.lastMessage ? {
+            text: data.lastMessage.text,
+            mediaUrl: data.lastMessage.mediaUrl,
+            mediaType: data.lastMessage.mediaType,
+            sender: data.lastMessage.sender,
+            createdAt: data.lastMessage.createdAt
+          } : existingChat.lastMessage,
           unreadCount: newUnreadCount
         };
 
-        if (!existingChat) {
-             fetchChats();
-             return prevChats; 
-        }
+        const otherChats = prevChats.filter((_, index) => index !== existingChatIndex);
 
-        return [updatedChat, ...otherChats];
+        // Check if we should move to top:
+        // 1. If there's a new last message compared to what we have
+        // 2. If existing didn't have a message and now it does
+        const shouldMoveToTop = !existingChat.lastMessage || 
+          (data.lastMessage && new Date(data.lastMessage.createdAt) > new Date(existingChat.lastMessage.createdAt));
+
+        if (shouldMoveToTop) {
+          return [updatedChat, ...otherChats];
+        } else {
+          // Keep in same position
+          const newChats = [...prevChats];
+          newChats[existingChatIndex] = updatedChat;
+          return newChats;
+        }
       });
     };
 
