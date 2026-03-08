@@ -105,23 +105,32 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Custom scrollbar for chat */
-.chat-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Custom scrollbar for chat (Instagram style) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 0px; /* Hide horizontal scrollbar */
 }
 
-.chat-scrollbar::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.chat-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #dbdbdb;
+  border-radius: 10px;
 }
 
-.chat-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Dark mode scrollbar */
+:root[data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #262626;
+}
+
+:root[data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #363636;
 }
 
 /* Animations */
