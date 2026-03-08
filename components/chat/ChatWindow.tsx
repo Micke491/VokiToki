@@ -831,15 +831,15 @@ export default function ChatWindow({
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 relative">
           {wallpaper && (
-             <div 
+              <div 
                 className="absolute inset-0 pointer-events-none z-0" 
                 style={{ 
                   backgroundImage: `url(${wallpaper})`, 
                   backgroundSize: "cover", 
                   backgroundPosition: "center",
-                  opacity: 0.15 
+                  opacity: 0.4 
                 }}
-             />
+              />
           )}
           <div
             ref={messagesContainerRef}
