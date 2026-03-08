@@ -1,7 +1,5 @@
-"use client";
-
-import React, { useMemo } from "react";
-import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck } from "lucide-react";
+import React, { useMemo, useState, useEffect } from "react";
+import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 
@@ -37,9 +35,49 @@ const ChatSidebar = ({
   messages,
   groupAdminId,
 }: ChatSidebarProps) => {
-  const sharedMedia = useMemo(() => {
-    return messages.filter((m) => m.mediaUrl && !m.isDeletedForEveryone);
+  const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && chatId) {
+      fetchMedia();
+    }
+  }, [isOpen, chatId]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      const urlRegex = /https?:\/\/[^\s$.?#].[^\s]*/gi;
+      const isMedia = lastMsg.mediaUrl && lastMsg.mediaType !== 'audio';
+      const isLink = lastMsg.text && urlRegex.test(lastMsg.text);
+
+      if (isMedia || isLink) {
+        setSharedMedia(prev => {
+          if (prev.some(m => m._id === lastMsg._id)) return prev;
+          return [lastMsg, ...prev];
+        });
+      }
+    }
   }, [messages]);
+
+  const fetchMedia = async () => {
+    try {
+      setLoadingMedia(true);
+      const response = await fetch(`/api/chat/media/list?chatId=${chatId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSharedMedia(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch media:", error);
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -123,40 +161,61 @@ const ChatSidebar = ({
         <div className="p-4">
           <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
             <ImageIcon className="w-3.5 h-3.5" />
-            Shared Media
+            Shared Media & Links
           </h4>
           
-          {sharedMedia.length === 0 ? (
+          {loadingMedia ? (
+             <div className="py-8 flex flex-col items-center justify-center text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                <p className="text-xs">Loading media...</p>
+             </div>
+          ) : sharedMedia.length === 0 ? (
             <div className="py-8 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
               <ImageIcon className="w-8 h-8 mb-2 opacity-20" />
-              <p className="text-xs">No media shared yet</p>
+              <p className="text-xs">No media or links shared yet</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-2">
-              {sharedMedia.map((media) => (
-                <div 
-                  key={media._id} 
-                  className="aspect-square rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 cursor-pointer hover:opacity-80 transition-opacity border border-slate-200 dark:border-slate-700"
-                  onClick={() => window.open(media.mediaUrl, "_blank")}
-                >
-                  {media.mediaType === "video" ? (
-                    <div className="w-full h-full flex items-center justify-center relative bg-slate-950">
-                      <Video className="w-5 h-5 text-white/50" />
-                       <span className="absolute bottom-1 right-1 text-[8px] text-white/80 bg-black/40 px-1 rounded">VID</span>
-                    </div>
-                  ) : media.mediaType === "audio" ? (
-                     <div className="w-full h-full flex items-center justify-center text-blue-500">
-                       <Mic className="w-5 h-5" />
+              {sharedMedia.map((media) => {
+                const urlRegex = /https?:\/\/[^\s$.?#].[^\s]*/gi;
+                const linkMatch = media.text?.match(urlRegex);
+                const isLinkOnly = !media.mediaUrl && linkMatch;
+
+                if (isLinkOnly) {
+                   return (
+                     <div 
+                        key={media._id} 
+                        className="aspect-square rounded-lg overflow-hidden bg-blue-50 dark:bg-blue-900/20 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-100 dark:border-blue-800/50 flex flex-col items-center justify-center p-2 text-center"
+                        onClick={() => window.open(linkMatch[0], "_blank")}
+                        title={linkMatch[0]}
+                      >
+                       <LinkIcon className="w-5 h-5 text-blue-500 mb-1" />
+                       <span className="text-[8px] text-blue-700 dark:text-blue-400 font-medium truncate w-full">{new URL(linkMatch[0]).hostname}</span>
                      </div>
-                  ) : (
-                    <img
-                      src={media.mediaUrl}
-                      alt="Shared"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-              ))}
+                   );
+                }
+
+                return (
+                  <div 
+                    key={media._id} 
+                    className="aspect-square rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 cursor-pointer hover:opacity-80 transition-opacity border border-slate-200 dark:border-slate-700"
+                    onClick={() => window.open(media.mediaUrl, "_blank")}
+                  >
+                    {media.mediaType === "video" ? (
+                      <div className="w-full h-full flex items-center justify-center relative bg-slate-950">
+                        <Video className="w-5 h-5 text-white/50" />
+                         <span className="absolute bottom-1 right-1 text-[8px] text-white/80 bg-black/40 px-1 rounded">VID</span>
+                      </div>
+                    ) : (
+                      <img
+                        src={media.mediaUrl}
+                        alt="Shared"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
