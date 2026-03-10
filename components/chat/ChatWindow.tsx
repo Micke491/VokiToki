@@ -59,7 +59,6 @@ export default function ChatWindow({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
-  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
   const [showScrollBadge, setShowScrollBadge] = useState(false);
   const [unreadCountBelow, setUnreadCountBelow] = useState(0);
   const [wallpaper, setWallpaper] = useState<string | null>(null);
@@ -307,7 +306,6 @@ export default function ChatWindow({
     setViewingReceiptsFor(null);
     setReplyingTo(null);
     setEditingMessage(null);
-    setFirstUnreadId(null);
     fetchMessages();
   }, [chatId]);
 
@@ -341,7 +339,6 @@ export default function ChatWindow({
         setLoading(true);
         setMessages([]);
         setPinnedMessages([]);
-        setFirstUnreadId(null);
       } else {
         setLoadingMore(true);
       }
@@ -366,16 +363,6 @@ export default function ChatWindow({
 
       const newMessages = data.messages || [];
 
-      if (!beforeDate) {
-        const firstUnread = newMessages.find(
-          (m: Message) => m.sender._id !== currentUserId && !m.readBy?.some((r: any) => r.userId === currentUserId)
-        );
-        if (firstUnread) {
-          setFirstUnreadId(firstUnread._id);
-        } else {
-          setFirstUnreadId(null);
-        }
-      }
 
       if (beforeDate) {
         setMessages((prev) => {
@@ -453,7 +440,6 @@ export default function ChatWindow({
           } : m
         )
       );
-      setFirstUnreadId(null);
     }
   }, [socket, currentUserId, messages, chatId]);
 
@@ -910,16 +896,6 @@ export default function ChatWindow({
 
           return (
             <div key={message._id} id={`msg-${message._id}`}>
-              {message._id === firstUnreadId && (
-                <div className="flex items-center justify-center my-4 relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-blue-500/30"></div>
-                  </div>
-                  <div className="relative bg-white dark:bg-slate-950 px-4 text-xs font-medium text-blue-500 uppercase tracking-widest shadow-sm rounded-full py-1 border border-blue-500/20">
-                    Unread Messages
-                  </div>
-                </div>
-              )}
               <MessageItem
                 message={message}
                 currentUserId={currentUserId}
