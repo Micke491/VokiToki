@@ -166,7 +166,7 @@ const MessageItem = ({
         )}
 
         <div
-          className={`flex items-end gap-2 max-w-[85%] md:max-w-[70%] ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+          className={`flex items-end gap-2 max-w-[85%] md:max-w-[70%] min-w-0 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
         >
           {/* Avatar (Partner) */}
           {!isOwn && (
@@ -211,7 +211,7 @@ const MessageItem = ({
               </div>
             )}
             <div
-              className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed shadow-sm relative
+              className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed shadow-sm relative min-w-0 [overflow-wrap:anywhere] [word-break:break-word]
                     ${
                       isOwn
                         ? "bg-blue-600 text-white rounded-br-none"

@@ -7,13 +7,13 @@ interface HighlightTextProps {
 
 const HighlightText = ({ text, highlight }: HighlightTextProps) => {
   if (!highlight.trim()) {
-    return <p className="whitespace-pre-wrap break-words">{text}</p>;
+    return <p className="whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]">{text}</p>;
   }
 
   const parts = text.split(new RegExp(`(${highlight})`, "gi"));
 
   return (
-    <p className="whitespace-pre-wrap break-words">
+    <p className="whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]">
       {parts.map((part, i) =>
         part.toLowerCase() === highlight.toLowerCase() ? (
           <mark

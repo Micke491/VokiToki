@@ -307,6 +307,7 @@ export default function ChatWindow({
     setViewingReceiptsFor(null);
     setReplyingTo(null);
     setEditingMessage(null);
+    setFirstUnreadId(null);
     fetchMessages();
   }, [chatId]);
 
@@ -340,6 +341,7 @@ export default function ChatWindow({
         setLoading(true);
         setMessages([]);
         setPinnedMessages([]);
+        setFirstUnreadId(null);
       } else {
         setLoadingMore(true);
       }
@@ -370,11 +372,17 @@ export default function ChatWindow({
         );
         if (firstUnread) {
           setFirstUnreadId(firstUnread._id);
+        } else {
+          setFirstUnreadId(null);
         }
       }
 
       if (beforeDate) {
-        setMessages((prev) => [...newMessages, ...prev]);
+        setMessages((prev) => {
+          const combined = [...newMessages, ...prev];
+          const unique = Array.from(new Map(combined.map(m => [m._id, m])).values());
+          return unique.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        });
       } else {
         setMessages(newMessages);
         
@@ -445,6 +453,7 @@ export default function ChatWindow({
           } : m
         )
       );
+      setFirstUnreadId(null);
     }
   }, [socket, currentUserId, messages, chatId]);
 

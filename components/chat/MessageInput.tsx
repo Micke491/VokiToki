@@ -24,6 +24,8 @@ interface MessageInputProps {
   formatRecordingTime: (seconds: number) => string;
 }
 
+const MAX_CHARS = 2000;
+
 const MessageInput = ({
   newMessage,
   setNewMessage,
@@ -180,8 +182,11 @@ const MessageInput = ({
               ref={inputRef}
               value={newMessage}
               onChange={(e) => {
-                setNewMessage(e.target.value);
+                if (e.target.value.length <= MAX_CHARS) {
+                  setNewMessage(e.target.value);
+                }
               }}
+              maxLength={MAX_CHARS}
               onKeyDown={handleKeyDown}
               placeholder={
                 editingMessage ? "Edit your message..." : "Type a message..."
@@ -190,6 +195,15 @@ const MessageInput = ({
               disabled={sending}
               className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-slate-900 dark:text-white placeholder-slate-400 resize-none overflow-y-auto"
             />
+            {newMessage.length > MAX_CHARS * 0.8 && (
+               <div className={`absolute -top-6 right-8 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border ${
+                 newMessage.length >= MAX_CHARS 
+                   ? "text-red-500 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/30" 
+                   : "text-slate-500 bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800"
+               }`}>
+                 {newMessage.length}/{MAX_CHARS}
+               </div>
+            )}
           </>
         )}
 
