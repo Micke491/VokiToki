@@ -66,6 +66,7 @@ export default function ChatWindow({
   const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
   const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
   const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(null);
+  const prevScrollHeightRef = useRef<number>(0);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -310,7 +311,6 @@ export default function ChatWindow({
   }, [chatId]);
 
   const hasScrolledInitially = useRef(false);
-  const anchorMessageId = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     hasScrolledInitially.current = false;
@@ -326,13 +326,11 @@ export default function ChatWindow({
     }
   }, [loading]);
 
-  useEffect(() => {
-    if (anchorMessageId.current) {
-      const el = document.getElementById(`msg-${anchorMessageId.current}`);
-      if (el) {
-        el.scrollIntoView({ block: "start" });
-      }
-      anchorMessageId.current = null;
+  useLayoutEffect(() => {
+    if (prevScrollHeightRef.current > 0 && messagesContainerRef.current) {
+      const scrollDiff = messagesContainerRef.current.scrollHeight - prevScrollHeightRef.current;
+      messagesContainerRef.current.scrollTop = scrollDiff;
+      prevScrollHeightRef.current = 0;
     }
   }, [messages]);
 
@@ -357,6 +355,10 @@ export default function ChatWindow({
         },
         cache: 'no-store'
       });
+
+      if (beforeDate && messagesContainerRef.current) {
+        prevScrollHeightRef.current = messagesContainerRef.current.scrollHeight;
+      }
       if (!response.ok) throw new Error("Failed");
       const data = await response.json();
 
@@ -399,7 +401,6 @@ export default function ChatWindow({
   const loadMore = () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
     const oldestMessage = messages[0];
-    anchorMessageId.current = oldestMessage._id;
     fetchMessages(oldestMessage.createdAt);
   };
 
@@ -453,10 +454,15 @@ export default function ChatWindow({
     }
   }, [loading, chatId, messages.length, markAllAsRead]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (force: boolean | React.SyntheticEvent = false) => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+      const shouldForce = force === true;
+
+      if (shouldForce || isNearBottom) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
     }
   };
 
@@ -545,7 +551,7 @@ export default function ChatWindow({
           replyTo: replyingTo?._id,
         });
         setReplyingTo(null);
-        scrollToBottom();
+        scrollToBottom(true);
       }
     } catch (error) {
       console.error("Audio upload error:", error);
@@ -592,8 +598,7 @@ export default function ChatWindow({
           replyTo: replyingTo?._id,
         });
         setReplyingTo(null);
-        scrollToBottom();
-        // Proactively mark any existing unread messages as read when user sends a message
+        scrollToBottom(true);
         markAllAsRead();
       }
     } catch (error) {
@@ -641,7 +646,7 @@ export default function ChatWindow({
           replyTo: replyingTo?._id,
         });
         setReplyingTo(null);
-        scrollToBottom();
+        scrollToBottom(true);
       }
     } catch (error) {
       console.error("Upload error:", error);
