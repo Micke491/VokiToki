@@ -285,38 +285,6 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Notifications Section */}
-          <section className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Notifications</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white text-sm">Push Notifications</p>
-                  <p className="text-xs text-slate-500">Receive alerts for new messages</p>
-                </div>
-                <button 
-                  onClick={() => setNotifications(!notifications)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notifications ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notifications ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white text-sm">Sound Effects</p>
-                  <p className="text-xs text-slate-500">Play audio on notification</p>
-                </div>
-                <button 
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${soundEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-            </div>
-          </section>
-
           {/* Danger Zone */}
           <section className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-4">
             <h2 className="text-xl font-semibold text-red-600">Danger Zone</h2>
