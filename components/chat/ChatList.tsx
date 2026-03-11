@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
+import Pusher from 'pusher-js';
 
 interface Chat {
   _id: string;
@@ -41,7 +41,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
-  const socketRef = useRef<Socket | null>(null);
+  const pusherClientRef = useRef<Pusher | null>(null);
 
   useEffect(() => {
     fetchChats();
@@ -56,31 +56,12 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
     const token = localStorage.getItem('token');
     if (!token || !currentUserId) return;
 
-    let socket = socketRef.current;
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
+    pusherClientRef.current = pusher;
 
-    if (!socket) {
-      socket = io(process.env.NEXT_PUBLIC_SITE_URL!, {
-        path: '/api/socket/server',
-        auth: { token },
-        addTrailingSlash: false,
-      });
-      socketRef.current = socket;
-    }
-
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    const onConnect = () => {
-       console.log("ChatList socket connected, joining notifications");
-       socket?.emit('join-notifications');
-    };
-
-    socket.on('connect', onConnect);
-
-    if (socket.connected) {
-       socket.emit('join-notifications');
-    }
+    const channel = pusher.subscribe(`user-${currentUserId}`);
     
     const onChatUpdate = (data: { chatId: string, lastMessage: any, unreadCount: number }) => {
       setChats(prevChats => {
@@ -117,16 +98,12 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
 
         const otherChats = prevChats.filter((_, index) => index !== existingChatIndex);
 
-        // Check if we should move to top:
-        // 1. If there's a new last message compared to what we have
-        // 2. If existing didn't have a message and now it does
         const shouldMoveToTop = !existingChat.lastMessage || 
           (data.lastMessage && new Date(data.lastMessage.createdAt) > new Date(existingChat.lastMessage.createdAt));
 
         if (shouldMoveToTop) {
           return [updatedChat, ...otherChats];
         } else {
-          // Keep in same position
           const newChats = [...prevChats];
           newChats[existingChatIndex] = updatedChat;
           return newChats;
@@ -134,15 +111,12 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       });
     };
 
-    socket.on('chat-update', onChatUpdate);
+    channel.bind('chat-update', onChatUpdate);
 
     return () => {
-      socket?.off('chat-update', onChatUpdate);
-      socket?.off('connect', onConnect);
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      pusher.unsubscribe(`user-${currentUserId}`);
+      pusher.disconnect();
+      pusherClientRef.current = null;
     };
   }, [currentUserId]); 
   

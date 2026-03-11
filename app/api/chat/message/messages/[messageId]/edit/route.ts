@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
 import { verifyToken } from '@/lib/auth';
+import { pusherServer } from '@/lib/pusher';
 
 export async function PATCH(
   req: Request,
@@ -52,6 +53,10 @@ export async function PATCH(
     const populatedMessage = await Message.findById(messageId)
       .populate('sender', 'username email avatar')
       .populate('replyTo');
+
+    if (populatedMessage) {
+      await pusherServer.trigger(`chat-${message.chatId}`, "message-updated", populatedMessage);
+    }
 
     return NextResponse.json({ message: populatedMessage }, { status: 200 });
   } catch (error) {

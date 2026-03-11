@@ -8,7 +8,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { useRouter } from "next/navigation";
-import { io, Socket } from "socket.io-client";
+import Pusher from "pusher-js";
 import { EmojiClickData } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -36,7 +36,7 @@ export default function ChatWindow({
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -91,212 +91,191 @@ export default function ChatWindow({
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    let isMounted = true;
-    let socketInstance: Socket | null = null;
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
 
-    const initSocket = async () => {
-      try {
-        await fetch("/api/socket/io");
-      } catch (e) {
-        console.error("Socket init fetch failed", e);
-      }
+    const channel = pusher.subscribe(`chat-${chatId}`);
 
-      if (!isMounted) return;
-
-      socketInstance = io(process.env.NEXT_PUBLIC_SITE_URL || "", {
-        path: "/api/socket/server",
-        auth: { token },
-        addTrailingSlash: false,
-      });
-
-      socketInstance.on("connect", () => {
-        socketInstance?.emit("join-chat", chatId);
-      });
-
-      if (socketInstance.connected) {
-        socketInstance.emit("join-chat", chatId);
-      }
-
-      socketInstance.on("receive-message", (message: Message) => {
-        if (message.chatId !== chatId) return;
-        
-        setMessages((prev) => {
-          const exists = prev.some(
-            (m) => String(m._id) === String(message._id),
-          );
-          if (exists) return prev;
-
-          if (message.sender._id !== currentUserId) {
-            socketInstance?.emit("mark-messages-read", {
-              chatId,
-              messageIds: [message._id],
-            });
-          }
-
-          return [...prev, message];
-        });
-        if (messagesContainerRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } =
-            messagesContainerRef.current;
-          const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-          if (isNearBottom) {
-            setTimeout(scrollToBottom, 100);
-          } else {
-            setUnreadCountBelow((prev) => prev + 1);
-          }
-        }
-      });
-
-      socketInstance.on("message-updated", (updatedMessage: Message) => {
-        setMessages((prev) =>
-          prev.map((m) => (m._id === updatedMessage._id ? updatedMessage : m)),
+    channel.bind("receive-message", (message: Message) => {
+      if (message.chatId !== chatId) return;
+      
+      setMessages((prev) => {
+        const exists = prev.some(
+          (m) => String(m._id) === String(message._id),
         );
-      });
+        if (exists) return prev;
 
-      socketInstance.on("message-deleted", (data: { messageId: string }) => {
+        if (message.sender._id !== currentUserId) {
+           fetch(`/api/chat/message/messages/${message._id}/status`, {
+             method: 'PATCH',
+             headers: {
+               'Content-Type': 'application/json',
+               'Authorization': `Bearer ${localStorage.getItem('token')}`
+             },
+             body: JSON.stringify({ status: 'seen' })
+           });
+        }
+
+        return [...prev, message];
+      });
+      if (messagesContainerRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } =
+          messagesContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        if (isNearBottom) {
+          setTimeout(scrollToBottom, 100);
+        } else {
+          setUnreadCountBelow((prev) => prev + 1);
+        }
+      }
+    });
+
+    channel.bind("message-updated", (updatedMessage: Message) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === updatedMessage._id ? updatedMessage : m)),
+      );
+    });
+
+    channel.bind("message-deleted", (data: { messageId: string }) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m._id === data.messageId) {
+            return {
+              ...m,
+              isDeletedForEveryone: true,
+              text: "This message was deleted",
+              mediaUrl: undefined,
+              mediaType: undefined,
+            };
+          }
+          return m;
+        }),
+      );
+    });
+
+    channel.bind(
+      "messages-read",
+      (data: { messageIds: string[]; userId: string }) => {
         setMessages((prev) =>
           prev.map((m) => {
-            if (m._id === data.messageId) {
-              return {
-                ...m,
-                isDeletedForEveryone: true,
-                text: "This message was deleted",
-                mediaUrl: undefined,
-                mediaType: undefined,
+            if (data.messageIds.includes(m._id)) {
+              return { 
+                ...m, 
+                status: "seen",
+                readBy: [
+                  ...(m.readBy?.filter(r => r.userId !== data.userId) || []),
+                  { userId: data.userId, readAt: new Date().toISOString() }
+                ]
               };
             }
             return m;
           }),
         );
-      });
+      },
+    );
 
-      socketInstance.on(
-        "messages-read",
-        (data: { messageIds: string[]; userId: string }) => {
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (data.messageIds.includes(m._id)) {
-                return { 
-                  ...m, 
-                  status: "seen",
-                  readBy: [
-                    ...(m.readBy?.filter(r => r.userId !== data.userId) || []),
-                    { userId: data.userId, readAt: new Date().toISOString() }
-                  ]
-                };
-              }
-              return m;
-            }),
-          );
-        },
-      );
+    channel.bind(
+      "user-typing",
+      (data: { username: string; userId: string }) => {
+        if (data.userId !== currentUserId) {
+          setTypingUsers((prev) => {
+            if (!prev.includes(data.username)) {
+              return [...prev, data.username];
+            }
+            return prev;
+          });
+        }
+      },
+    );
 
-      socketInstance.on(
-        "user-typing",
-        (data: { username: string; userId: string }) => {
-          if (data.userId !== currentUserId) {
-            setTypingUsers((prev) => {
-              if (!prev.includes(data.username)) {
-                return [...prev, data.username];
-              }
-              return prev;
-            });
-          }
-        },
-      );
+    channel.bind(
+      "user-stopped-typing",
+      (data: { username: string; userId: string }) => {
+        setTypingUsers((prev) =>
+          prev.filter((username) => username !== data.username),
+        );
+      },
+    );
 
-      socketInstance.on(
-        "user-stopped-typing",
-        (data: { username: string; userId: string }) => {
-          setTypingUsers((prev) =>
-            prev.filter((username) => username !== data.username),
-          );
-        },
-      );
-
-      socketInstance.on(
-        "message-reaction-added",
-        (data: {
-          chatId: string;
-          messageId: string;
-          reaction: {
-            userId: string;
-            emoji: string;
-            createdAt: string;
-            user?: { username: string; avatar?: string };
-          };
-        }) => {
-          if (data.chatId !== chatId) return;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m._id === data.messageId) {
-                const reactions = m.reactions || [];
-                if (
-                  reactions.some(
-                    (r) =>
-                      r.userId === data.reaction.userId &&
-                      r.emoji === data.reaction.emoji,
-                  )
-                ) {
-                  return m;
-                }
-                return { ...m, reactions: [...reactions, data.reaction] };
-              }
-              return m;
-            }),
-          );
-        },
-      );
-
-      socketInstance.on(
-        "message-reaction-removed",
-        (data: {
-          chatId: string;
-          messageId: string;
+    channel.bind(
+      "message-reaction-added",
+      (data: {
+        chatId: string;
+        messageId: string;
+        reaction: {
           userId: string;
           emoji: string;
-        }) => {
-          if (data.chatId !== chatId) return;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m._id === data.messageId) {
-                return {
-                  ...m,
-                  reactions: (m.reactions || []).filter(
-                    (r) =>
-                      !(r.userId === data.userId && r.emoji === data.emoji),
-                  ),
-                };
+          createdAt: string;
+          user?: { username: string; avatar?: string };
+        };
+      }) => {
+        if (data.chatId !== chatId) return;
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m._id === data.messageId) {
+              const reactions = m.reactions || [];
+              if (
+                reactions.some(
+                  (r) =>
+                    r.userId === data.reaction.userId &&
+                    r.emoji === data.reaction.emoji,
+                )
+              ) {
+                return m;
               }
-              return m;
-            }),
-          );
-        },
-      );
+              return { ...m, reactions: [...reactions, data.reaction] };
+            }
+            return m;
+          }),
+        );
+      },
+    );
 
-      socketInstance.on("message-pinned", (pinnedMessage: Message) => {
-        setPinnedMessages((prev) => {
-          if (prev.some(m => m._id === pinnedMessage._id)) return prev;
-          return [pinnedMessage, ...prev];
-        });
-        setMessages((prev) => prev.map(m => m._id === pinnedMessage._id ? { ...m, isPinned: true } : m));
+    channel.bind(
+      "message-reaction-removed",
+      (data: {
+        chatId: string;
+        messageId: string;
+        userId: string;
+        emoji: string;
+      }) => {
+        if (data.chatId !== chatId) return;
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m._id === data.messageId) {
+              return {
+                ...m,
+                reactions: (m.reactions || []).filter(
+                  (r) =>
+                    !(r.userId === data.userId && r.emoji === data.emoji),
+                ),
+              };
+            }
+            return m;
+          }),
+        );
+      },
+    );
+
+    channel.bind("message-pinned", (pinnedMessage: Message) => {
+      setPinnedMessages((prev) => {
+        if (prev.some(m => m._id === pinnedMessage._id)) return prev;
+        return [pinnedMessage, ...prev];
       });
+      setMessages((prev) => prev.map(m => m._id === pinnedMessage._id ? { ...m, isPinned: true } : m));
+    });
 
-      socketInstance.on("message-unpinned", (data: { messageId: string }) => {
-        setPinnedMessages((prev) => prev.filter(m => m._id !== data.messageId));
-        setMessages((prev) => prev.map(m => m._id === data.messageId ? { ...m, isPinned: false } : m));
-      });
+    channel.bind("message-unpinned", (data: { messageId: string }) => {
+      setPinnedMessages((prev) => prev.filter(m => m._id !== data.messageId));
+      setMessages((prev) => prev.map(m => m._id === data.messageId ? { ...m, isPinned: false } : m));
+    });
 
-      setSocket(socketInstance);
-    };
-
-    initSocket();
+    setPusherClient(pusher);
 
     return () => {
-      isMounted = false;
-      if (socketInstance) {
-        socketInstance.disconnect();
-      }
+      pusher.unsubscribe(`chat-${chatId}`);
+      pusher.disconnect();
     };
   }, [chatId, currentUserId]);
 
@@ -414,18 +393,26 @@ export default function ChatWindow({
     }
   };
 
-  const markAllAsRead = useCallback(() => {
-    if (!socket || !currentUserId || messages.length === 0) return;
+  const markAllAsRead = useCallback(async () => {
+    if (!pusherClient || !currentUserId || messages.length === 0) return;
 
     const unreadMessageIds = messages
       .filter((m) => m.sender._id !== currentUserId && !m.readBy?.some(r => r.userId === currentUserId))
       .map((m) => m._id);
 
     if (unreadMessageIds.length > 0) {
-      socket.emit("mark-messages-read", {
-        chatId,
-        messageIds: unreadMessageIds,
-      });
+      try {
+        await fetch(`/api/chat/message/messages/${unreadMessageIds[0]}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ messageIds: unreadMessageIds, status: 'seen' })
+        });
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
 
       setMessages((prev) =>
         prev.map((m) =>
@@ -441,7 +428,7 @@ export default function ChatWindow({
         )
       );
     }
-  }, [socket, currentUserId, messages, chatId]);
+  }, [pusherClient, currentUserId, messages, chatId]);
 
   useEffect(() => {
     if (!loading && messages.length > 0) {
@@ -537,13 +524,21 @@ export default function ChatWindow({
       if (!response.ok) throw new Error("Upload failed");
       const data = await response.json();
 
-      if (socket) {
-        socket.emit("send-new-message", {
-          chatId,
-          mediaUrl: data.url,
-          mediaType: "audio",
-          mediaPublicId: data.publicId,
-          replyTo: replyingTo?._id,
+      if (pusherClient) {
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            chatId,
+            senderId: currentUserId,
+            mediaUrl: data.url,
+            mediaType: "audio",
+            mediaPublicId: data.publicId,
+            replyTo: replyingTo?._id,
+          }),
         });
         setReplyingTo(null);
         scrollToBottom(true);
@@ -564,33 +559,52 @@ export default function ChatWindow({
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending || !socket) return;
+    if (!newMessage.trim() || sending || !pusherClient) return;
 
     const messageText = newMessage.trim();
     setNewMessage("");
     setSending(true);
 
     if (isTypingRef.current) {
-      socket.emit("user-stopped-typing", {
-        chatId,
-        username: currentUserUsername || "Someone",
+      fetch("/api/chat/typing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          chatId,
+          username: currentUserUsername || "Someone",
+          isTyping: false,
+        }),
       });
       isTypingRef.current = false;
     }
 
     try {
       if (editingMessage) {
-        socket.emit("edit-message", {
-          chatId,
-          messageId: editingMessage._id,
-          newText: messageText,
+        await fetch(`/api/chat/message/messages/${editingMessage._id}/edit`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ text: messageText }),
         });
         setEditingMessage(null);
       } else {
-        socket.emit("send-new-message", {
-          chatId,
-          text: messageText,
-          replyTo: replyingTo?._id,
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            chatId,
+            senderId: currentUserId,
+            text: messageText,
+            replyTo: replyingTo?._id,
+          }),
         });
         setReplyingTo(null);
         scrollToBottom(true);
@@ -632,13 +646,21 @@ export default function ChatWindow({
 
       const data = await response.json();
 
-      if (socket) {
-        socket.emit("send-new-message", {
-          chatId,
-          mediaUrl: data.url,
-          mediaType: data.mediaType,
-          mediaPublicId: data.publicId,
-          replyTo: replyingTo?._id,
+      if (pusherClient) {
+        await fetch("/api/chat/message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            chatId,
+            senderId: currentUserId,
+            mediaUrl: data.url,
+            mediaType: data.mediaType,
+            mediaPublicId: data.publicId,
+            replyTo: replyingTo?._id,
+          }),
         });
         setReplyingTo(null);
         scrollToBottom(true);
@@ -664,9 +686,18 @@ export default function ChatWindow({
     }
   };
 
-  const handleDelete = (messageId: string) => {
-    if (!socket || !confirm("Delete this message for everyone?")) return;
-    socket.emit("delete-message", { chatId, messageId });
+  const handleDelete = async (messageId: string) => {
+    if (!pusherClient || !confirm("Delete this message for everyone?")) return;
+    try {
+      await fetch(`/api/chat/message/messages/${messageId}/delete?forEveryone=true`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+    }
   };
 
   const startEdit = (message: Message) => {
@@ -704,44 +735,75 @@ export default function ChatWindow({
     });
   };
 
-  const handleReaction = (emojiData: EmojiClickData, messageId: string) => {
-    if (!socket) return;
-    socket.emit("add-reaction", {
-      chatId,
-      messageId,
-      emoji: emojiData.emoji,
-    });
+  const handleReaction = async (emojiData: EmojiClickData, messageId: string) => {
+    if (!pusherClient) return;
+    try {
+      await fetch(`/api/chat/message/messages/${messageId}/reaction`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          chatId,
+          emoji: emojiData.emoji,
+        }),
+      });
+    } catch (error) {
+      console.error("Error adding reaction:", error);
+    }
     setShowEmojiPicker(null);
   };
 
-  const removeReaction = (messageId: string, emoji: string) => {
-    if (!socket) return;
-    socket.emit("remove-reaction", {
-      chatId,
-      messageId,
-      emoji,
-    });
+  const removeReaction = async (messageId: string, emoji: string) => {
+    if (!pusherClient) return;
+    try {
+      await fetch(`/api/chat/message/messages/${messageId}/reaction?chatId=${chatId}&emoji=${encodeURIComponent(emoji)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+    } catch (error) {
+      console.error("Error removing reaction:", error);
+    }
   };
 
   const handleMessageChange = (val: string) => {
     setNewMessage(val);
 
-    if (socket && val.trim() && !editingMessage) {
+    if (pusherClient && val.trim() && !editingMessage) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
       if (!isTypingRef.current) {
-        socket.emit("user-typing", {
-          chatId,
-          username: currentUserUsername || "Someone",
+        fetch("/api/chat/typing", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            chatId,
+            username: currentUserUsername || "Someone",
+            isTyping: true,
+          }),
         });
         isTypingRef.current = true;
       }
 
       typingTimeoutRef.current = setTimeout(() => {
-        if (socket) {
-          socket.emit("user-stopped-typing", {
-            chatId,
-            username: currentUserUsername || "Someone",
+        if (pusherClient) {
+          fetch("/api/chat/typing", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              chatId,
+              username: currentUserUsername || "Someone",
+              isTyping: false,
+            }),
           });
           isTypingRef.current = false;
         }
@@ -767,16 +829,24 @@ export default function ChatWindow({
   }, []);
 
   const handleForwardSelection = async (targetChatIds: string[]) => {
-      if (!socket || !forwardingMessage || targetChatIds.length === 0) return;
+      if (!pusherClient || !forwardingMessage || targetChatIds.length === 0) return;
       
       for (const targetChatId of targetChatIds) {
-          socket.emit("send-new-message", {
-              chatId: targetChatId,
-              text: forwardingMessage.text ? `[Forwarded]\n${forwardingMessage.text}` : undefined,
-              mediaUrl: forwardingMessage.mediaUrl,
-              mediaType: forwardingMessage.mediaType,
-              mediaPublicId: forwardingMessage.mediaPublicId,
-              isForwarded: true
+          await fetch("/api/chat/message", {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              body: JSON.stringify({
+                  chatId: targetChatId,
+                  senderId: currentUserId,
+                  text: forwardingMessage.text ? `[Forwarded]\n${forwardingMessage.text}` : undefined,
+                  mediaUrl: forwardingMessage.mediaUrl,
+                  mediaType: forwardingMessage.mediaType,
+                  mediaPublicId: forwardingMessage.mediaPublicId,
+                  isForwarded: true
+              }),
           });
       }
       setForwardingMessage(null);
@@ -911,7 +981,6 @@ export default function ChatWindow({
                 scrollToBottom={scrollToBottom}
                 showEmojiPicker={showEmojiPicker}
                 setShowEmojiPicker={setShowEmojiPicker}
-                socket={socket}
                 chatId={chatId}
                 isGroup={isGroup}
                 groupAdminId={groupAdminId}

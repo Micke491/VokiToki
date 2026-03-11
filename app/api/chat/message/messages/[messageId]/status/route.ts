@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
 import { verifyToken } from '@/lib/auth';
+import { pusherServer } from '@/lib/pusher';
 
 export async function PATCH(
   req: Request,
@@ -64,6 +65,20 @@ export async function PATCH(
       .populate('sender', 'username email avatar')
       .populate('replyTo');
 
+    if (status === 'seen') {
+      await pusherServer.trigger(`chat-${message.chatId}`, "messages-read", {
+        chatId: message.chatId,
+        messageIds: [messageId],
+        userId: auth.id
+      });
+
+      await pusherServer.trigger(`user-${auth.id}`, "chat-update", {
+        chatId: message.chatId,
+        lastMessage: populatedMessage,
+        unreadCount: 0
+      });
+    }
+
     return NextResponse.json({ message: populatedMessage }, { status: 200 });
   } catch (error) {
     console.error('Error updating message status:', error);
@@ -124,6 +139,28 @@ export async function POST(req: Request) {
     });
 
     await Promise.all(updateOperations);
+
+    if (status === 'seen') {
+      // Find chatId for one of the messages to trigger chat-wide event
+      const firstMessage = await Message.findById(messageIds[0]);
+      if (firstMessage) {
+        await pusherServer.trigger(`chat-${firstMessage.chatId}`, "messages-read", {
+          chatId: firstMessage.chatId,
+          messageIds: messageIds,
+          userId: auth.id
+        });
+
+        const lastMessage = await Message.findOne({ chatId: firstMessage.chatId })
+          .sort({ createdAt: -1 })
+          .populate('sender', 'username email avatar');
+
+        await pusherServer.trigger(`user-${auth.id}`, "chat-update", {
+          chatId: firstMessage.chatId,
+          lastMessage,
+          unreadCount: 0
+        });
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
 import { verifyToken } from '@/lib/auth';
 import cloudinary from '@/lib/cloudinary';
+import { pusherServer } from '@/lib/pusher';
 
 export async function DELETE(
   req: Request,
@@ -60,6 +61,13 @@ export async function DELETE(
     const populatedMessage = await Message.findById(messageId)
       .populate('sender', 'username email avatar')
       .populate('replyTo');
+
+    if (deleteForEveryone && populatedMessage) {
+      await pusherServer.trigger(`chat-${message.chatId}`, "message-deleted", { 
+        messageId, 
+        chatId: message.chatId 
+      });
+    }
 
     return NextResponse.json({ 
       message: populatedMessage,

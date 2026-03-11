@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
 import Chat from '@/models/Chat';
 import { verifyToken } from '@/lib/auth';
+import { pusherServer } from '@/lib/pusher';
 
 export async function POST(req: Request) {
     try {
@@ -10,7 +11,8 @@ export async function POST(req: Request) {
         const auth = verifyToken(req);
         if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { chatId, senderId, text } = await req.json();
+        const body = await req.json();
+        const { chatId, senderId, text, replyTo, mediaUrl, mediaType, mediaPublicId, isForwarded } = body;
 
         if (auth.id !== senderId) {
             return NextResponse.json({ error: "Unauthorized sender" }, { status: 403 });
@@ -20,7 +22,6 @@ export async function POST(req: Request) {
         if (!chat) return NextResponse.json({ error: "Chat not found" }, { status: 404 });
 
         const isParticipant = chat.participants.some(p => p.toString() === senderId);
-        
         if (!isParticipant) {
             return NextResponse.json({ error: "Not a member of this chat" }, { status: 403 });
         }
@@ -28,18 +29,47 @@ export async function POST(req: Request) {
         const newMessage = await Message.create({
             chatId,
             sender: senderId,
-            text: text.trim(),
+            text: text?.trim() || "",
+            replyTo: replyTo || undefined,
+            mediaUrl,
+            mediaType,
+            mediaPublicId,
+            isForwarded: isForwarded || false,
         });
 
         await Chat.findByIdAndUpdate(chatId, {
             lastMessage: newMessage._id,
             updatedAt: new Date(),
-        })
+        });
 
-        const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username avatar');
+        let populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username email avatar');
+        if (!populatedMessage) {
+            return NextResponse.json({ error: "Failed to create message" }, { status: 500 });
+        }
+
+        if (replyTo) {
+            populatedMessage = await populatedMessage.populate({
+                path: 'replyTo',
+                populate: { path: 'sender', select: 'username' }
+            });
+        }
+
+        // Trigger Pusher events
+        await pusherServer.trigger(`chat-${chatId}`, "receive-message", populatedMessage);
+
+        const chatUpdatePromises = chat.participants.map((participantId: any) => {
+            return pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
+                chatId,
+                lastMessage: populatedMessage,
+                unreadCount: participantId.toString() !== senderId ? 1 : 0
+            });
+        });
+
+        await Promise.all(chatUpdatePromises);
 
         return NextResponse.json({ message: populatedMessage }, { status: 201 });
     } catch (error) {
+        console.error("POST message error:", error);
         return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }

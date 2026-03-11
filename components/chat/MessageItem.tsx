@@ -8,7 +8,6 @@ import MessageStatusIcon from "../ui/MessageStatusIcon";
 import AudioPlayer from "../ui/AudioPlayer";
 import LinkPreview from "../ui/LinkPreview";
 import HighlightText from "../ui/HighlightText";
-import { Socket } from "socket.io-client";
 
 interface MessageItemProps {
   message: Message;
@@ -25,7 +24,6 @@ interface MessageItemProps {
   scrollToBottom: () => void;
   showEmojiPicker: string | null;
   setShowEmojiPicker: (id: string | null) => void;
-  socket: Socket | null;
   chatId: string;
   isGroup?: boolean;
   groupAdminId?: string;
@@ -46,7 +44,6 @@ const MessageItem = ({
   scrollToBottom,
   showEmojiPicker,
   setShowEmojiPicker,
-  socket,
   chatId,
   isGroup,
   groupAdminId,
@@ -392,14 +389,16 @@ const MessageItem = ({
                            onClick={(e) => {
                              e.stopPropagation();
                              if (userReacted) {
-                               onRemoveReaction(message._id, emoji);
+                                onRemoveReaction(message._id, emoji);
                              } else {
-                               if (!socket) return;
-                               socket.emit("add-reaction", {
-                                 chatId,
-                                 messageId: message._id,
-                                 emoji,
-                               });
+                                fetch(`/api/chat/message/messages/${message._id}/reaction`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                                    },
+                                    body: JSON.stringify({ chatId, emoji }),
+                                });
                              }
                            }}
                          >
@@ -525,12 +524,21 @@ const MessageItem = ({
                   </>
                 )}
                 <button
-                  onClick={() => {
-                    if (!socket) return;
+                  onClick={async () => {
                     if (message.isPinned) {
-                      socket.emit("unpin-message", { chatId, messageId: message._id });
+                      await fetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
+                          method: 'DELETE',
+                          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                      });
                     } else {
-                      socket.emit("pin-message", { chatId, messageId: message._id });
+                      await fetch(`/api/chat/${chatId}/pinned`, {
+                          method: 'POST',
+                          headers: { 
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${localStorage.getItem('token')}` 
+                          },
+                          body: JSON.stringify({ messageId: message._id })
+                      });
                     }
                   }}
                   className={`p-1.5 rounded transition-colors ${message.isPinned ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
