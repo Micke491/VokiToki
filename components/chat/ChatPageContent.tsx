@@ -128,7 +128,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   return (
     <div className="flex h-screen bg-gradient-to-br from-indigo-700 via-purple-700 to-blue-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 overflow-hidden transition-colors duration-700">
       {/* 1. Global Navigation Sidebar */}
-      <SideBar currentUser={currentUser || undefined} />
+      <div className={`${chatId ? "hidden md:block" : "block"}`}>
+        <SideBar currentUser={currentUser || undefined} />
+      </div>
 
       <main className="flex flex-1 overflow-hidden">
         {/* 2. Conversations List Panel */}

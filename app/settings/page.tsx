@@ -169,7 +169,9 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-950 overflow-hidden">
-      <SideBar currentUser={currentUser || undefined} />
+      <div className="hidden md:block">
+        <SideBar currentUser={currentUser || undefined} />
+      </div>
       
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
