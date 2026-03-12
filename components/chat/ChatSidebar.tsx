@@ -87,17 +87,17 @@ const ChatSidebar = ({
           animate={{ width: 320, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.3, type: "spring", bounce: 0, stiffness: 300, damping: 30 }}
-          className="border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full overflow-hidden z-20 flex-shrink-0"
+          className="border-l border-chat-border bg-chat-bg-primary flex flex-col h-full overflow-hidden z-20 flex-shrink-0"
         >
           <div className="w-80 flex flex-col h-full min-w-[320px]">
             {/* Header */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        <h2 className="font-bold text-slate-800 dark:text-white">
+            <div className="p-4 border-b border-chat-border flex items-center justify-between">
+        <h2 className="font-bold text-chat-text-primary">
           {isGroup ? "Group Info" : "User Info"}
         </h2>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-500 transition-colors"
+          className="p-1.5 hover:bg-chat-hover rounded-full text-chat-text-tertiary transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -105,8 +105,8 @@ const ChatSidebar = ({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Profile Section */}
-        <div className="p-6 flex flex-col items-center text-center border-b border-slate-100 dark:border-slate-900">
-          <div className={`w-24 h-24 rounded-full mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg overflow-hidden ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
+        <div className="p-6 flex flex-col items-center text-center border-b border-chat-border">
+          <div className={`w-24 h-24 rounded-full mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg overflow-hidden ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'}`}>
             {recipientAvatar ? (
               <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
@@ -117,15 +117,15 @@ const ChatSidebar = ({
                 )
             )}
           </div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+          <h3 className="text-xl font-bold text-chat-text-primary mb-1">
             {recipientUsername}
           </h3>
         </div>
 
         {/* Participants Section (Groups) */}
         {isGroup && participants.length > 0 && (
-          <div className="p-4 border-b border-slate-100 dark:border-slate-900">
-            <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <div className="p-4 border-b border-chat-border">
+            <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-2">
               <Users className="w-3.5 h-3.5" />
               Participants
             </h4>
@@ -133,7 +133,7 @@ const ChatSidebar = ({
               {participants.map((user) => (
                 <div key={user._id} className="flex items-center gap-3 group">
                   <div className="relative w-9 h-9 flex-shrink-0">
-                    <div className="w-full h-full rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold text-slate-500 overflow-hidden">
+                    <div className="w-full h-full rounded-full bg-chat-bg-secondary flex items-center justify-center text-sm font-bold text-chat-text-tertiary overflow-hidden">
                       {user.avatar ? (
                         <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                       ) : (
@@ -142,7 +142,7 @@ const ChatSidebar = ({
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-chat-text-secondary truncate flex items-center gap-1.5">
                       {user.username}
                       {groupAdminId === user._id && (
                         <span title="Admin">
@@ -165,12 +165,12 @@ const ChatSidebar = ({
           </h4>
           
           {loadingMedia ? (
-             <div className="py-8 flex flex-col items-center justify-center text-slate-400">
+             <div className="py-8 flex flex-col items-center justify-center text-chat-text-tertiary">
                 <Loader2 className="w-6 h-6 animate-spin mb-2" />
                 <p className="text-xs">Loading media...</p>
              </div>
           ) : sharedMedia.length === 0 ? (
-            <div className="py-8 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+            <div className="py-8 flex flex-col items-center justify-center text-chat-text-tertiary bg-chat-bg-secondary rounded-xl border border-dashed border-chat-border">
               <ImageIcon className="w-8 h-8 mb-2 opacity-20" />
               <p className="text-xs">No media or links shared yet</p>
             </div>
@@ -198,7 +198,7 @@ const ChatSidebar = ({
                 return (
                   <div 
                     key={media._id} 
-                    className="aspect-square rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 cursor-pointer hover:opacity-80 transition-opacity border border-slate-200 dark:border-slate-700"
+                    className="aspect-square rounded-lg overflow-hidden bg-chat-bg-secondary cursor-pointer hover:opacity-80 transition-opacity border border-chat-border"
                     onClick={() => window.open(media.mediaUrl, "_blank")}
                   >
                     {media.mediaType === "video" ? (
@@ -221,8 +221,8 @@ const ChatSidebar = ({
         </div>
         {/* Wallpaper Section */}
         {setWallpaper && (
-          <div className="p-4 border-t border-slate-100 dark:border-slate-900">
-            <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <div className="p-4 border-t border-chat-border">
+            <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest mb-3 flex items-center gap-2">
               <ImageIcon className="w-3.5 h-3.5" />
               Chat Wallpaper
             </h4>
@@ -243,8 +243,8 @@ const ChatSidebar = ({
                   }}
                   className={`h-14 rounded-lg bg-cover bg-center border-2 transition-all hover:scale-105 ${
                     wallpaper === url
-                      ? "border-blue-500 shadow-md shadow-blue-500/30"
-                      : "border-transparent hover:border-slate-300 dark:hover:border-slate-600"
+                      ? "border-chat-accent shadow-md shadow-chat-accent/30"
+                      : "border-transparent hover:border-chat-border"
                   }`}
                   style={{ backgroundImage: `url(${url})` }}
                 />

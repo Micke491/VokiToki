@@ -57,7 +57,7 @@ export default function LinkPreview({ url }: LinkPreviewProps) {
 
   if (loading) {
     return (
-      <div className="mt-2 w-full max-w-[400px] h-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse border border-slate-200 dark:border-slate-700" />
+      <div className="mt-2 w-full max-w-[400px] h-24 bg-chat-bg-secondary rounded-xl animate-pulse border border-chat-border" />
     );
   }
 
@@ -70,10 +70,10 @@ export default function LinkPreview({ url }: LinkPreviewProps) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 flex flex-col sm:flex-row w-full max-w-[400px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group no-underline"
+      className="mt-2 flex flex-col sm:flex-row w-full max-w-[400px] bg-chat-bg-secondary border border-chat-border rounded-xl overflow-hidden hover:bg-chat-hover transition-colors group no-underline"
     >
       {metadata.image && (
-        <div className="sm:w-32 h-32 sm:h-auto shrink-0 relative overflow-hidden bg-slate-200 dark:bg-slate-800">
+        <div className="sm:w-32 h-32 sm:h-auto shrink-0 relative overflow-hidden bg-chat-bg-secondary/50">
           <img
             src={metadata.image}
             alt={metadata.title || "Preview"}
@@ -84,19 +84,19 @@ export default function LinkPreview({ url }: LinkPreviewProps) {
       <div className="p-3 flex flex-col justify-between flex-1 min-w-0">
         <div className="space-y-1">
           {metadata.title && (
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-1 break-words">
+            <h4 className="text-sm font-semibold text-chat-text-primary line-clamp-1 break-words">
               {metadata.title}
             </h4>
           )}
           {metadata.description && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 break-words leading-relaxed">
+            <p className="text-xs text-chat-text-tertiary line-clamp-2 break-words leading-relaxed">
               {metadata.description}
             </p>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-2 overflow-hidden">
-          <ExternalLink className="w-3 h-3 text-blue-500 shrink-0" />
-          <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 truncate">
+          <ExternalLink className="w-3 h-3 text-chat-accent shrink-0" />
+          <span className="text-[10px] font-medium text-chat-text-tertiary truncate">
             {new URL(url).hostname}
           </span>
         </div>

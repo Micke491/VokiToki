@@ -867,7 +867,7 @@ export default function ChatWindow({
     : messages;
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-950">
+    <div className="flex-1 flex flex-col h-full bg-chat-bg-primary overflow-hidden relative transition-colors duration-300">
       
       {forwardingMessage && (
         <ForwardMessageModal
@@ -900,49 +900,48 @@ export default function ChatWindow({
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 relative">
-          {wallpaper && (
-              <div 
-                className="absolute inset-0 pointer-events-none z-0" 
-                style={{ 
-                  backgroundImage: `url(${wallpaper})`, 
-                  backgroundSize: "cover", 
-                  backgroundPosition: "center",
-                  opacity: 0.4 
-                }}
-              />
-          )}
-          <div
+          <div 
+            className="flex-1 overflow-y-auto custom-scrollbar relative"
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6 relative z-10 custom-scrollbar"
+            style={{ 
+              backgroundImage: wallpaper ? `url(${wallpaper})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed'
+            }}
           >
+            {/* Anti-FOUC overlay / Wallpaper Overlay */}
+            {wallpaper && (
+              <div className="absolute inset-0 bg-chat-bg-primary/40 backdrop-blur-[2px] pointer-events-none" />
+            )}
         
         {pinnedMessages.length > 0 && (
-          <div className="sticky top-0 z-30 mb-6 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden text-sm">
-            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 dark:bg-slate-950">
+          <div className="sticky top-0 z-30 mb-6 bg-chat-bg-primary/90 backdrop-blur-md rounded-xl shadow-sm border border-chat-border overflow-hidden text-sm">
+            <div className="px-3 py-2 border-b border-chat-border flex items-center gap-2 text-xs font-semibold text-chat-text-tertiary bg-chat-bg-secondary">
               <span className="flex-1">Pinned Messages ({pinnedMessages.length})</span>
             </div>
             <div className="max-h-32 overflow-y-auto custom-scrollbar">
               {pinnedMessages.map(msg => (
                 <div 
                   key={`pinned-${msg._id}`} 
-                  className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer border-b last:border-0 border-slate-100 dark:border-slate-800/50 flex flex-col gap-1 transition-colors"
+                  className="px-4 py-2 hover:bg-chat-bg-secondary cursor-pointer border-b last:border-0 border-chat-border/50 flex flex-col gap-1 transition-colors"
                   onClick={() => {
                     const el = document.getElementById(`msg-${msg._id}`);
                     if (el) {
                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                       el.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/20');
+                       el.classList.add('ring-2', 'ring-chat-accent', 'bg-chat-accent/10');
                        setTimeout(() => {
-                           el.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/20');
+                           el.classList.remove('ring-2', 'ring-chat-accent', 'bg-chat-accent/10');
                        }, 2000);
                     }
                   }}
                 >
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">{msg.sender.username}</span>
+                  <div className="flex items-center gap-2 text-xs text-chat-text-tertiary">
+                    <span className="font-semibold text-chat-text-primary">{msg.sender.username}</span>
                     <span>{new Date(msg.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <div className="text-slate-600 dark:text-slate-400 line-clamp-1">
+                  <div className="text-chat-text-secondary line-clamp-1">
                     {msg.text || (msg.mediaUrl ? `Attached ${msg.mediaType}` : 'Pinned Message')}
                   </div>
                 </div>
@@ -951,58 +950,76 @@ export default function ChatWindow({
           </div>
         )}
 
-        {loadingMore && (
-          <div className="flex justify-center py-2">
-            <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+        {loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-10 h-full">
+            <div className="w-12 h-12 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin mb-4" />
+            <p className="text-chat-text-tertiary animate-pulse">Loading messages...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-10 h-full text-center">
+            <div className="w-20 h-20 bg-chat-bg-secondary rounded-full flex items-center justify-center mb-6">
+              <svg className="w-10 h-10 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-chat-text-primary mb-2">No messages yet</h3>
+            <p className="text-chat-text-secondary max-w-xs">Send a message to start the conversation!</p>
+          </div>
+        ) : (
+          <div className="p-4 md:p-6 space-y-6 min-h-full flex flex-col justify-end relative z-10">
+            {loadingMore && (
+              <div className="flex justify-center py-2">
+                <div className="w-5 h-5 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
+              </div>
+            )}
+            {filteredMessages.map((message, index) => {
+              const isOwn = message.sender._id === currentUserId;
+              const showDate =
+                index === 0 ||
+                new Date(message.createdAt).toDateString() !==
+                  new Date(filteredMessages[index - 1].createdAt).toDateString();
+
+              return (
+                <div key={message._id} id={`msg-${message._id}`}>
+                  <MessageItem
+                    message={message}
+                    currentUserId={currentUserId}
+                    searchQuery={searchQuery}
+                    isOwn={isOwn}
+                    showDate={showDate}
+                    dateLabel={formatDate(message.createdAt)}
+                    onReply={startReply}
+                    onEdit={startEdit}
+                    onDelete={handleDelete}
+                    onReaction={handleReaction}
+                    onRemoveReaction={removeReaction}
+                    scrollToBottom={scrollToBottom}
+                    showEmojiPicker={showEmojiPicker}
+                    setShowEmojiPicker={setShowEmojiPicker}
+                    chatId={chatId}
+                    isGroup={isGroup}
+                    groupAdminId={groupAdminId}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
-
-        {filteredMessages.map((message, index) => {
-          const isOwn = message.sender._id === currentUserId;
-          const showDate =
-            index === 0 ||
-            new Date(message.createdAt).toDateString() !==
-              new Date(filteredMessages[index - 1].createdAt).toDateString();
-
-          return (
-            <div key={message._id} id={`msg-${message._id}`}>
-              <MessageItem
-                message={message}
-                currentUserId={currentUserId}
-                searchQuery={searchQuery}
-                isOwn={isOwn}
-                showDate={showDate}
-                dateLabel={formatDate(message.createdAt)}
-                onReply={startReply}
-                onEdit={startEdit}
-                onDelete={handleDelete}
-                onReaction={handleReaction}
-                onRemoveReaction={removeReaction}
-                scrollToBottom={scrollToBottom}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                chatId={chatId}
-                isGroup={isGroup}
-                groupAdminId={groupAdminId}
-              />
-            </div>
-          );
-        })}
         <div ref={messagesEndRef} />
 
         {typingUsers.length > 0 && (
-          <div className="px-4 py-2 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <div className="px-4 py-2 flex items-center gap-2 text-sm text-chat-text-tertiary">
             <div className="flex gap-1">
               <span
-                className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
+                className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
                 style={{ animationDelay: "0ms" }}
               />
               <span
-                className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
+                className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
                 style={{ animationDelay: "150ms" }}
               />
               <span
-                className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
+                className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
                 style={{ animationDelay: "300ms" }}
               />
             </div>
@@ -1017,20 +1034,20 @@ export default function ChatWindow({
         
         <AnimatePresence>
           {showScrollBadge && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              onClick={scrollToBottom}
-              className="absolute bottom-24 right-6 w-10 h-10 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-blue-500 z-20 cursor-pointer"
-            >
-              <ChevronDown className="w-5 h-5" />
-              {unreadCountBelow > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800">
-                  {unreadCountBelow > 99 ? "99+" : unreadCountBelow}
-                </span>
-              )}
-            </motion.button>
+                <motion.button
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  onClick={() => scrollToBottom(true)}
+                  className="fixed bottom-24 right-8 z-30 p-3 bg-chat-accent text-white rounded-full shadow-lg hover:opacity-90 transition-all flex items-center justify-center"
+                >
+                  <ChevronDown className="w-6 h-6" />
+                  {unreadCountBelow > 0 && (
+                    <span className="absolute -top-1 -left-1 w-6 h-6 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-chat-bg-primary">
+                      {unreadCountBelow}
+                    </span>
+                  )}
+                </motion.button>
           )}
         </AnimatePresence>
 

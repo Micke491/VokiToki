@@ -25,7 +25,7 @@ const ChatHeader = ({
   onToggleSidebar,
 }: ChatHeaderProps) => {
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 z-10">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-chat-bg-primary shrink-0 z-10">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Mobile Back Button - Removed per user request to rely on system navigation */}
         {/* 
@@ -41,7 +41,7 @@ const ChatHeader = ({
         */}
         {!showSearch ? (
           <>
-            <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} shadow-sm overflow-hidden shrink-0`}>
+            <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'} shadow-sm overflow-hidden shrink-0`}>
               {recipientAvatar ? (
                 <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
               ) : isGroup ? (
@@ -56,25 +56,25 @@ const ChatHeader = ({
               )}
             </div>
             <div className="min-w-0">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white leading-tight truncate">
+              <h3 className="text-base font-semibold text-chat-text-primary leading-tight truncate">
                 {recipientUsername || "Chat"}
               </h3>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center bg-slate-100 dark:bg-slate-800 rounded-full px-4 py-1.5 animate-in slide-in-from-right-4 duration-300">
-            <Search className="w-4 h-4 text-slate-400 mr-2" />
+          <div className="flex-1 flex items-center bg-chat-bg-secondary rounded-full px-4 py-1.5 animate-in slide-in-from-right-4 duration-300">
+            <Search className="w-4 h-4 text-chat-text-tertiary mr-2" />
             <input
               autoFocus
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search messages..."
-              className="flex-1 bg-transparent border-none outline-none text-sm text-slate-900 dark:text-white placeholder:text-slate-500"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-chat-text-primary placeholder:text-chat-text-tertiary"
             />
             <button
               onClick={() => { setShowSearch(false); setSearchQuery(""); }}
-              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500"
+              className="p-1 hover:bg-chat-hover rounded-full text-chat-text-tertiary"
             >
               <X className="w-4 h-4" />
             </button>
@@ -86,14 +86,14 @@ const ChatHeader = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSearch(true)}
-            className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+            className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
             title="Search"
           >
             <Search className="w-5 h-5" />
           </button>
           <button
             onClick={() => onToggleSidebar?.()}
-            className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+            className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
             title="Chat Info"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -176,8 +176,8 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <div className="w-10 h-10 mb-4 border-[3px] border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+      <div className="flex flex-col items-center justify-center h-full text-chat-text-secondary">
+        <div className="w-10 h-10 mb-4 border-[3px] border-chat-border border-t-chat-accent rounded-full animate-spin"></div>
         <p>Loading conversations...</p>
       </div>
     );
@@ -185,11 +185,11 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+      <div className="flex flex-col items-center justify-center h-full text-chat-text-secondary">
         <p className="mb-3 text-red-500">{error}</p>
         <button 
           onClick={fetchChats}
-          className="px-5 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          className="px-5 py-2 text-white bg-chat-accent rounded-md hover:opacity-90 transition-colors"
         >
           Retry
         </button>
@@ -205,15 +205,15 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
   });
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-white/80 via-blue-50/60 to-indigo-100/40 dark:from-slate-950/80 dark:via-slate-900/60 dark:to-slate-800/40 border-r border-gray-200 transition-colors duration-700">
+    <div className="flex flex-col h-full bg-chat-sidebar border-r border-chat-border transition-colors duration-300">
       {/* Header */}
-      <div className="flex flex-col gap-3 p-5 border-b border-gray-200">
+      <div className="flex flex-col gap-3 p-5 border-b border-chat-border">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Messages</h2>
+          <h2 className="text-2xl font-bold text-chat-text-primary">Messages</h2>
           <div className="flex items-center gap-2 md:hidden">
             <button 
               onClick={() => router.push('/settings')}
-              className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
               title="Settings"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -229,15 +229,15 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
             placeholder="Search chats..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-chat-bg-primary border border-chat-border rounded-lg focus:ring-2 focus:ring-chat-accent outline-none text-sm transition-all text-chat-text-primary"
           />
-          <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="absolute left-3 top-2.5 w-4 h-4 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-2.5 text-chat-text-tertiary hover:text-chat-text-secondary"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -250,13 +250,13 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       {/* List Items */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {chats.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-5 py-16 text-center text-gray-500">
-            <svg className="w-16 h-16 mb-5 opacity-40 text-gray-400" viewBox="0 0 64 64" fill="none">
+          <div className="flex flex-col items-center justify-center px-5 py-16 text-center text-chat-text-tertiary">
+            <svg className="w-16 h-16 mb-5 opacity-40 text-chat-text-tertiary" viewBox="0 0 64 64" fill="none">
               <path d="M32 8C18.745 8 8 17.969 8 30c0 4.5 1.5 8.7 4 12.2V56l12.8-6.4c2.4.6 4.8 1 7.2 1 13.255 0 24-9.969 24-22S45.255 8 32 8z" stroke="currentColor" strokeWidth="2"/>
             </svg>
             <p className="mb-5 text-base">No conversations yet</p>
             <button 
-              className="px-6 py-2.5 font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-2.5 font-medium text-white bg-chat-accent rounded-lg hover:opacity-90 transition-colors"
               onClick={() => router.push('/chat')}
             >
               Start a chat
@@ -278,13 +278,13 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
                 key={chat._id}
                 onClick={() => handleChatClick(chat._id)}
                 className={`
-                  flex gap-3 px-5 py-3 border-b border-gray-100 cursor-pointer transition-colors
-                  hover:bg-gray-50
-                  ${isSelected ? 'bg-blue-50 border-l-[3px] border-l-blue-600' : 'border-l-[3px] border-l-transparent'}
+                  flex gap-3 px-5 py-3 border-b border-chat-border cursor-pointer transition-colors
+                  hover:bg-chat-hover
+                  ${isSelected ? 'bg-chat-selected border-l-[3px] border-l-chat-accent' : 'border-l-[3px] border-l-transparent'}
                 `}
               >
                 {/* Avatar */}
-                <div className={`relative flex items-center justify-center flex-shrink-0 w-12 h-12 text-lg font-semibold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-blue-600'} overflow-hidden`}>
+                <div className={`relative flex items-center justify-center flex-shrink-0 w-12 h-12 text-lg font-semibold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'} overflow-hidden`}>
                   {chatAvatar ? (
                     <img src={chatAvatar} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -300,21 +300,21 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
                      )
                   )}
                   {isUnread && (
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
+                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-chat-bg-primary rounded-full"></span>
                   )}
                 </div>
                 
                 {/* Chat Info */}
                 <div className="flex flex-col flex-1 min-w-0 gap-1">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-black dark:text-white' : 'font-semibold text-gray-900'}`}>
+                    <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'}`}>
                       {chatName}
                     </span>
-                    <span className={`text-xs whitespace-nowrap ml-2 ${isUnread ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
+                    <span className={`text-xs whitespace-nowrap ml-2 ${isUnread ? 'font-bold text-chat-accent' : 'text-chat-text-tertiary'}`}>
                       {chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : formatTime(chat.updatedAt)}
                     </span>
                   </div>
-                  <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-500'}`}>
+                  <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
                     {chat.lastMessage && (
                       <span className="shrink-0">
                         {chat.lastMessage.sender?._id === currentUserId ? 'You: ' : 

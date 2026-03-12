@@ -48,17 +48,17 @@ const MessageInput = ({
   formatRecordingTime,
 }: MessageInputProps) => {
   return (
-    <footer className="p-4 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 shrink-0">
+    <footer className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0">
       {(replyingTo || editingMessage) && (
-        <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-slate-100 dark:bg-slate-900 rounded-lg border-l-4 border-blue-500">
+        <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-bg-secondary rounded-lg border-l-4 border-chat-accent">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="flex flex-col text-sm flex-1 min-w-0">
-              <span className="font-semibold text-blue-600 dark:text-blue-400">
+              <span className="font-semibold text-chat-accent">
                 {editingMessage
                   ? "Editing Message"
                   : `Replying to ${replyingTo?.sender.username}`}
               </span>
-              <span className="text-slate-600 dark:text-slate-400 line-clamp-1 text-xs truncate">
+              <span className="text-chat-text-secondary line-clamp-1 text-xs truncate">
                 {editingMessage
                   ? editingMessage.text
                   : replyingTo?.text ||
@@ -72,11 +72,11 @@ const MessageInput = ({
               </span>
             </div>
             {replyingTo?.mediaUrl && (
-              <div className="flex-shrink-0 w-10 h-10 rounded overflow-hidden border border-slate-200 dark:border-slate-700">
+              <div className="flex-shrink-0 w-10 h-10 rounded overflow-hidden border border-chat-border">
                 {replyingTo.mediaType === "video" ? (
-                  <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                  <div className="w-full h-full bg-chat-bg-secondary flex items-center justify-center">
                     <svg
-                      className="w-5 h-5 text-slate-500"
+                      className="w-5 h-5 text-chat-text-tertiary"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -89,8 +89,8 @@ const MessageInput = ({
                     </svg>
                   </div>
                 ) : replyingTo.mediaType === "audio" ? (
-                  <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                    <Mic className="w-5 h-5 text-slate-500" />
+                  <div className="w-full h-full bg-chat-bg-secondary flex items-center justify-center">
+                    <Mic className="w-5 h-5 text-chat-text-tertiary" />
                   </div>
                 ) : (
                   <img
@@ -108,10 +108,10 @@ const MessageInput = ({
               setEditingMessage(null);
               setNewMessage("");
             }}
-            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full flex-shrink-0 ml-2"
+            className="p-1 hover:bg-chat-hover rounded-full flex-shrink-0 ml-2"
           >
             <svg
-              className="w-4 h-4 text-slate-500"
+              className="w-4 h-4 text-chat-text-tertiary"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -124,7 +124,7 @@ const MessageInput = ({
       )}
 
       <form
-        className={`max-w-4xl mx-auto flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-900 rounded-[28px] focus-within:ring-2 focus-within:ring-blue-500/20 transition-all border border-transparent focus-within:border-blue-500/30 ${
+        className={`max-w-4xl mx-auto flex items-center gap-3 px-4 py-2 bg-chat-bg-secondary rounded-[28px] focus-within:ring-2 focus-within:ring-chat-accent/20 transition-all border border-transparent focus-within:border-chat-accent/30 ${
           isRecording ? "ring-2 ring-red-500/20 border-red-500/30" : ""
         }`}
         onSubmit={handleSend}
@@ -132,14 +132,14 @@ const MessageInput = ({
         {isRecording ? (
           <div className="flex-1 flex items-center gap-4 animate-in fade-in duration-200">
             <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-            <span className="font-mono text-slate-700 dark:text-slate-200 font-medium min-w-[50px]">
+            <span className="font-mono text-chat-text-primary font-medium min-w-[50px]">
               {formatRecordingTime(recordingDuration)}
             </span>
-            <div className="flex-1 text-xs text-slate-400">Recording...</div>
+            <div className="flex-1 text-xs text-chat-text-tertiary">Recording...</div>
             <button
               type="button"
               onClick={cancelRecording}
-              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500 hover:text-red-500 transition-colors"
+              className="p-2 hover:bg-chat-hover rounded-full text-chat-text-tertiary hover:text-red-500 transition-colors"
             >
               <Trash2 className="w-5 h-5" />
             </button>
@@ -157,10 +157,10 @@ const MessageInput = ({
               type="button"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
-              className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-all"
+              className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-chat-hover text-chat-text-tertiary transition-all"
             >
               {uploading ? (
-                <div className="w-5 h-5 border-2 border-slate-400 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-chat-text-tertiary border-t-chat-accent rounded-full animate-spin" />
               ) : (
                 <svg
                   className="w-6 h-6"
@@ -193,7 +193,7 @@ const MessageInput = ({
               }
               rows={1}
               disabled={sending}
-              className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-slate-900 dark:text-white placeholder-slate-400 resize-none overflow-y-auto"
+              className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-chat-text-primary placeholder-chat-text-tertiary resize-none overflow-y-auto"
             />
             {newMessage.length > MAX_CHARS * 0.8 && (
                <div className={`absolute -top-6 right-8 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border ${
@@ -211,7 +211,7 @@ const MessageInput = ({
           <button
             type="button"
             onClick={stopRecording}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 text-white transition-all hover:scale-105 active:scale-95 shadow-md shadow-blue-500/20"
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-chat-accent text-white transition-all hover:scale-105 active:scale-95 shadow-md shadow-chat-accent/20"
           >
             <Send className="w-5 h-5" />
           </button>
@@ -224,8 +224,8 @@ const MessageInput = ({
             disabled={sending && !isRecording}
             className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 ${
               newMessage.trim() || sending
-                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                ? "bg-chat-accent text-white shadow-md shadow-chat-accent/20"
+                : "bg-chat-bg-secondary text-chat-text-tertiary hover:bg-chat-hover"
             }`}
           >
             {sending ? (

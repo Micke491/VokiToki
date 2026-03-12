@@ -67,12 +67,12 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg min-w-[240px] border border-slate-200 dark:border-slate-700">
+    <div className="flex items-center gap-3 p-3 bg-chat-bg-secondary rounded-lg min-w-[240px] border border-chat-border">
       <audio ref={audioRef} src={src} preload="metadata" />
       
       <button
         onClick={togglePlay}
-        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-chat-accent text-white hover:opacity-90 transition-colors"
       >
         {isPlaying ? (
           <Pause className="w-4 h-4 fill-current" />
@@ -88,9 +88,9 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
           max={duration || 0}
           value={currentTime}
           onChange={handleSeek}
-          className="w-full h-1.5 bg-slate-300 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          className="w-full h-1.5 bg-chat-border rounded-lg appearance-none cursor-pointer accent-chat-accent"
         />
-        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+        <div className="flex justify-between text-[10px] font-medium text-chat-text-tertiary">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>

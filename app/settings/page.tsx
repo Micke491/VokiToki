@@ -61,7 +61,7 @@ export default function SettingsPage() {
   };
 
   const applyTheme = (selectedTheme: 'light' | 'dark') => {
-    document.documentElement.classList.toggle('dark', selectedTheme === 'dark');
+    document.documentElement.setAttribute('data-theme', selectedTheme);
     localStorage.setItem('theme', selectedTheme);
   };
 
@@ -161,33 +161,33 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-950">
-        <div className="w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-screen bg-chat-bg-secondary">
+        <div className="w-12 h-12 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-chat-bg-primary overflow-hidden">
       <div className="hidden md:block">
         <SideBar currentUser={currentUser || undefined} />
       </div>
       
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="px-6 py-10 md:px-10 border-b border-slate-200 dark:border-slate-800">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Settings</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your account and preferences</p>
+        <header className="px-6 py-10 md:px-10 border-b border-chat-border">
+          <h1 className="text-3xl font-bold text-chat-text-primary">Settings</h1>
+          <p className="text-chat-text-secondary mt-1">Manage your account and preferences</p>
         </header>
 
         <div className="max-w-3xl p-6 md:p-10 space-y-12">
           
           {/* Profile Section */}
           <section className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Profile</h2>
+            <h2 className="text-xl font-semibold text-chat-text-primary">Profile</h2>
             
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-              <div className="relative w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-3xl font-bold text-white shadow-xl overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-chat-border">
+              <div className="relative w-24 h-24 rounded-full bg-gradient-to-tr from-chat-accent to-chat-accent-secondary flex items-center justify-center text-3xl font-bold text-white shadow-xl overflow-hidden ring-4 ring-chat-bg-secondary">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -210,44 +210,44 @@ export default function SettingsPage() {
                 <button 
                   onClick={() => document.getElementById('avatar-upload')?.click()}
                   disabled={uploading}
-                  className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-chat-bg-primary border border-chat-border rounded-lg text-sm font-medium hover:bg-chat-hover transition-colors disabled:opacity-50 text-chat-text-primary"
                 >
                   {uploading ? 'Uploading...' : 'Change Avatar'}
                 </button>
-                <p className="text-xs text-slate-400">Recommended: Square image, max 10MB</p>
+                <p className="text-xs text-chat-text-tertiary">Recommended: Square image, max 10MB</p>
               </div>
             </div>
 
             <div className="grid gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Username</label>
+                <label className="text-sm font-medium text-chat-text-secondary">Username</label>
                 <input 
                   type="text" 
                   value={currentUser?.username || ''} 
                   disabled 
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 cursor-not-allowed"
+                  className="w-full p-3 bg-chat-bg-secondary border border-chat-border rounded-xl text-chat-text-tertiary cursor-not-allowed"
                 />
-                <p className="text-xs text-slate-400">Username cannot be changed</p>
+                <p className="text-xs text-chat-text-tertiary">Username cannot be changed</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                <label className="text-sm font-medium text-chat-text-secondary">Email</label>
                 <input 
                   type="email" 
                   value={currentUser?.email || ''} 
                   disabled 
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 cursor-not-allowed"
+                  className="w-full p-3 bg-chat-bg-secondary border border-chat-border rounded-xl text-chat-text-tertiary cursor-not-allowed"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Display Name</label>
+                <label className="text-sm font-medium text-chat-text-secondary">Display Name</label>
                 <input 
                   type="text" 
                   placeholder="Enter display name" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                  className="w-full p-3 bg-chat-bg-primary border border-chat-border rounded-xl focus:ring-2 focus:ring-chat-accent outline-none transition-all text-chat-text-primary"
                 />
               </div>
             </div>
@@ -255,7 +255,7 @@ export default function SettingsPage() {
             <button 
               onClick={handleSaveProfile}
               disabled={saving}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              className="px-6 py-3 bg-chat-accent hover:opacity-90 disabled:opacity-50 text-white rounded-xl font-medium transition-all shadow-lg shadow-chat-accent/20 active:scale-95"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -263,32 +263,32 @@ export default function SettingsPage() {
 
           {/* Appearance Section */}
           <section className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Appearance</h2>
+            <h2 className="text-xl font-semibold text-chat-text-primary">Appearance</h2>
             <div className="grid grid-cols-2 gap-4">
               <button 
                 onClick={() => handleThemeChange('light')}
-                className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${theme === 'light' ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
+                className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${theme === 'light' ? 'border-chat-accent bg-chat-accent/5' : 'border-chat-border hover:border-chat-accent/30'}`}
               >
-                <svg className={`w-6 h-6 ${theme === 'light' ? 'text-blue-600' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`w-6 h-6 ${theme === 'light' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
                 </svg>
-                <span className={`text-sm font-medium ${theme === 'light' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}>Light</span>
+                <span className={`text-sm font-medium ${theme === 'light' ? 'text-chat-accent' : 'text-chat-text-secondary'}`}>Light</span>
               </button>
 
               <button 
                 onClick={() => handleThemeChange('dark')}
-                className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${theme === 'dark' ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
+                className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${theme === 'dark' ? 'border-chat-accent bg-chat-accent/5' : 'border-chat-border hover:border-chat-accent/30'}`}
               >
-                <svg className={`w-6 h-6 ${theme === 'dark' ? 'text-blue-600' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`w-6 h-6 ${theme === 'dark' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
-                <span className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}>Dark</span>
+                <span className={`text-sm font-medium ${theme === 'dark' ? 'text-chat-accent' : 'text-chat-text-secondary'}`}>Dark</span>
               </button>
             </div>
           </section>
 
           {/* Danger Zone */}
-          <section className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-4">
+          <section className="pt-8 border-t border-chat-border space-y-4">
             <h2 className="text-xl font-semibold text-red-600">Danger Zone</h2>
             <div className="p-4 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -309,8 +309,8 @@ export default function SettingsPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-chat-bg-primary rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-chat-border">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                 <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -318,12 +318,12 @@ export default function SettingsPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Delete Account?</h3>
-                <p className="text-sm text-slate-500">This action cannot be undone</p>
+                <h3 className="text-lg font-bold text-chat-text-primary">Delete Account?</h3>
+                <p className="text-sm text-chat-text-secondary">This action cannot be undone</p>
               </div>
             </div>
             
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
+            <p className="text-chat-text-secondary text-sm">
               Are you sure you want to permanently delete your account? All of your data, messages, and settings will be permanently removed.
             </p>
 
@@ -331,7 +331,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-chat-bg-secondary hover:bg-chat-hover text-chat-text-primary rounded-xl font-medium transition-colors disabled:opacity-50 border border-chat-border"
               >
                 Cancel
               </button>

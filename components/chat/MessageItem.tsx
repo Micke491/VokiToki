@@ -119,9 +119,9 @@ const MessageItem = ({
         behavior: "smooth",
         block: "center",
       });
-      replyElement.classList.add("ring-2", "ring-blue-500");
+      replyElement.classList.add("ring-2", "ring-chat-accent");
       setTimeout(() => {
-        replyElement.classList.remove("ring-2", "ring-blue-500");
+        replyElement.classList.remove("ring-2", "ring-chat-accent");
       }, 2000);
     }
   };
@@ -136,7 +136,7 @@ const MessageItem = ({
     >
       {showDate && dateLabel && (
         <div className="flex justify-center sticky top-0 z-10 mb-4 pt-2 pointer-events-none">
-          <span className="px-3 py-1 text-xs font-semibold text-slate-500 bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
+          <span className="px-3 py-1 text-xs font-semibold text-chat-text-tertiary bg-chat-bg-primary/80 backdrop-blur rounded-full shadow-sm border border-chat-border">
             {dateLabel}
           </span>
         </div>
@@ -152,12 +152,12 @@ const MessageItem = ({
         {message.replyTo && !message.isDeletedForEveryone && (
           <div
             className={`
-                  flex items-center gap-2 mb-1 text-xs text-slate-500 
+                  flex items-center gap-2 mb-1 text-xs text-chat-text-tertiary 
                   ${isOwn ? "mr-2 flex-row-reverse" : "ml-12"}
                   opacity-70 hover:opacity-100 transition-opacity cursor-pointer
               `}
           >
-            <div className="w-1 h-3 bg-slate-300 rounded-full"></div>
+            <div className="w-1 h-3 bg-chat-border rounded-full"></div>
             <span>Replying to {message.replyTo.sender.username}</span>
           </div>
         )}
@@ -167,7 +167,7 @@ const MessageItem = ({
         >
           {/* Avatar (Partner) */}
           {!isOwn && (
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 select-none overflow-hidden">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-chat-bg-secondary flex items-center justify-center text-xs font-bold text-chat-text-secondary select-none overflow-hidden">
               {message.sender.avatar ? (
                 <img
                   src={message.sender.avatar}
@@ -184,14 +184,14 @@ const MessageItem = ({
           <div className="relative group/bubble flex flex-col">
             {isGroup && !isOwn && (
               <div className="flex items-center gap-1.5 mb-1 ml-1 px-1">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
+                <span className="text-[11px] font-bold text-chat-text-tertiary truncate max-w-[120px]">
                   {message.sender.username}
                 </span>
               </div>
             )}
             
             {message.isForwarded && (
-               <div className={`flex items-center gap-1 mb-1 text-[10.5px] font-semibold text-slate-500/70 italic ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
+               <div className={`flex items-center gap-1 mb-1 text-[10.5px] font-semibold text-chat-text-tertiary/70 italic ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
@@ -200,7 +200,7 @@ const MessageItem = ({
             )}
 
             {message.isPinned && (
-              <div className={`flex items-center gap-1 mb-1 text-[10px] font-bold text-slate-400 capitalize ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
+              <div className={`flex items-center gap-1 mb-1 text-[10px] font-bold text-chat-text-tertiary/60 capitalize ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                    <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
@@ -211,8 +211,8 @@ const MessageItem = ({
               className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed shadow-sm relative min-w-0 [overflow-wrap:anywhere] [word-break:break-word]
                     ${
                       isOwn
-                        ? "bg-blue-600 text-white rounded-br-none"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-none"
+                        ? "bg-chat-accent text-white rounded-br-none"
+                        : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                     }
                     ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
                 `}
@@ -224,8 +224,8 @@ const MessageItem = ({
                             flex mb-2 p-2 rounded text-xs border-l-2 opacity-90 cursor-pointer hover:opacity-100 transition-opacity
                             ${
                               isOwn
-                                ? "bg-blue-700/50 border-blue-300 hover:bg-blue-700/60"
-                                : "bg-slate-200 dark:bg-slate-700 border-slate-400 hover:bg-slate-300 dark:hover:bg-slate-600"
+                                ? "bg-white/10 border-white/30 hover:bg-white/20 text-white"
+                                : "bg-chat-bg-primary/50 border-chat-border hover:bg-chat-bg-primary/70 text-chat-text-primary"
                             }
                         `}
                 >
@@ -249,7 +249,7 @@ const MessageItem = ({
                       {message.replyTo.mediaType === "video" ? (
                         <div className="w-full h-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
                           <svg
-                            className="w-6 h-6 text-slate-500 dark:text-slate-300"
+                            className="w-6 h-6 text-chat-text-tertiary"
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -263,7 +263,7 @@ const MessageItem = ({
                         </div>
                       ) : message.replyTo.mediaType === "audio" ? (
                         <div className="w-full h-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
-                          <Mic className="w-6 h-6 text-slate-500 dark:text-slate-300" />
+                          <Mic className="w-6 h-6 text-chat-text-tertiary" />
                         </div>
                       ) : (
                         <img
@@ -278,7 +278,7 @@ const MessageItem = ({
               )}
 
               {message.mediaUrl && !message.isDeletedForEveryone && (
-                <div className="mb-2 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 max-w-[320px] bg-slate-100 dark:bg-slate-800 relative group">
+                <div className="mb-2 rounded-lg overflow-hidden border border-chat-border max-w-[320px] bg-chat-bg-secondary relative group">
                   {message.mediaType === "video" ? (
                     <div className="relative">
                       <video
@@ -355,7 +355,7 @@ const MessageItem = ({
                 } flex items-center z-10 cursor-pointer group/reactions`}
               >
                 <div className={`
-                  flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 
+                  flex items-center bg-chat-bg-primary border border-chat-border 
                   rounded-full px-1.5 py-0.5 shadow-sm hover:shadow-md transition-all duration-200 gap-1
                   ${isOwn ? "flex-row-reverse" : "flex-row"}
                 `}>
@@ -365,21 +365,21 @@ const MessageItem = ({
                       .map((emoji, idx) => (
                         <span 
                           key={emoji} 
-                          className="text-[13px] bg-white dark:bg-slate-800 rounded-full ring-1 ring-slate-100 dark:ring-slate-700"
+                          className="text-[13px] bg-chat-bg-primary rounded-full ring-1 ring-chat-border"
                           style={{ zIndex: 10 - idx }}
                         >
                           {emoji}
                         </span>
                       ))}
                   </div>
-                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 px-0.5">
+                  <span className="text-[11px] font-bold text-chat-text-secondary px-0.5">
                     {message.reactions.length}
                   </span>
                 </div>
                 
                 {/* Hover Details Tooltip (with bridge to prevent closing) */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/reactions:flex flex-col pb-3 z-50 pointer-events-auto">
-                   <div className="bg-slate-900 text-white p-2 rounded-lg text-[10px] whitespace-nowrap shadow-xl border border-slate-700 animate-in fade-in zoom-in duration-200">
+                   <div className="bg-chat-bg-primary text-chat-text-primary p-2 rounded-lg text-[10px] whitespace-nowrap shadow-xl border border-chat-border animate-in fade-in zoom-in duration-200">
                      {Array.from(new Set(message.reactions.map(r => r.emoji))).map(emoji => {
                        const userReacted = message.reactions!.some(r => r.userId === currentUserId && r.emoji === emoji);
                        return (
@@ -444,7 +444,7 @@ const MessageItem = ({
             {!message.isDeletedForEveryone && (
               <div
                 className={`
-                  absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity p-1 bg-white dark:bg-slate-900 rounded-lg shadow-md border border-slate-100 dark:border-slate-800 z-10
+                  absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity p-1 bg-chat-bg-primary rounded-lg shadow-md border border-chat-border z-10
                   ${isOwn ? "-left-[120px]" : "-right-[120px]"}
                 `}
               >
@@ -455,14 +455,14 @@ const MessageItem = ({
                       showEmojiPicker === message._id ? null : message._id
                     );
                   }}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors"
+                  className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary hover:text-yellow-500 transition-colors"
                   title="React"
                 >
                   <Smile className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onReply(message)}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500"
+                  className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary"
                   title="Reply"
                 >
                   <svg
@@ -484,7 +484,7 @@ const MessageItem = ({
                     {message.text && (
                       <button
                         onClick={() => onEdit(message)}
-                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500"
+                        className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary"
                         title="Edit"
                       >
                         <svg
@@ -541,7 +541,7 @@ const MessageItem = ({
                       });
                     }
                   }}
-                  className={`p-1.5 rounded transition-colors ${message.isPinned ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                  className={`p-1.5 rounded transition-colors ${message.isPinned ? "text-chat-accent bg-chat-accent/10" : "text-chat-text-tertiary hover:bg-chat-hover"}`}
                   title={message.isPinned ? "Unpin" : "Pin"}
                 >
                    <svg className="w-4 h-4" fill={message.isPinned ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
@@ -550,7 +550,7 @@ const MessageItem = ({
                 </button>
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('forward-message', { detail: message }))}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-blue-500 transition-colors"
+                  className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary hover:text-chat-accent transition-colors"
                   title="Forward"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -560,7 +560,7 @@ const MessageItem = ({
                 {isOwn && isGroup && (
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent('view-receipts', { detail: message }))}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-blue-500 transition-colors"
+                    className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary hover:text-chat-accent transition-colors"
                     title="Info"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -575,7 +575,7 @@ const MessageItem = ({
 
         {/* Metadata */}
         <div
-          className={`flex items-center gap-1 mt-1 text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider
+          className={`flex items-center gap-1 mt-1 text-[10px] sm:text-xs font-medium text-chat-text-tertiary uppercase tracking-wider
             ${isOwn ? "mr-0 justify-end" : "ml-10 justify-start"}
         `}
         >
