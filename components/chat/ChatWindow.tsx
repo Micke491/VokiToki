@@ -1074,19 +1074,22 @@ export default function ChatWindow({
           />
         </div>
 
-        <ChatSidebar
-          isOpen={showSidebar}
-          onClose={() => setShowSidebar(false)}
-          isGroup={isGroup || false}
-          chatId={chatId}
-          wallpaper={wallpaper}
-          setWallpaper={setWallpaper}
-          participants={participants}
-          recipientUsername={recipientUsername}
-          recipientAvatar={recipientAvatar}
-          messages={messages}
-          groupAdminId={groupAdminId}
-        />
+        {showSidebar && (
+          <ChatSidebar
+            isOpen={showSidebar}
+            onClose={() => setShowSidebar(false)}
+            isGroup={isGroup || false}
+            chatId={chatId}
+            wallpaper={wallpaper}
+            setWallpaper={setWallpaper}
+            participants={participants}
+            recipientUsername={recipientUsername}
+            recipientAvatar={recipientAvatar}
+            messages={messages}
+            groupAdminId={groupAdminId}
+            currentUserId={currentUserId}
+          />
+        )}
       </div>
     </div>
   );

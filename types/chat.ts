@@ -15,6 +15,7 @@ export interface Message {
   isEdited?: boolean;
   isPinned?: boolean;
   isForwarded?: boolean;
+  isSystemMessage?: boolean;
   replyTo?: Message;
   isDeletedForEveryone?: boolean;
   mediaUrl?: string;

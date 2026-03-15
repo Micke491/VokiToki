@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2 } from "lucide-react";
+import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
+import toast from "react-hot-toast";
+import AddParticipantModal from "./AddParticipantModal";
 
 interface ChatSidebarProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ interface ChatSidebarProps {
   recipientAvatar?: string;
   messages: Message[];
   groupAdminId?: string;
+  currentUserId?: string;
 }
 
 const ChatSidebar = ({
@@ -34,15 +37,29 @@ const ChatSidebar = ({
   recipientAvatar,
   messages,
   groupAdminId,
+  currentUserId,
 }: ChatSidebarProps) => {
   const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
+  
+  // Group Management State
+  const [isEditingGroup, setIsEditingGroup] = useState(false);
+  const [editGroupName, setEditGroupName] = useState(recipientUsername || "");
+  const [isSavingGroupInfo, setIsSavingGroupInfo] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const isAdmin = currentUserId === groupAdminId;
 
   useEffect(() => {
     if (isOpen && chatId) {
       fetchMedia();
     }
   }, [isOpen, chatId]);
+
+  useEffect(() => {
+    setEditGroupName(recipientUsername || "");
+  }, [recipientUsername]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -79,7 +96,81 @@ const ChatSidebar = ({
     }
   };
 
+  const handleUpdateGroupInfo = async () => {
+    if (!editGroupName.trim() || !chatId) return;
+    try {
+      setIsSavingGroupInfo(true);
+      const res = await fetch(`/api/chat/${chatId}/update`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ name: editGroupName }),
+      });
+      if (res.ok) {
+        toast.success("Group info updated");
+        setIsEditingGroup(false);
+      } else {
+        toast.error("Failed to update group info");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred");
+    } finally {
+      setIsSavingGroupInfo(false);
+    }
+  };
+
+  const handleRemoveParticipant = async (userId: string) => {
+    if (!chatId || !confirm("Remove participant?")) return;
+    try {
+      const res = await fetch(`/api/chat/${chatId}/remove`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        toast.success("Participant removed");
+      } else {
+        toast.error("Failed to remove participant");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleLeaveOrDelete = async (isDelete = false) => {
+    if (!chatId || !confirm(`Are you sure you want to ${isDelete ? 'delete' : 'leave'} this chat?`)) return;
+    try {
+      setIsLeaving(true);
+      const endpoint = isGroup && !isDelete ? `/api/chat/${chatId}/leave` : `/api/chat/${chatId}`;
+      const method = isGroup && !isDelete ? "POST" : "DELETE";
+      
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (res.ok) {
+        window.location.href = "/chat"; // Fast redirect
+      } else {
+        toast.error(`Failed to ${isDelete ? 'delete' : 'leave'} chat`);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred");
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <motion.div 
@@ -105,7 +196,7 @@ const ChatSidebar = ({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Profile Section */}
-        <div className="p-6 flex flex-col items-center text-center border-b border-chat-border">
+        <div className="p-6 flex flex-col items-center text-center border-b border-chat-border relative">
           <div className={`w-24 h-24 rounded-full mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg overflow-hidden ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'}`}>
             {recipientAvatar ? (
               <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -117,18 +208,65 @@ const ChatSidebar = ({
                 )
             )}
           </div>
-          <h3 className="text-xl font-bold text-chat-text-primary mb-1">
-            {recipientUsername}
-          </h3>
+          {isGroup && isAdmin ? (
+             <div className="flex items-center gap-2 mb-1 w-full justify-center">
+                {isEditingGroup ? (
+                   <div className="flex items-center gap-1 w-full max-w-[200px]">
+                      <input 
+                         type="text"
+                         className="flex-1 bg-chat-bg-secondary px-2 py-1 rounded border border-chat-border text-sm outline-none text-chat-text-primary"
+                         value={editGroupName}
+                         onChange={(e) => setEditGroupName(e.target.value)}
+                         autoFocus
+                      />
+                      <button 
+                         onClick={handleUpdateGroupInfo}
+                         disabled={isSavingGroupInfo}
+                         className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors disabled:opacity-50"
+                      >
+                         {isSavingGroupInfo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      </button>
+                      <button 
+                         onClick={() => setIsEditingGroup(false)}
+                         className="p-1.5 hover:bg-chat-hover text-chat-text-tertiary rounded transition-colors"
+                      >
+                         <X className="w-4 h-4" />
+                      </button>
+                   </div>
+                ) : (
+                   <div className="flex items-center gap-2 group cursor-pointer justify-center" onClick={() => setIsEditingGroup(true)}>
+                      <h3 className="text-xl font-bold text-chat-text-primary">
+                        {recipientUsername}
+                      </h3>
+                      <Edit2 className="w-4 h-4 text-chat-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+                   </div>
+                )}
+             </div>
+          ) : (
+            <h3 className="text-xl font-bold text-chat-text-primary mb-1">
+              {recipientUsername}
+            </h3>
+          )}
         </div>
 
         {/* Participants Section (Groups) */}
         {isGroup && participants.length > 0 && (
           <div className="p-4 border-b border-chat-border">
-            <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Users className="w-3.5 h-3.5" />
-              Participants
-            </h4>
+            <div className="flex items-center justify-between mb-4">
+               <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest flex items-center gap-2">
+                 <Users className="w-3.5 h-3.5" />
+                 Participants
+               </h4>
+               {isAdmin && (
+                  <button
+                     onClick={() => setShowAddModal(true)}
+                     className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors flex items-center gap-1"
+                     title="Add user"
+                  >
+                     <UserPlus className="w-4 h-4" />
+                  </button>
+               )}
+            </div>
             <div className="space-y-3">
               {participants.map((user) => (
                 <div key={user._id} className="flex items-center gap-3 group">
@@ -141,7 +279,7 @@ const ChatSidebar = ({
                       )}
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex items-center justify-between">
                     <p className="text-sm font-semibold text-chat-text-secondary truncate flex items-center gap-1.5">
                       {user.username}
                       {groupAdminId === user._id && (
@@ -150,6 +288,15 @@ const ChatSidebar = ({
                         </span>
                       )}
                     </p>
+                    {isAdmin && groupAdminId !== user._id && (
+                       <button
+                          onClick={() => handleRemoveParticipant(user._id)}
+                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                          title="Remove user"
+                       >
+                          <X className="w-4 h-4" />
+                       </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -263,11 +410,44 @@ const ChatSidebar = ({
             )}
           </div>
         )}
+
+        {/* Danger Zone */}
+        <div className="p-4 border-t border-chat-border mt-auto">
+           {isGroup ? (
+              <button
+                onClick={() => handleLeaveOrDelete(false)}
+                disabled={isLeaving}
+                className="w-full py-2.5 px-4 flex items-center justify-center gap-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {isLeaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                Leave Group
+              </button>
+           ) : (
+              <button
+                onClick={() => handleLeaveOrDelete(true)}
+                disabled={isLeaving}
+                className="w-full py-2.5 px-4 flex items-center justify-center gap-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {isLeaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Delete Chat
+              </button>
+           )}
+        </div>
       </div>
     </div>
         </motion.div>
       )}
     </AnimatePresence>
+    
+    {isGroup && chatId && (
+      <AddParticipantModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        chatId={chatId} 
+        existingParticipantIds={participants.map(p => p._id)} 
+      />
+    )}
+    </>
   );
 };
 

@@ -24,13 +24,14 @@
     deletedForEveryoneAt?: Date;
     
     isPinned: boolean;
-    isForwarded: boolean;
-
     replyTo?: mongoose.Types.ObjectId;
     
     mediaUrl?: string;
     mediaType?: 'image' | 'video' | 'audio';
     mediaPublicId?: string;
+    
+    isForwarded: boolean;
+    isSystemMessage: boolean;
     
     createdAt: Date;
     updatedAt: Date;
@@ -128,11 +129,12 @@
         type: Date,
       },
 
-      isPinned: {
+      isForwarded: {
         type: Boolean,
         default: false,
       },
-      isForwarded: {
+      
+      isSystemMessage: {
         type: Boolean,
         default: false,
       },
