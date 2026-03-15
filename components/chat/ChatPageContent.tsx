@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Pusher from "pusher-js";
 import { useRouter } from "next/navigation";
 import ChatList from "@/components/chat/ChatList";
 import ChatWindow from "@/components/chat/ChatWindow";
@@ -42,6 +43,27 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     if (chatId) {
       fetchChatDetails(chatId);
     }
+  }, [chatId]);
+
+  useEffect(() => {
+    if (!chatId) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
+
+    const channel = pusher.subscribe(`chat-${chatId}`);
+
+    channel.bind('chat-updated', (updatedChat: Chat) => {
+      setSelectedChat(updatedChat);
+    });
+
+    return () => {
+      pusher.unsubscribe(`chat-${chatId}`);
+      pusher.disconnect();
+    };
   }, [chatId]);
 
   const fetchCurrentUser = async () => {

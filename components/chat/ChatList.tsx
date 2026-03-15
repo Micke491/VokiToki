@@ -60,10 +60,9 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
     pusherClientRef.current = pusher;
-
     const channel = pusher.subscribe(`user-${currentUserId}`);
     
-    const onChatUpdate = (data: { chatId: string, lastMessage: any, unreadCount: number }) => {
+    const onChatUpdate = (data: { chatId: string, lastMessage?: any, unreadCount?: number, name?: string, avatar?: string, participants?: Chat['participants'] }) => {
       setChats(prevChats => {
         const existingChatIndex = prevChats.findIndex(c => c._id === data.chatId);
         if (existingChatIndex === -1) {
@@ -86,6 +85,9 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
         const updatedChat: Chat = {
           ...existingChat,
           updatedAt: new Date().toISOString(),
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.avatar !== undefined && { avatar: data.avatar }),
+          ...(data.participants !== undefined && { participants: data.participants }),
           lastMessage: data.lastMessage ? {
             text: data.lastMessage.text,
             mediaUrl: data.lastMessage.mediaUrl,
@@ -111,7 +113,23 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       });
     };
 
+    const onChatRemoved = (data: { chatId: string }) => {
+      setChats(prevChats => prevChats.filter(c => c._id !== data.chatId));
+      if (data.chatId === selectedChatIdRef.current) {
+        router.push('/chat');
+      }
+    };
+
+    const onChatNew = (newChat: Chat) => {
+      setChats(prevChats => {
+        if (prevChats.some(c => c._id === newChat._id)) return prevChats;
+        return [newChat, ...prevChats];
+      });
+    };
+
     channel.bind('chat-update', onChatUpdate);
+    channel.bind('chat-removed', onChatRemoved);
+    channel.bind('chat-new', onChatNew);
 
     return () => {
       pusher.unsubscribe(`user-${currentUserId}`);
