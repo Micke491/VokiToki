@@ -171,7 +171,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         {/* 3. Chat Window Panel */}
         <div
           className={`
-          flex-1 flex flex-col min-w-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md
+          flex-1 flex flex-col min-w-0 bg-[var(--bg-primary)]
           ${!chatId ? "hidden md:flex" : "flex"}
         `}
         >

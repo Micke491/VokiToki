@@ -44,7 +44,6 @@ export async function PATCH(
         });
         await Promise.all(updatePromises);
 
-        // --- Create System Message ---
         let updateDesc = 'group details';
         if (name && avatar) updateDesc = 'group name and avatar';
         else if (name) updateDesc = 'group name';

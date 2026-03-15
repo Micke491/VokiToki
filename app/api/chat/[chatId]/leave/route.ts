@@ -63,7 +63,6 @@ export async function POST(
         });
         await Promise.all(updatePromises);
 
-        // --- Create System Message ---
         const currentUser = await User.findById(auth.id);
         const systemMessageText = `${currentUser?.username || 'A user'} left the chat`;
         const newSystemMessage = await Message.create({

@@ -140,15 +140,18 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+      <div className="relative w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+        <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
             Add Participants
           </h2>
           <button 
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             onClick={onClose}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -159,7 +162,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
 
         {/* Selected Users (Chips) */}
         {selectedUsers.length > 0 && (
-            <div className="px-5 pt-4 pb-2 flex flex-wrap gap-2 max-h-[100px] overflow-y-auto border-b border-slate-200 dark:border-slate-800">
+            <div className="px-5 pt-4 pb-2 flex flex-wrap gap-2 max-h-[100px] overflow-y-auto" style={{ borderBottom: '1px solid var(--border-color)' }}>
                 {selectedUsers.map(user => (
                     <div key={user._id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-800">
                         {user.username}
@@ -172,7 +175,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
         )}
 
         {/* Search Container */}
-        <div className="relative p-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="relative p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
           <svg className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-400" width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
@@ -182,7 +185,8 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
-            className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
           />
         </div>
 
@@ -202,11 +206,13 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
               <p className="text-sm">Type to search for users</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div style={{ borderTop: '1px solid var(--border-color)' }}>
               {users.map(user => (
                 <div 
                   key={user._id} 
-                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${(adding) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors ${(adding) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  onMouseEnter={e => { if (!adding) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                   onClick={() => !adding && toggleUserSelection(user)}
                 >
                   {/* Avatar */}
@@ -216,11 +222,11 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
                   
                   {/* User Details */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-medium text-slate-900 dark:text-white truncate">
+                    <p className="text-[15px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                       {user.username}
                     </p>
                     {user.name && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                         {user.name}
                       </p>
                     )}
@@ -232,7 +238,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
         </div>
 
         {/* Action Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+        <div className="p-4" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
             <button
                 onClick={addParticipants}
                 disabled={adding || selectedUsers.length === 0}

@@ -63,7 +63,6 @@ export async function POST(
         });
         await Promise.all(updatePromises);
         
-        // --- Create System Message ---
         const removedUser = await User.findById(userId);
         const currentUser = await User.findById(auth.id);
         if (removedUser) {
