@@ -55,7 +55,9 @@ export default function ChatWindow({
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
@@ -80,6 +82,13 @@ export default function ChatWindow({
       ) {
         setShowEmojiPicker(null);
       }
+      if (
+        (event.target as HTMLElement).closest('[data-more-menu-trigger]') ||
+        (event.target as HTMLElement).closest('[data-more-menu]')
+      ) {
+        return;
+      }
+      setShowMoreMenu(null);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -713,6 +722,24 @@ export default function ChatWindow({
     inputRef.current?.focus();
   };
 
+  const handlePin = async (message: Message) => {
+    if (message.isPinned) {
+      await fetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+    } else {
+      await fetch(`/api/chat/${chatId}/pinned`, {
+          method: 'POST',
+          headers: { 
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('token')}` 
+          },
+          body: JSON.stringify({ messageId: message._id })
+      });
+    }
+  };
+
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -991,11 +1018,16 @@ export default function ChatWindow({
                     onReply={startReply}
                     onEdit={startEdit}
                     onDelete={handleDelete}
+                    onPin={handlePin}
+                    onForward={setForwardingMessage}
+                    onViewStatus={setViewingReceiptsFor}
                     onReaction={handleReaction}
                     onRemoveReaction={removeReaction}
                     scrollToBottom={scrollToBottom}
                     showEmojiPicker={showEmojiPicker}
                     setShowEmojiPicker={setShowEmojiPicker}
+                    showMoreMenu={showMoreMenu}
+                    setShowMoreMenu={setShowMoreMenu}
                     chatId={chatId}
                     isGroup={isGroup}
                     groupAdminId={groupAdminId}

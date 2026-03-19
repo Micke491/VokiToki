@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Mic, Smile } from "lucide-react";
+import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
@@ -19,11 +19,16 @@ interface MessageItemProps {
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
+  onPin: (message: Message) => void;
+  onForward: (message: Message) => void;
+  onViewStatus: (message: Message) => void;
   onReaction: (emojiData: EmojiClickData, messageId: string) => void;
   onRemoveReaction: (messageId: string, emoji: string) => void;
   scrollToBottom: () => void;
   showEmojiPicker: string | null;
   setShowEmojiPicker: (id: string | null) => void;
+  showMoreMenu: string | null;
+  setShowMoreMenu: (id: string | null) => void;
   chatId: string;
   isGroup?: boolean;
   groupAdminId?: string;
@@ -39,11 +44,16 @@ const MessageItem = ({
   onReply,
   onEdit,
   onDelete,
+  onPin,
+  onForward,
+  onViewStatus,
   onReaction,
   onRemoveReaction,
   scrollToBottom,
   showEmojiPicker,
   setShowEmojiPicker,
+  showMoreMenu,
+  setShowMoreMenu,
   chatId,
   isGroup,
   groupAdminId,
@@ -151,7 +161,8 @@ const MessageItem = ({
       ) : (
         <motion.div
           id={`message-${message._id}`}
-          className={`group flex flex-col ${isOwn ? "items-end" : "items-start"} mb-2 transition-all duration-300 relative z-10 touch-pan-y`}
+          className={`group flex flex-col ${isOwn ? "items-end" : "items-start"} mb-2 transition-all duration-300 relative touch-pan-y`}
+          style={{ zIndex: showEmojiPicker === message._id ? 1000 : 10 }}
           {...(bind() as any)}
           animate={controls}
         >
@@ -426,14 +437,24 @@ const MessageItem = ({
                   ref={emojiPickerRef}
                   onClick={(e) => e.stopPropagation()}
                   className={`
-                    fixed z-[9999] shadow-2xl rounded-xl
+                    fixed z-[99999] shadow-2xl rounded-xl overflow-hidden
                     ${isOwn 
                       ? "right-4 sm:right-auto sm:translate-x-0" 
                       : "left-4 sm:left-auto sm:translate-x-0"
                     }
                     bottom-20 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2
+                    animate-in zoom-in duration-200
                   `}
                 >
+                  <div className="bg-chat-bg-primary p-1 border-b border-chat-border flex justify-between items-center">
+                    <span className="text-xs font-bold px-2 text-chat-text-tertiary">Select Reaction</span>
+                    <button 
+                      onClick={() => setShowEmojiPicker(null)}
+                      className="p-1 hover:bg-chat-hover rounded-full text-chat-text-tertiary"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                   <EmojiPicker
                     onEmojiClick={(emojiData) =>
                       onReaction(emojiData, message._id)
@@ -449,133 +470,118 @@ const MessageItem = ({
 
               {/* Message Actions Menu */}
               {!message.isDeletedForEveryone && (
-                <div
-                  className={`
-                    absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity p-1 bg-chat-bg-primary rounded-lg shadow-md border border-chat-border z-10
-                    ${isOwn ? "-left-[120px]" : "-right-[120px]"}
-                  `}
-                >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowEmojiPicker(
-                        showEmojiPicker === message._id ? null : message._id
-                      );
-                    }}
-                    className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary hover:text-yellow-500 transition-colors"
-                    title="React"
+                  <>
+                  {/* New Simplified Message Actions */}
+                  <div
+                    className={`
+                      absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/bubble:opacity-100 transition-all duration-200 z-20
+                      ${isOwn ? "-left-1 -translate-x-full pr-1 font-sans" : "-right-1 translate-x-full pl-1"}
+                    `}
                   >
-                    <Smile className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onReply(message)}
-                    className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary"
-                    title="Reply"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                      />
-                    </svg>
-                  </button>
-                  {isOwn && (
-                    <>
-                      {message.text && (
-                        <button
-                          onClick={() => onEdit(message)}
-                          className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary"
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                            />
-                          </svg>
-                        </button>
-                      )}
-                      <button
-                        onClick={() => onDelete(message._id)}
-                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded text-red-500"
-                        title="Delete"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={async () => {
-                      if (message.isPinned) {
-                        await fetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
-                            method: 'DELETE',
-                            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-                        });
-                      } else {
-                        await fetch(`/api/chat/${chatId}/pinned`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${localStorage.getItem('token')}` 
-                            },
-                            body: JSON.stringify({ messageId: message._id })
-                        });
-                      }
-                    }}
-                    className={`p-1.5 rounded transition-colors ${message.isPinned ? "text-chat-accent bg-chat-accent/10" : "text-chat-text-tertiary hover:bg-chat-hover"}`}
-                    title={message.isPinned ? "Unpin" : "Pin"}
-                  >
-                     <svg className="w-4 h-4" fill={message.isPinned ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                     </svg>
-                  </button>
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('forward-message', { detail: message }))}
-                    className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary hover:text-chat-accent transition-colors"
-                    title="Forward"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                  </button>
-                  {isOwn && isGroup && (
                     <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('view-receipts', { detail: message }))}
-                      className="p-1.5 hover:bg-chat-hover rounded text-chat-text-tertiary hover:text-chat-accent transition-colors"
-                      title="Info"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowEmojiPicker(showEmojiPicker === message._id ? null : message._id);
+                      }}
+                      className="p-2 hover:bg-chat-bg-secondary rounded-full text-chat-text-tertiary hover:text-yellow-500 transition-all shadow-md border border-chat-border/50 bg-chat-bg-primary/90 backdrop-blur-sm h-9 w-9 flex items-center justify-center"
+                      title="React"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                      <Smile className="w-4 h-4" />
                     </button>
-                  )}
-                </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReply(message);
+                      }}
+                      className="p-2 hover:bg-chat-bg-secondary rounded-full text-chat-text-tertiary hover:text-chat-accent transition-all shadow-md border border-chat-border/50 bg-chat-bg-primary/90 backdrop-blur-sm group/replybtn h-9 w-9 flex items-center justify-center"
+                      title="Reply"
+                    >
+                      <Reply className="w-4 h-4 group-active/replybtn:scale-90 transition-transform" />
+                    </button>
+
+                    <div className="relative h-9 w-9 flex items-center justify-center">
+                      <button
+                        onClick={(e) => {
+                           e.stopPropagation();
+                           setShowMoreMenu(showMoreMenu === message._id ? null : message._id);
+                        }}
+                        data-more-menu-trigger
+                        className={`p-2 rounded-full transition-all shadow-md border border-chat-border/50 bg-chat-bg-primary/90 backdrop-blur-sm ${showMoreMenu === message._id ? 'text-chat-accent bg-chat-bg-secondary' : 'text-chat-text-tertiary hover:bg-chat-bg-secondary hover:text-chat-accent'}`}
+                        title="More"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      
+                      {/* More Menu Dropdown (Controlled by Click) */}
+                      {showMoreMenu === message._id && (
+                        <div 
+                          data-more-menu
+                          className={`
+                          absolute bottom-full mb-2 flex flex-col bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl py-1 min-w-[150px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200
+                          ${isOwn ? "left-0" : "right-0"}
+                        `}>
+                           {isOwn && message.text && (
+                             <button
+                               onClick={(e) => { e.stopPropagation(); onEdit(message); setShowMoreMenu(null); }}
+                               className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
+                             >
+                               <Pencil className="w-3.5 h-3.5" />
+                               <span className="font-medium">Edit Message</span>
+                             </button>
+                           )}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               onForward(message);
+                               setShowMoreMenu(null);
+                             }}
+                             className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
+                           >
+                             <Share2 className="w-3.5 h-3.5" />
+                             <span className="font-medium">Forward Message</span>
+                           </button>
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               onPin(message);
+                               setShowMoreMenu(null);
+                             }}
+                             className={`flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover transition-colors ${message.isPinned ? "text-chat-accent bg-chat-accent/5" : "text-chat-text-primary"}`}
+                           >
+                             <Bookmark className={`w-3.5 h-3.5 ${message.isPinned ? "fill-current" : ""}`} />
+                             <span className="font-medium">{message.isPinned ? "Unpin Message" : "Pin Message"}</span>
+                           </button>
+                           {isOwn && isGroup && (
+                             <button
+                               onClick={(e) => { 
+                                 e.stopPropagation(); 
+                                 onViewStatus(message); 
+                                 setShowMoreMenu(null); 
+                               }}
+                               className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
+                             >
+                               <Info className="w-3.5 h-3.5" />
+                               <span className="font-medium">View Status</span>
+                             </button>
+                           )}
+                           {isOwn && (
+                             <>
+                               <div className="h-[1px] bg-chat-border my-1 mx-2" />
+                               <button
+                                 onClick={(e) => { e.stopPropagation(); onDelete(message._id); setShowMoreMenu(null); }}
+                                 className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-red-500/10 text-red-500 transition-colors"
+                               >
+                                 <Trash2 className="w-3.5 h-3.5" />
+                                 <span className="font-bold">Delete</span>
+                               </button>
+                             </>
+                           )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  </>
               )}
             </div>
           </div>
