@@ -1002,12 +1002,10 @@ export default function ChatWindow({
         body: JSON.stringify({
           chatId: targetChatId,
           senderId: currentUserId,
-          text: forwardingMessage.text
-            ? `[Forwarded]\n${forwardingMessage.text}`
-            : undefined,
-          mediaUrl: forwardingMessage.mediaUrl,
-          mediaType: forwardingMessage.mediaType,
-          mediaPublicId: forwardingMessage.mediaPublicId,
+          text: forwardingMessage.text || undefined,
+          mediaUrl: forwardingMessage.mediaUrl || undefined,
+          mediaType: forwardingMessage.mediaType || undefined,
+          mediaPublicId: forwardingMessage.mediaPublicId || undefined,
           isForwarded: true,
         }),
       });
