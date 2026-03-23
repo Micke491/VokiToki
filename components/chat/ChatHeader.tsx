@@ -27,18 +27,15 @@ const ChatHeader = ({
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-chat-bg-primary shrink-0 z-10">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        {/* Mobile Back Button - Removed per user request to rely on system navigation */}
-        {/* 
         <button
           onClick={onClose}
-          className="flex items-center justify-center w-9 h-9 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors md:hidden"
+          className="flex items-center justify-center w-9 h-9 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors mr-2"
           aria-label="Back to chats"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
             <path d="M12 4L6 10L12 16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-        </button> 
-        */}
+        </button>
         {!showSearch ? (
           <>
             <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'} shadow-sm overflow-hidden shrink-0`}>

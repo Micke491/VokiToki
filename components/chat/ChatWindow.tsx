@@ -1225,7 +1225,7 @@ export default function ChatWindow({
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 onClick={() => scrollToBottom(true)}
-                className="fixed bottom-24 right-8 z-30 p-3 bg-chat-accent text-white rounded-full shadow-lg hover:opacity-90 transition-all flex items-center justify-center"
+                className="absolute bottom-24 right-8 z-30 p-3 bg-chat-accent text-white rounded-full shadow-lg hover:opacity-90 transition-all flex items-center justify-center"
               >
                 <ChevronDown className="w-6 h-6" />
                 {unreadCountBelow > 0 && (
