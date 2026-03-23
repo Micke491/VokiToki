@@ -515,7 +515,7 @@ const MessageItem = ({
                           absolute bottom-full mb-2 flex flex-col bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl py-1 min-w-[150px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200
                           ${isOwn ? "left-0" : "right-0"}
                         `}>
-                           {isOwn && message.text && (
+                           {isOwn && message.text && (Date.now() - new Date(message.createdAt).getTime() <= 15 * 60 * 1000) && (
                              <button
                                onClick={(e) => { e.stopPropagation(); onEdit(message); setShowMoreMenu(null); }}
                                className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"

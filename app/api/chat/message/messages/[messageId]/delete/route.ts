@@ -29,11 +29,7 @@ export async function DELETE(
       if (message.sender.toString() !== auth.id) {
         return NextResponse.json({ error: 'Only sender can delete for everyone' }, { status: 403 });
       }
-      const timeLimit = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
-      const messageAge = Date.now() - new Date(message.createdAt).getTime();
-      if (messageAge > timeLimit) {
-        return NextResponse.json({ error: 'Message too old to delete for everyone' }, { status: 400 });
-      }
+
       if (message.mediaPublicId) {
         try {
           await cloudinary.uploader.destroy(message.mediaPublicId, {

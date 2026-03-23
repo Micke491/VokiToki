@@ -34,7 +34,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Cannot edit deleted message' }, { status: 400 });
     }
 
-    const timeLimit = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const timeLimit = 15 * 60 * 1000; 
     const messageAge = Date.now() - new Date(message.createdAt).getTime();
     if (messageAge > timeLimit) {
       return NextResponse.json({ error: 'Message too old to edit' }, { status: 400 });
