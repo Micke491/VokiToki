@@ -106,6 +106,10 @@
       }],
       readBy: [ReadByEntrySchema],
       
+      isPinned: {
+        type: Boolean,
+        default: false,
+      },
       isEdited: {
         type: Boolean,
         default: false,

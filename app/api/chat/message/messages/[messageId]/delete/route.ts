@@ -50,6 +50,7 @@ export async function DELETE(
       message.mediaUrl = undefined;
       message.mediaType = undefined;
       message.mediaPublicId = undefined;
+      message.isPinned = false;
     } else {
       if (!message.deletedBy.includes(auth.id as any)) {
         message.deletedBy.push(auth.id as any);
@@ -63,6 +64,10 @@ export async function DELETE(
       .populate('replyTo');
 
     if (deleteForEveryone && populatedMessage) {
+      await pusherServer.trigger(`chat-${message.chatId}`, "message-unpinned", { 
+        messageId, 
+        chatId: message.chatId 
+      });
       await pusherServer.trigger(`chat-${message.chatId}`, "message-deleted", { 
         messageId, 
         chatId: message.chatId 

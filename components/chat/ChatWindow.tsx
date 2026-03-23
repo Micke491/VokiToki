@@ -65,8 +65,12 @@ export default function ChatWindow({
   const [unreadCountBelow, setUnreadCountBelow] = useState(0);
   const [wallpaper, setWallpaper] = useState<string | null>(null);
   const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
-  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
-  const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(
+    null,
+  );
+  const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(
+    null,
+  );
   const prevScrollHeightRef = useRef<number>(0);
 
   useEffect(() => {
@@ -83,8 +87,8 @@ export default function ChatWindow({
         setShowEmojiPicker(null);
       }
       if (
-        (event.target as HTMLElement).closest('[data-more-menu-trigger]') ||
-        (event.target as HTMLElement).closest('[data-more-menu]')
+        (event.target as HTMLElement).closest("[data-more-menu-trigger]") ||
+        (event.target as HTMLElement).closest("[data-more-menu]")
       ) {
         return;
       }
@@ -108,22 +112,20 @@ export default function ChatWindow({
 
     channel.bind("receive-message", (message: Message) => {
       if (message.chatId !== chatId) return;
-      
+
       setMessages((prev) => {
-        const exists = prev.some(
-          (m) => String(m._id) === String(message._id),
-        );
+        const exists = prev.some((m) => String(m._id) === String(message._id));
         if (exists) return prev;
 
         if (message.sender._id !== currentUserId) {
-           fetch(`/api/chat/message/messages/${message._id}/status`, {
-             method: 'PATCH',
-             headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${localStorage.getItem('token')}`
-             },
-             body: JSON.stringify({ status: 'seen' })
-           });
+          fetch(`/api/chat/message/messages/${message._id}/status`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ status: "seen" }),
+          });
         }
 
         return [...prev, message];
@@ -169,13 +171,13 @@ export default function ChatWindow({
         setMessages((prev) =>
           prev.map((m) => {
             if (data.messageIds.includes(m._id)) {
-              return { 
-                ...m, 
+              return {
+                ...m,
                 status: "seen",
                 readBy: [
-                  ...(m.readBy?.filter(r => r.userId !== data.userId) || []),
-                  { userId: data.userId, readAt: new Date().toISOString() }
-                ]
+                  ...(m.readBy?.filter((r) => r.userId !== data.userId) || []),
+                  { userId: data.userId, readAt: new Date().toISOString() },
+                ],
               };
             }
             return m;
@@ -256,8 +258,7 @@ export default function ChatWindow({
               return {
                 ...m,
                 reactions: (m.reactions || []).filter(
-                  (r) =>
-                    !(r.userId === data.userId && r.emoji === data.emoji),
+                  (r) => !(r.userId === data.userId && r.emoji === data.emoji),
                 ),
               };
             }
@@ -269,15 +270,23 @@ export default function ChatWindow({
 
     channel.bind("message-pinned", (pinnedMessage: Message) => {
       setPinnedMessages((prev) => {
-        if (prev.some(m => m._id === pinnedMessage._id)) return prev;
+        if (prev.some((m) => m._id === pinnedMessage._id)) return prev;
         return [pinnedMessage, ...prev];
       });
-      setMessages((prev) => prev.map(m => m._id === pinnedMessage._id ? { ...m, isPinned: true } : m));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === pinnedMessage._id ? { ...m, isPinned: true } : m,
+        ),
+      );
     });
 
     channel.bind("message-unpinned", (data: { messageId: string }) => {
-      setPinnedMessages((prev) => prev.filter(m => m._id !== data.messageId));
-      setMessages((prev) => prev.map(m => m._id === data.messageId ? { ...m, isPinned: false } : m));
+      setPinnedMessages((prev) => prev.filter((m) => m._id !== data.messageId));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === data.messageId ? { ...m, isPinned: false } : m,
+        ),
+      );
     });
 
     setPusherClient(pusher);
@@ -315,7 +324,8 @@ export default function ChatWindow({
 
   useLayoutEffect(() => {
     if (prevScrollHeightRef.current > 0 && messagesContainerRef.current) {
-      const scrollDiff = messagesContainerRef.current.scrollHeight - prevScrollHeightRef.current;
+      const scrollDiff =
+        messagesContainerRef.current.scrollHeight - prevScrollHeightRef.current;
       messagesContainerRef.current.scrollTop = scrollDiff;
       prevScrollHeightRef.current = 0;
     }
@@ -340,7 +350,7 @@ export default function ChatWindow({
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        cache: 'no-store'
+        cache: "no-store",
       });
 
       if (beforeDate && messagesContainerRef.current) {
@@ -351,25 +361,31 @@ export default function ChatWindow({
 
       const newMessages = data.messages || [];
 
-
       if (beforeDate) {
         setMessages((prev) => {
           const combined = [...newMessages, ...prev];
-          const unique = Array.from(new Map(combined.map(m => [m._id, m])).values());
-          return unique.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          const unique = Array.from(
+            new Map(combined.map((m) => [m._id, m])).values(),
+          );
+          return unique.sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
         });
       } else {
         setMessages(newMessages);
-        
+
         // Also fetch pinned messages
         fetch(`/api/chat/${chatId}/pinned`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
-        .then(res => res.json())
-        .then(data => {
+          .then((res) => res.json())
+          .then((data) => {
             if (Array.isArray(data)) setPinnedMessages(data);
-        })
-        .catch(err => console.error("Failed to fetch pinned messages", err));
+          })
+          .catch((err) =>
+            console.error("Failed to fetch pinned messages", err),
+          );
       }
 
       setHasMore(data.hasMore);
@@ -387,13 +403,106 @@ export default function ChatWindow({
     fetchMessages(oldestMessage.createdAt);
   };
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const jumpToMessage = async (messageId: string) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+
+    const highlightMessage = (el: HTMLElement) => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const innerEl = document.getElementById(`message-${messageId}`);
+      if (innerEl) {
+        innerEl.classList.add(
+          "ring-2",
+          "ring-chat-accent",
+          "bg-chat-accent/10",
+        );
+        setTimeout(() => {
+          innerEl.classList.remove(
+            "ring-2",
+            "ring-chat-accent",
+            "bg-chat-accent/10",
+          );
+        }, 2000);
+      }
+    };
+
+    let el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      highlightMessage(el);
+      return;
+    }
+
+    setLoadingMore(true);
+    try {
+      let currentHasMore = hasMore;
+      let currentMessages = [...messages];
+
+      while (currentHasMore) {
+        if (signal.aborted) return;
+
+        const beforeDate =
+          currentMessages.length > 0 ? currentMessages[0].createdAt : undefined;
+        const url = new URL("/api/chat/message", window.location.href);
+        url.searchParams.append("chatId", chatId);
+        url.searchParams.append("limit", "50");
+        if (beforeDate) url.searchParams.append("before", beforeDate);
+
+        const response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          signal,
+        });
+
+        if (!response.ok) break;
+        const data = await response.json();
+        const newMessages = data.messages || [];
+        if (newMessages.length === 0) break;
+
+        currentMessages = [...newMessages, ...currentMessages];
+        currentHasMore = data.hasMore;
+
+        setMessages((prev) => {
+          const combined = [...newMessages, ...prev];
+          return Array.from(
+            new Map(combined.map((m) => [m._id, m])).values(),
+          ).sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+        });
+        setHasMore(currentHasMore);
+
+        if (newMessages.some((m: any) => m._id === messageId)) {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              const newEl = document.getElementById(`msg-${messageId}`);
+              if (newEl) highlightMessage(newEl);
+            }, 100);
+          });
+          break;
+        }
+      }
+    } catch (e: any) {
+      if (e.name !== "AbortError") {
+        console.error("Jump to message failed", e);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const handleScroll = () => {
     if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current;
       if (scrollTop < 50 && hasMore && !loadingMore) {
         loadMore();
       }
-      
+
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollBadge(!isNearBottom);
       if (isNearBottom) {
@@ -406,35 +515,48 @@ export default function ChatWindow({
     if (!pusherClient || !currentUserId || messages.length === 0) return;
 
     const unreadMessageIds = messages
-      .filter((m) => m.sender._id !== currentUserId && !m.readBy?.some(r => r.userId === currentUserId))
+      .filter(
+        (m) =>
+          m.sender._id !== currentUserId &&
+          !m.readBy?.some((r) => r.userId === currentUserId),
+      )
       .map((m) => m._id);
 
     if (unreadMessageIds.length > 0) {
       try {
-        await fetch(`/api/chat/message/messages/${unreadMessageIds[0]}/status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        await fetch(
+          `/api/chat/message/messages/${unreadMessageIds[0]}/status`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              messageIds: unreadMessageIds,
+              status: "seen",
+            }),
           },
-          body: JSON.stringify({ messageIds: unreadMessageIds, status: 'seen' })
-        });
+        );
       } catch (error) {
         console.error("Error marking messages as read:", error);
       }
 
       setMessages((prev) =>
         prev.map((m) =>
-          unreadMessageIds.includes(m._id) ? { 
-            ...m, 
-            status: "seen", 
-            read: true,
-            readBy: [
-              ...(m.readBy?.filter(r => r.userId !== currentUserId) || []),
-              { userId: currentUserId, readAt: new Date().toISOString() }
-            ]
-          } : m
-        )
+          unreadMessageIds.includes(m._id)
+            ? {
+                ...m,
+                status: "seen",
+                read: true,
+                readBy: [
+                  ...(m.readBy?.filter((r) => r.userId !== currentUserId) ||
+                    []),
+                  { userId: currentUserId, readAt: new Date().toISOString() },
+                ],
+              }
+            : m,
+        ),
       );
     }
   }, [pusherClient, currentUserId, messages, chatId]);
@@ -447,12 +569,14 @@ export default function ChatWindow({
 
   const scrollToBottom = (force: boolean | React.SyntheticEvent = false) => {
     if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current;
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
       const shouldForce = force === true;
 
       if (shouldForce || isNearBottom) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        messagesContainerRef.current.scrollTop =
+          messagesContainerRef.current.scrollHeight;
       }
     }
   };
@@ -698,12 +822,15 @@ export default function ChatWindow({
   const handleDelete = async (messageId: string) => {
     if (!pusherClient || !confirm("Delete this message for everyone?")) return;
     try {
-      await fetch(`/api/chat/message/messages/${messageId}/delete?forEveryone=true`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+      await fetch(
+        `/api/chat/message/messages/${messageId}/delete?forEveryone=true`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         },
-      });
+      );
     } catch (error) {
       console.error("Error deleting message:", error);
     }
@@ -725,17 +852,17 @@ export default function ChatWindow({
   const handlePin = async (message: Message) => {
     if (message.isPinned) {
       await fetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
     } else {
       await fetch(`/api/chat/${chatId}/pinned`, {
-          method: 'POST',
-          headers: { 
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-          body: JSON.stringify({ messageId: message._id })
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ messageId: message._id }),
       });
     }
   };
@@ -762,7 +889,10 @@ export default function ChatWindow({
     });
   };
 
-  const handleReaction = async (emojiData: EmojiClickData, messageId: string) => {
+  const handleReaction = async (
+    emojiData: EmojiClickData,
+    messageId: string,
+  ) => {
     if (!pusherClient) return;
     try {
       await fetch(`/api/chat/message/messages/${messageId}/reaction`, {
@@ -785,12 +915,15 @@ export default function ChatWindow({
   const removeReaction = async (messageId: string, emoji: string) => {
     if (!pusherClient) return;
     try {
-      await fetch(`/api/chat/message/messages/${messageId}/reaction?chatId=${chatId}&emoji=${encodeURIComponent(emoji)}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+      await fetch(
+        `/api/chat/message/messages/${messageId}/reaction?chatId=${chatId}&emoji=${encodeURIComponent(emoji)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         },
-      });
+      );
     } catch (error) {
       console.error("Error removing reaction:", error);
     }
@@ -840,43 +973,46 @@ export default function ChatWindow({
 
   useEffect(() => {
     const handleForwardMessage = (e: Event) => {
-       const detail = (e as CustomEvent).detail;
-       if (detail) setForwardingMessage(detail);
+      const detail = (e as CustomEvent).detail;
+      if (detail) setForwardingMessage(detail);
     };
     const handleViewReceipts = (e: Event) => {
-       const detail = (e as CustomEvent).detail;
-       if (detail) setViewingReceiptsFor(detail);
+      const detail = (e as CustomEvent).detail;
+      if (detail) setViewingReceiptsFor(detail);
     };
-    window.addEventListener('forward-message', handleForwardMessage);
-    window.addEventListener('view-receipts', handleViewReceipts);
+    window.addEventListener("forward-message", handleForwardMessage);
+    window.addEventListener("view-receipts", handleViewReceipts);
     return () => {
-        window.removeEventListener('forward-message', handleForwardMessage);
-        window.removeEventListener('view-receipts', handleViewReceipts);
+      window.removeEventListener("forward-message", handleForwardMessage);
+      window.removeEventListener("view-receipts", handleViewReceipts);
     };
   }, []);
 
   const handleForwardSelection = async (targetChatIds: string[]) => {
-      if (!pusherClient || !forwardingMessage || targetChatIds.length === 0) return;
-      
-      for (const targetChatId of targetChatIds) {
-          await fetch("/api/chat/message", {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-              body: JSON.stringify({
-                  chatId: targetChatId,
-                  senderId: currentUserId,
-                  text: forwardingMessage.text ? `[Forwarded]\n${forwardingMessage.text}` : undefined,
-                  mediaUrl: forwardingMessage.mediaUrl,
-                  mediaType: forwardingMessage.mediaType,
-                  mediaPublicId: forwardingMessage.mediaPublicId,
-                  isForwarded: true
-              }),
-          });
-      }
-      setForwardingMessage(null);
+    if (!pusherClient || !forwardingMessage || targetChatIds.length === 0)
+      return;
+
+    for (const targetChatId of targetChatIds) {
+      await fetch("/api/chat/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          chatId: targetChatId,
+          senderId: currentUserId,
+          text: forwardingMessage.text
+            ? `[Forwarded]\n${forwardingMessage.text}`
+            : undefined,
+          mediaUrl: forwardingMessage.mediaUrl,
+          mediaType: forwardingMessage.mediaType,
+          mediaPublicId: forwardingMessage.mediaPublicId,
+          isForwarded: true,
+        }),
+      });
+    }
+    setForwardingMessage(null);
   };
 
   if (loading) {
@@ -889,13 +1025,12 @@ export default function ChatWindow({
   }
   const filteredMessages = searchQuery.trim()
     ? messages.filter((m) =>
-        m.text?.toLowerCase().includes(searchQuery.toLowerCase())
+        m.text?.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : messages;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-chat-bg-primary overflow-hidden relative transition-colors duration-300">
-      
       {forwardingMessage && (
         <ForwardMessageModal
           currentUserId={currentUserId}
@@ -927,163 +1062,184 @@ export default function ChatWindow({
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 relative">
-          <div 
+          <div
             className="flex-1 overflow-y-auto custom-scrollbar relative"
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            style={{ 
-              backgroundImage: wallpaper ? `url(${wallpaper})` : 'none',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundAttachment: 'fixed'
+            style={{
+              backgroundImage: wallpaper ? `url(${wallpaper})` : "none",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
             }}
           >
             {/* Anti-FOUC overlay / Wallpaper Overlay */}
             {wallpaper && (
               <div className="absolute inset-0 bg-chat-bg-primary/40 backdrop-blur-[2px] pointer-events-none" />
             )}
-        
-        {pinnedMessages.length > 0 && (
-          <div className="sticky top-0 z-30 mb-6 bg-chat-bg-primary/90 backdrop-blur-md rounded-xl shadow-sm border border-chat-border overflow-hidden text-sm">
-            <div className="px-3 py-2 border-b border-chat-border flex items-center gap-2 text-xs font-semibold text-chat-text-tertiary bg-chat-bg-secondary">
-              <span className="flex-1">Pinned Messages ({pinnedMessages.length})</span>
-            </div>
-            <div className="max-h-32 overflow-y-auto custom-scrollbar">
-              {pinnedMessages.map(msg => (
-                <div 
-                  key={`pinned-${msg._id}`} 
-                  className="px-4 py-2 hover:bg-chat-bg-secondary cursor-pointer border-b last:border-0 border-chat-border/50 flex flex-col gap-1 transition-colors"
-                  onClick={() => {
-                    const el = document.getElementById(`msg-${msg._id}`);
-                    if (el) {
-                       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                       el.classList.add('ring-2', 'ring-chat-accent', 'bg-chat-accent/10');
-                       setTimeout(() => {
-                           el.classList.remove('ring-2', 'ring-chat-accent', 'bg-chat-accent/10');
-                       }, 2000);
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-2 text-xs text-chat-text-tertiary">
-                    <span className="font-semibold text-chat-text-primary">{msg.sender.username}</span>
-                    <span>{new Date(msg.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="text-chat-text-secondary line-clamp-1">
-                    {msg.text || (msg.mediaUrl ? `Attached ${msg.mediaType}` : 'Pinned Message')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-10 h-full">
-            <div className="w-12 h-12 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin mb-4" />
-            <p className="text-chat-text-tertiary animate-pulse">Loading messages...</p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-10 h-full text-center">
-            <div className="w-20 h-20 bg-chat-bg-secondary rounded-full flex items-center justify-center mb-6">
-              <svg className="w-10 h-10 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-chat-text-primary mb-2">No messages yet</h3>
-            <p className="text-chat-text-secondary max-w-xs">Send a message to start the conversation!</p>
-          </div>
-        ) : (
-          <div className="p-4 md:p-6 space-y-6 min-h-full flex flex-col justify-end relative z-10">
-            {loadingMore && (
-              <div className="flex justify-center py-2">
-                <div className="w-5 h-5 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
+            {pinnedMessages.length > 0 && (
+              <div className="sticky top-0 z-30 mb-6 bg-chat-bg-primary/90 backdrop-blur-md rounded-xl shadow-sm border border-chat-border overflow-hidden text-sm">
+                <div className="px-3 py-2 border-b border-chat-border flex items-center gap-2 text-xs font-semibold text-chat-text-tertiary bg-chat-bg-secondary">
+                  <span className="flex-1">
+                    Pinned Messages ({pinnedMessages.length})
+                  </span>
+                </div>
+                <div className="max-h-32 overflow-y-auto custom-scrollbar">
+                  {pinnedMessages.map((msg) => (
+                    <div
+                      key={`pinned-${msg._id}`}
+                      className="px-4 py-2 hover:bg-chat-bg-secondary cursor-pointer border-b last:border-0 border-chat-border/50 flex flex-col gap-1 transition-colors"
+                      onClick={() => {
+                        jumpToMessage(msg._id);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 text-xs text-chat-text-tertiary">
+                        <span className="font-semibold text-chat-text-primary">
+                          {msg.sender.username}
+                        </span>
+                        <span>
+                          {new Date(msg.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="text-chat-text-secondary line-clamp-1">
+                        {msg.text ||
+                          (msg.mediaUrl
+                            ? `Attached ${msg.mediaType}`
+                            : "Pinned Message")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-            {filteredMessages.map((message, index) => {
-              const isOwn = message.sender._id === currentUserId;
-              const showDate =
-                index === 0 ||
-                new Date(message.createdAt).toDateString() !==
-                  new Date(filteredMessages[index - 1].createdAt).toDateString();
 
-              return (
-                <div key={message._id} id={`msg-${message._id}`}>
-                  <MessageItem
-                    message={message}
-                    currentUserId={currentUserId}
-                    searchQuery={searchQuery}
-                    isOwn={isOwn}
-                    showDate={showDate}
-                    dateLabel={formatDate(message.createdAt)}
-                    onReply={startReply}
-                    onEdit={startEdit}
-                    onDelete={handleDelete}
-                    onPin={handlePin}
-                    onForward={setForwardingMessage}
-                    onViewStatus={setViewingReceiptsFor}
-                    onReaction={handleReaction}
-                    onRemoveReaction={removeReaction}
-                    scrollToBottom={scrollToBottom}
-                    showEmojiPicker={showEmojiPicker}
-                    setShowEmojiPicker={setShowEmojiPicker}
-                    showMoreMenu={showMoreMenu}
-                    setShowMoreMenu={setShowMoreMenu}
-                    chatId={chatId}
-                    isGroup={isGroup}
-                    groupAdminId={groupAdminId}
+            {loading ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-10 h-full">
+                <div className="w-12 h-12 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin mb-4" />
+                <p className="text-chat-text-tertiary animate-pulse">
+                  Loading messages...
+                </p>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-10 h-full text-center">
+                <div className="w-20 h-20 bg-chat-bg-secondary rounded-full flex items-center justify-center mb-6">
+                  <svg
+                    className="w-10 h-10 text-chat-text-tertiary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-chat-text-primary mb-2">
+                  No messages yet
+                </h3>
+                <p className="text-chat-text-secondary max-w-xs">
+                  Send a message to start the conversation!
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 md:p-6 space-y-6 min-h-full flex flex-col justify-end relative z-10">
+                {loadingMore && (
+                  <div className="flex justify-center py-2">
+                    <div className="w-5 h-5 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
+                  </div>
+                )}
+                {filteredMessages.map((message, index) => {
+                  const isOwn = message.sender._id === currentUserId;
+                  const showDate =
+                    index === 0 ||
+                    new Date(message.createdAt).toDateString() !==
+                      new Date(
+                        filteredMessages[index - 1].createdAt,
+                      ).toDateString();
+
+                  return (
+                    <div key={message._id} id={`msg-${message._id}`}>
+                      <MessageItem
+                        message={message}
+                        currentUserId={currentUserId}
+                        searchQuery={searchQuery}
+                        isOwn={isOwn}
+                        showDate={showDate}
+                        dateLabel={formatDate(message.createdAt)}
+                        onReply={startReply}
+                        onEdit={startEdit}
+                        onDelete={handleDelete}
+                        onPin={handlePin}
+                        onForward={setForwardingMessage}
+                        onViewStatus={setViewingReceiptsFor}
+                        onReaction={handleReaction}
+                        onRemoveReaction={removeReaction}
+                        scrollToBottom={scrollToBottom}
+                        showEmojiPicker={showEmojiPicker}
+                        setShowEmojiPicker={setShowEmojiPicker}
+                        showMoreMenu={showMoreMenu}
+                        setShowMoreMenu={setShowMoreMenu}
+                        chatId={chatId}
+                        isGroup={isGroup}
+                        groupAdminId={groupAdminId}
+                        onJumpToMessage={jumpToMessage}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+
+            {typingUsers.length > 0 && (
+              <div className="px-4 py-2 flex items-center gap-2 text-sm text-chat-text-tertiary">
+                <div className="flex gap-1">
+                  <span
+                    className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <span
+                    className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span
+                    className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
                   />
                 </div>
-              );
-            })}
+                <span className="font-medium text-xs">
+                  {typingUsers.length === 1
+                    ? `${typingUsers[0]} is typing...`
+                    : `${typingUsers.length} people are typing...`}
+                </span>
+              </div>
+            )}
           </div>
-        )}
-        <div ref={messagesEndRef} />
 
-        {typingUsers.length > 0 && (
-          <div className="px-4 py-2 flex items-center gap-2 text-sm text-chat-text-tertiary">
-            <div className="flex gap-1">
-              <span
-                className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
-            </div>
-            <span className="font-medium text-xs">
-              {typingUsers.length === 1
-                ? `${typingUsers[0]} is typing...`
-                : `${typingUsers.length} people are typing...`}
-            </span>
-          </div>
-        )}
-        </div>
-        
-        <AnimatePresence>
-          {showScrollBadge && (
-                <motion.button
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  onClick={() => scrollToBottom(true)}
-                  className="fixed bottom-24 right-8 z-30 p-3 bg-chat-accent text-white rounded-full shadow-lg hover:opacity-90 transition-all flex items-center justify-center"
-                >
-                  <ChevronDown className="w-6 h-6" />
-                  {unreadCountBelow > 0 && (
-                    <span className="absolute -top-1 -left-1 w-6 h-6 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-chat-bg-primary">
-                      {unreadCountBelow}
-                    </span>
-                  )}
-                </motion.button>
-          )}
-        </AnimatePresence>
+          <AnimatePresence>
+            {showScrollBadge && (
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                onClick={() => scrollToBottom(true)}
+                className="fixed bottom-24 right-8 z-30 p-3 bg-chat-accent text-white rounded-full shadow-lg hover:opacity-90 transition-all flex items-center justify-center"
+              >
+                <ChevronDown className="w-6 h-6" />
+                {unreadCountBelow > 0 && (
+                  <span className="absolute -top-1 -left-1 w-6 h-6 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-chat-bg-primary">
+                    {unreadCountBelow}
+                  </span>
+                )}
+              </motion.button>
+            )}
+          </AnimatePresence>
 
-        <MessageInput
+          <MessageInput
             newMessage={newMessage}
             setNewMessage={handleMessageChange}
             replyingTo={replyingTo}

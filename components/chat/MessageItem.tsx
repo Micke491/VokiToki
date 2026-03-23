@@ -32,6 +32,7 @@ interface MessageItemProps {
   chatId: string;
   isGroup?: boolean;
   groupAdminId?: string;
+  onJumpToMessage?: (messageId: string) => Promise<void> | void;
 }
 
 const MessageItem = ({
@@ -57,6 +58,7 @@ const MessageItem = ({
   chatId,
   isGroup,
   groupAdminId,
+  onJumpToMessage,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -123,16 +125,8 @@ const MessageItem = ({
   };
 
   const handleReplyClick = () => {
-    const replyElement = document.getElementById(`message-${message.replyTo?._id}`);
-    if (replyElement) {
-      replyElement.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      replyElement.classList.add("ring-2", "ring-chat-accent");
-      setTimeout(() => {
-        replyElement.classList.remove("ring-2", "ring-chat-accent");
-      }, 2000);
+    if (message.replyTo?._id && onJumpToMessage) {
+       onJumpToMessage(message.replyTo._id as unknown as string);
     }
   };
 
