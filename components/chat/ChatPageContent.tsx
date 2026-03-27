@@ -138,7 +138,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white dark:bg-slate-950 gap-4">
+      <div className="flex flex-col items-center justify-center h-screen-safe bg-white dark:bg-slate-950 gap-4">
         <div className="w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
         <p className="text-slate-500 font-medium animate-pulse">
           Loading your messages...
@@ -148,7 +148,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-indigo-700 via-purple-700 to-blue-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 overflow-hidden transition-colors duration-700">
+    <div className="flex h-screen-safe bg-gradient-to-br from-indigo-700 via-purple-700 to-blue-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 overflow-hidden transition-colors duration-700">
       {/* 1. Global Navigation Sidebar */}
       <div className={`${chatId ? "hidden md:block" : "block"}`}>
         <SideBar currentUser={currentUser || undefined} />
@@ -173,7 +173,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           {/* Floating Action Button */}
           <button
             onClick={() => setShowNewChatModal(true)}
-            className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-10"
+            className="absolute bottom-24 md:bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-10"
             title="New Chat"
           >
             <svg

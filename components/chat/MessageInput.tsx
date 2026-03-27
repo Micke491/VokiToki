@@ -48,7 +48,7 @@ const MessageInput = ({
   formatRecordingTime,
 }: MessageInputProps) => {
   return (
-    <footer className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0">
+    <footer className="p-4 pb-safe bg-chat-bg-primary border-t border-chat-border shrink-0">
       {(replyingTo || editingMessage) && (
         <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-bg-secondary rounded-lg border-l-4 border-chat-accent">
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -193,7 +193,7 @@ const MessageInput = ({
               }
               rows={1}
               disabled={sending}
-              className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-chat-text-primary placeholder-chat-text-tertiary resize-none overflow-y-auto"
+              className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-chat-text-primary placeholder-chat-text-tertiary resize-none overflow-y-auto focus:outline-none"
             />
             {newMessage.length > MAX_CHARS * 0.8 && (
                <div className={`absolute -top-6 right-8 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border ${

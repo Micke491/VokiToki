@@ -266,7 +266,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       </div>
       
       {/* List Items */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-20 md:pb-0">
         {chats.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-5 py-16 text-center text-chat-text-tertiary">
             <svg className="w-16 h-16 mb-5 opacity-40 text-chat-text-tertiary" viewBox="0 0 64 64" fill="none">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import SideBar from '@/components/layout/Sidebar';
 
 interface User {
@@ -12,6 +13,7 @@ interface User {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [notifications, setNotifications] = useState(true);
@@ -161,23 +163,41 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-chat-bg-secondary">
+      <div className="flex items-center justify-center h-screen-safe bg-chat-bg-secondary">
         <div className="w-12 h-12 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin" />
       </div>
     );
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/auth-pages/login');
+  };
+
   return (
-    <div className="flex h-screen bg-chat-bg-primary overflow-hidden">
-      <div className="hidden md:block">
-        <SideBar currentUser={currentUser || undefined} />
-      </div>
+    <div className="flex h-screen-safe bg-chat-bg-primary overflow-hidden">
+      <SideBar currentUser={currentUser || undefined} />
       
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
         {/* Header */}
-        <header className="px-6 py-10 md:px-10 border-b border-chat-border">
-          <h1 className="text-3xl font-bold text-chat-text-primary">Settings</h1>
-          <p className="text-chat-text-secondary mt-1">Manage your account and preferences</p>
+        <header className="px-6 py-6 md:px-10 md:py-10 border-b border-chat-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/chat')}
+                className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-chat-hover text-chat-text-secondary transition-colors"
+                aria-label="Back to chats"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                  <path d="M12 4L6 10L12 16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-chat-text-primary">Settings</h1>
+                <p className="text-chat-text-secondary text-sm mt-0.5">Manage your account and preferences</p>
+              </div>
+            </div>
+          </div>
         </header>
 
         <div className="max-w-3xl p-6 md:p-10 space-y-12">
