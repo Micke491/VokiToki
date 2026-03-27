@@ -19,6 +19,9 @@ import MessageInput from "./MessageInput";
 import ChatSidebar from "./ChatSidebar";
 import ForwardMessageModal from "./ForwardMessageModal";
 import ReadReceiptModal from "./ReadReceiptModal";
+import CallModal from "./CallModal";
+import IncomingCallModal from "./IncomingCallModal";
+import { IncomingCallData } from "../../types/chat";
 
 export default function ChatWindow({
   chatId,
@@ -72,6 +75,8 @@ export default function ChatWindow({
     null,
   );
   const prevScrollHeightRef = useRef<number>(0);
+  const [activeCall, setActiveCall] = useState<{roomUrl: string, type: "voice" | "video"} | null>(null);
+  const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -287,6 +292,19 @@ export default function ChatWindow({
           m._id === data.messageId ? { ...m, isPinned: false } : m,
         ),
       );
+    });
+
+    channel.bind("call:incoming", (data: IncomingCallData) => {
+      if (data.callerId !== currentUserId) {
+        setIncomingCall(data);
+      }
+    });
+
+    channel.bind("call:ended", (data: { chatId: string }) => {
+      if (data.chatId === chatId) {
+        setActiveCall(null);
+        setIncomingCall(null);
+      }
     });
 
     setPusherClient(pusher);
@@ -1046,6 +1064,25 @@ export default function ChatWindow({
         />
       )}
 
+      {incomingCall && (
+        <IncomingCallModal 
+          callData={incomingCall}
+          onAccept={() => {
+            setActiveCall({ roomUrl: incomingCall.roomUrl, type: incomingCall.callType });
+            setIncomingCall(null);
+          }}
+          onDecline={() => setIncomingCall(null)}
+        />
+      )}
+
+      {activeCall && (
+        <CallModal 
+          roomUrl={activeCall.roomUrl}
+          chatId={chatId}
+          onLeave={() => setActiveCall(null)}
+        />
+      )}
+
       <ChatHeader
         recipientUsername={recipientUsername}
         recipientAvatar={recipientAvatar}
@@ -1056,6 +1093,10 @@ export default function ChatWindow({
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        chatId={chatId}
+        currentUserId={currentUserId}
+        currentUserUsername={currentUserUsername || "User"}
+        onCallStart={(roomUrl, callType) => setActiveCall({ roomUrl, type: callType })}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">

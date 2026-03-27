@@ -1,5 +1,6 @@
 import React from "react";
 import { Search, X } from "lucide-react";
+import CallButton from "./CallButton";
 
 interface ChatHeaderProps {
   recipientUsername?: string;
@@ -11,6 +12,11 @@ interface ChatHeaderProps {
   setSearchQuery: (query: string) => void;
   isGroup?: boolean;
   onToggleSidebar?: () => void;
+  chatId: string;
+  currentUserId: string;
+  currentUserUsername: string;
+  currentUserAvatar?: string;
+  onCallStart: (roomUrl: string, callType: "voice" | "video") => void;
 }
 
 const ChatHeader = ({
@@ -23,6 +29,11 @@ const ChatHeader = ({
   setSearchQuery,
   isGroup,
   onToggleSidebar,
+  chatId,
+  currentUserId,
+  currentUserUsername,
+  currentUserAvatar,
+  onCallStart,
 }: ChatHeaderProps) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-chat-bg-primary shrink-0 z-10">
@@ -81,6 +92,14 @@ const ChatHeader = ({
 
       {!showSearch && (
         <div className="flex items-center gap-2">
+          <CallButton 
+            chatId={chatId}
+            isGroup={!!isGroup}
+            onCallStart={onCallStart}
+            currentUserId={currentUserId}
+            currentUserUsername={currentUserUsername}
+            currentUserAvatar={currentUserAvatar}
+          />
           <button
             onClick={() => setShowSearch(true)}
             className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"

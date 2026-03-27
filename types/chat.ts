@@ -52,3 +52,11 @@ export interface ChatWindowProps {
     avatar?: string;
   }>;
 }
+
+export interface IncomingCallData {
+  roomUrl: string;
+  callType: "voice" | "video";
+  callerName: string;
+  callerAvatar?: string;
+  callerId: string;
+}
