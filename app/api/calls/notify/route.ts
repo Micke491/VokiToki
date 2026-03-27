@@ -28,20 +28,18 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { chatId, callType, callerName, callerAvatar, roomUrl } = body;
+    const { chatId, callType, callerName, callerAvatar } = body;
 
-    if (!chatId || !callType || !callerName || !roomUrl) {
+    if (!chatId || !callType || !callerName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     await pusher.trigger(`chat-${chatId}`, "call:incoming", {
-      callId: roomUrl, 
       chatId,
-      callType, 
+      callType,
       callerName,
       callerAvatar,
       callerId: decoded.userId,
-      roomUrl,
     });
 
     return NextResponse.json({ success: true });

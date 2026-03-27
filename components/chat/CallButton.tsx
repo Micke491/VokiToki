@@ -4,7 +4,7 @@ import { Phone, Video, Loader2 } from "lucide-react";
 interface CallButtonProps {
   chatId: string;
   isGroup: boolean;
-  onCallStart: (roomUrl: string, callType: "voice" | "video") => void;
+  onCallStart: (callType: "voice" | "video") => void;
   currentUserId: string;
   currentUserUsername: string;
   currentUserAvatar?: string;
@@ -12,9 +12,7 @@ interface CallButtonProps {
 
 export default function CallButton({
   chatId,
-  isGroup,
   onCallStart,
-  currentUserId,
   currentUserUsername,
   currentUserAvatar,
 }: CallButtonProps) {
@@ -25,19 +23,7 @@ export default function CallButton({
     setLoadingType(type);
 
     try {
-      const roomRes = await fetch("/api/calls/create-room", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ isVideo: type === "video" }),
-      });
-
-      if (!roomRes.ok) throw new Error("Failed to create call room");
-      const { roomUrl, roomName } = await roomRes.json();
-
-      await fetch("/api/calls/notify", {
+      const notifyRes = await fetch("/api/calls/notify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -48,15 +34,17 @@ export default function CallButton({
           callType: type,
           callerName: currentUserUsername,
           callerAvatar: currentUserAvatar,
-          roomUrl,
-          roomName,
         }),
       });
 
-      onCallStart(roomUrl, type);
-    } catch (error) {
+      if (!notifyRes.ok) {
+        throw new Error("Failed to notify participants");
+      }
+
+      onCallStart(type);
+    } catch (error: any) {
       console.error("Error starting call:", error);
-      alert("Could not start the call. Please try again.");
+      alert(`Could not start the call: ${error.message}`);
     } finally {
       setLoadingType(null);
     }

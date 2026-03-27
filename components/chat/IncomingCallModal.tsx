@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Phone, Video, X } from "lucide-react";
+import { Phone, Video } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IncomingCallData } from "../../types/chat";
 

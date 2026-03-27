@@ -75,7 +75,8 @@ export default function ChatWindow({
     null,
   );
   const prevScrollHeightRef = useRef<number>(0);
-  const [activeCall, setActiveCall] = useState<{roomUrl: string, type: "voice" | "video"} | null>(null);
+  // Call State
+  const [activeCall, setActiveCall] = useState<{type: "voice" | "video"} | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
 
   useEffect(() => {
@@ -1068,7 +1069,7 @@ export default function ChatWindow({
         <IncomingCallModal 
           callData={incomingCall}
           onAccept={() => {
-            setActiveCall({ roomUrl: incomingCall.roomUrl, type: incomingCall.callType });
+            setActiveCall({ type: incomingCall.callType });
             setIncomingCall(null);
           }}
           onDecline={() => setIncomingCall(null)}
@@ -1077,8 +1078,9 @@ export default function ChatWindow({
 
       {activeCall && (
         <CallModal 
-          roomUrl={activeCall.roomUrl}
           chatId={chatId}
+          callType={activeCall.type}
+          username={currentUserUsername || "User"}
           onLeave={() => setActiveCall(null)}
         />
       )}
@@ -1096,7 +1098,7 @@ export default function ChatWindow({
         chatId={chatId}
         currentUserId={currentUserId}
         currentUserUsername={currentUserUsername || "User"}
-        onCallStart={(roomUrl, callType) => setActiveCall({ roomUrl, type: callType })}
+        onCallStart={(callType) => setActiveCall({ type: callType })}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">

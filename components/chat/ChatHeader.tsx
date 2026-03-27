@@ -16,7 +16,7 @@ interface ChatHeaderProps {
   currentUserId: string;
   currentUserUsername: string;
   currentUserAvatar?: string;
-  onCallStart: (roomUrl: string, callType: "voice" | "video") => void;
+  onCallStart: (callType: "voice" | "video") => void;
 }
 
 const ChatHeader = ({

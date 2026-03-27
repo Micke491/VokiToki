@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { headers } from "next/headers";
+import { AccessToken } from "livekit-server-sdk";
 
 export async function POST(req: Request) {
   try {
@@ -19,52 +20,39 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { isVideo } = body;
+    const { chatId, username } = body;
 
-    const DAILY_API_KEY = process.env.DAILY_API_KEY;
-    if (!DAILY_API_KEY) {
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
       return NextResponse.json(
-        { error: "Daily.co API key not configured" },
+        { error: "LiveKit missing configuration" },
         { status: 500 }
       );
     }
-    
-    const exp = Math.round(Date.now() / 1000) + 60 * 60 * 2;
 
-    const response = await fetch("https://api.daily.co/v1/rooms", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${DAILY_API_KEY}`,
-      },
-      body: JSON.stringify({
-        properties: {
-          exp,
-          enable_chat: false,
-          enable_screenshare: true,
-          start_video_off: !isVideo,
-          start_audio_off: false,
-        },
-      }),
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: `${username}_${decoded.userId}`,
+      name: username,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Daily API Error:", errorData);
-      return NextResponse.json(
-        { error: "Failed to create call room" },
-        { status: response.status }
-      );
-    }
+    at.addGrant({
+      roomJoin: true,
+      room: chatId,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    });
 
-    const room = await response.json();
+    const roomToken = await at.toJwt();
 
     return NextResponse.json({
-      roomUrl: room.url,
-      roomName: room.name,
+      token: roomToken,
+      serverUrl: process.env.NEXT_PUBLIC_LIVEKIT_URL,
     });
   } catch (error) {
-    console.error("Error creating room:", error);
+    console.error("Error creating LiveKit token:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

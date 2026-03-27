@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { chatId, roomName } = body;
+    const { chatId } = body;
 
     if (!chatId) {
       return NextResponse.json({ error: "Missing chatId" }, { status: 400 });
@@ -37,15 +37,6 @@ export async function POST(req: Request) {
     await pusher.trigger(`chat-${chatId}`, "call:ended", {
       chatId,
     });
-
-    if (roomName && process.env.DAILY_API_KEY) {
-      await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-        },
-      }).catch(console.error); 
-    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

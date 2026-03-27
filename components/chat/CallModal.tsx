@@ -1,82 +1,67 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import DailyIframe, { DailyCall } from "@daily-co/daily-js";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize, Minimize } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { 
+  LiveKitRoom, 
+  VideoConference, 
+  formatChatMessageLinks,
+  LocalUserChoices,
+} from "@livekit/components-react";
+import "@livekit/components-styles";
+import { X, Maximize, Minimize, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface CallModalProps {
-  roomUrl: string;
   onLeave: () => void;
   chatId: string;
+  callType: "voice" | "video";
+  username: string;
 }
 
-export default function CallModal({ roomUrl, onLeave, chatId }: CallModalProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [callObject, setCallObject] = useState<DailyCall | null>(null);
+export default function CallModal({ onLeave, chatId, callType, username }: CallModalProps) {
+  const [token, setToken] = useState("");
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isCamMuted, setIsCamMuted] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || callObject) return;
-
-    const newCallObject = DailyIframe.createFrame(containerRef.current, {
-      iframeStyle: {
-        width: "100%",
-        height: "100%",
-        border: "0",
-        borderRadius: "12px",
-        backgroundColor: "#111827", 
-      },
-      showLeaveButton: false, 
-    });
-
-    setCallObject(newCallObject);
-
-    newCallObject.join({ url: roomUrl }).catch((err) => {
-      console.error("Error joining call:", err);
-      alert("Failed to join call");
-      onLeave();
-    });
-
-    const handleLeftMeeting = () => {
-      onLeave();
-      fetch("/api/calls/end", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ chatId }),
-      }).catch(console.error);
-    };
-
-    newCallObject.on("left-meeting", handleLeftMeeting);
-
-    return () => {
-      if (newCallObject) {
-        newCallObject.off("left-meeting", handleLeftMeeting);
-        newCallObject.leave().then(() => {
-          newCallObject.destroy();
+    (async () => {
+      try {
+        const resp = await fetch("/api/calls/create-room", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ chatId, username }),
         });
+        const data = await resp.json();
+        setToken(data.token);
+      } catch (e) {
+        console.error(e);
       }
-    };
-  }, [roomUrl, onLeave, chatId]);
+    })();
+  }, [chatId, username]);
 
   const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().catch(console.error);
-      setIsFullScreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullScreen(false);
-    }
+    setIsFullScreen(!isFullScreen);
   };
 
-  const handleLeave = useCallback(async () => {
-    if (callObject) {
-      await callObject.leave();
-    }
-  }, [callObject]);
+  const handleDisconnected = () => {
+    onLeave();
+    fetch("/api/calls/end", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ chatId }),
+    }).catch(console.error);
+  };
+
+  if (token === "") {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <Loader2 className="w-10 h-10 text-white animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -92,7 +77,18 @@ export default function CallModal({ roomUrl, onLeave, chatId }: CallModalProps) 
           isFullScreen ? "h-full rounded-none" : "max-w-5xl h-[80vh]"
         }`}
       >
-        {/* Header Options */}
+        <LiveKitRoom
+          video={callType === "video"}
+          audio={true}
+          token={token}
+          serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+          onDisconnected={handleDisconnected}
+          data-lk-theme="default"
+          style={{ height: '100%' }}
+        >
+          <VideoConference />
+        </LiveKitRoom>
+        
         <div className="absolute top-4 right-4 z-10 flex gap-2">
           <button
             onClick={toggleFullScreen}
@@ -101,9 +97,6 @@ export default function CallModal({ roomUrl, onLeave, chatId }: CallModalProps) 
             {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
-
-        {/* Daily.co Iframe Container */}
-        <div ref={containerRef} className="flex-1 w-full h-full" />
       </div>
     </motion.div>
   );
