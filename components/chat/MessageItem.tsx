@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X } from "lucide-react";
+import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Zap, Image as ImageIcon } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
@@ -250,9 +250,11 @@ const MessageItem = ({
                           (message.replyTo.mediaUrl
                             ? message.replyTo.mediaType === "video"
                               ? "Video"
-                              : message.replyTo.mediaType === "audio"
-                                ? "Voice record"
-                                : "Photo"
+                              : message.replyTo.mediaType === "gif"
+                                ? "GIF"
+                                : message.replyTo.mediaType === "audio"
+                                  ? "Voice record"
+                                  : "Photo"
                             : "")}
                       </p>
                     </div>
@@ -291,6 +293,11 @@ const MessageItem = ({
 
                 {message.mediaUrl && !message.isDeletedForEveryone && (
                   <div className="mb-2 rounded-lg overflow-hidden border border-chat-border max-w-[320px] bg-chat-bg-secondary relative group">
+                    {message.mediaType === "gif" && (
+                      <div className="absolute bottom-2 right-2 z-20 px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded text-white text-[11px] font-medium leading-none select-none pointer-events-none border border-white/10 shadow-lg">
+                        gif
+                      </div>
+                    )}
                     {message.mediaType === "video" ? (
                       <div className="relative">
                         <video

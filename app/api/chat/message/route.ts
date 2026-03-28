@@ -12,6 +12,7 @@ export async function POST(req: Request) {
         if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await req.json();
+        console.log("POST message body:", body);
         const { chatId, senderId, text, replyTo, mediaUrl, mediaType, mediaPublicId, isForwarded } = body;
 
         if (auth.id !== senderId) {

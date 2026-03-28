@@ -834,7 +834,7 @@ export default function ChatWindow({
     
     setSending(true);
     try {
-      await fetch("/api/chat/message", {
+      const response = await fetch("/api/chat/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -844,13 +844,20 @@ export default function ChatWindow({
           chatId,
           senderId: currentUserId,
           mediaUrl: url,
-          mediaType: "image",
+          mediaType: "gif",
           replyTo: replyingTo?._id,
         }),
       });
-      setReplyingTo(null);
-      scrollToBottom(true);
-      setShowGifPicker(false);
+
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error("Gif error response:", errData);
+        alert(`Failed to send GIF: ${errData.error || response.statusText}`);
+      } else {
+        setReplyingTo(null);
+        scrollToBottom(true);
+        setShowGifPicker(false);
+      }
     } catch (error) {
       console.error("Gif upload error:", error);
     } finally {
@@ -1185,7 +1192,7 @@ export default function ChatWindow({
                       <div className="text-chat-text-secondary line-clamp-1">
                         {msg.text ||
                           (msg.mediaUrl
-                            ? `Attached ${msg.mediaType}`
+                            ? `Attached ${msg.mediaType === "video" ? "Video" : msg.mediaType === "gif" ? "GIF" : msg.mediaType === "audio" ? "Voice record" : "Photo"}`
                             : "Pinned Message")}
                       </div>
                     </div>

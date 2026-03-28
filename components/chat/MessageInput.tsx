@@ -67,11 +67,13 @@ const MessageInput = ({
                   ? editingMessage.text
                   : replyingTo?.text ||
                     (replyingTo?.mediaUrl
-                      ? replyingTo.mediaType === "video"
-                        ? "Video"
-                        : replyingTo.mediaType === "audio"
-                          ? "Voice record"
-                          : "Photo"
+                        ? replyingTo.mediaType === "video"
+                          ? "Video"
+                          : replyingTo.mediaType === "gif"
+                            ? "GIF"
+                            : replyingTo.mediaType === "audio"
+                              ? "Voice record"
+                              : "Photo"
                       : "")}
               </span>
             </div>

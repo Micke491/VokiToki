@@ -27,7 +27,7 @@
     replyTo?: mongoose.Types.ObjectId;
     
     mediaUrl?: string;
-    mediaType?: 'image' | 'video' | 'audio';
+    mediaType?: 'image' | 'video' | 'audio' | 'gif';
     mediaPublicId?: string;
     
     isForwarded: boolean;
@@ -85,7 +85,7 @@
       },
       mediaType: {
         type: String,
-        enum: ['image', 'video', 'audio'],
+        enum: ['image', 'video', 'audio', 'gif'],
       },
       mediaPublicId: {
         type: String,

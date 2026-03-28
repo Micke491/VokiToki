@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save, Camera } from "lucide-react";
+import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save, Camera, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 import toast from "react-hot-toast";
@@ -466,16 +466,22 @@ const ChatSidebar = ({
                     onClick={() => window.open(media.mediaUrl, "_blank")}
                   >
                     {media.mediaType === "video" ? (
-                      <div className="w-full h-full flex items-center justify-center relative bg-slate-950">
-                        <Video className="w-5 h-5 text-white/50" />
-                         <span className="absolute bottom-1 right-1 text-[8px] text-white/80 bg-black/40 px-1 rounded">VID</span>
+                      <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                        <Video className="w-5 h-5 text-white/30" />
                       </div>
                     ) : (
-                      <img
-                        src={media.mediaUrl}
-                        alt="Shared"
-                        className="w-full h-full object-cover"
-                      />
+                      <div className="relative w-full h-full">
+                        <img 
+                          src={media.mediaUrl} 
+                          className="w-full h-full object-cover" 
+                          alt="Shared"
+                        />
+                        {media.mediaType === "gif" && (
+                          <div className="absolute bottom-1 right-1 px-1 bg-black/60 backdrop-blur-sm rounded text-[8px] text-white font-bold select-none uppercase">
+                            GIF
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
