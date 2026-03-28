@@ -22,6 +22,8 @@ interface MessageInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   formatRecordingTime: (seconds: number) => string;
+  showGifPicker: boolean;
+  setShowGifPicker: (val: boolean) => void;
 }
 
 const MAX_CHARS = 2000;
@@ -46,6 +48,8 @@ const MessageInput = ({
   fileInputRef,
   inputRef,
   formatRecordingTime,
+  showGifPicker,
+  setShowGifPicker,
 }: MessageInputProps) => {
   return (
     <footer className="p-4 pb-safe bg-chat-bg-primary border-t border-chat-border shrink-0">
@@ -176,6 +180,21 @@ const MessageInput = ({
                   />
                 </svg>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowGifPicker(!showGifPicker)}
+              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                showGifPicker
+                  ? "bg-chat-accent text-white shadow-sm"
+                  : "hover:bg-chat-hover text-chat-text-tertiary"
+              }`}
+              title="Send a GIF"
+            >
+              <div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[8px] font-black tracking-tight leading-none pt-0.5">
+                GIF
+              </div>
             </button>
 
             <textarea

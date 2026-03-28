@@ -23,6 +23,7 @@ import CallModal from "./CallModal";
 import IncomingCallModal from "./IncomingCallModal";
 import { IncomingCallData } from "../../types/chat";
 import ConfirmModal from "../ui/ConfirmModal";
+import GifPicker from "./GifPicker";
 
 export default function ChatWindow({
   chatId,
@@ -59,6 +60,7 @@ export default function ChatWindow({
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -827,6 +829,35 @@ export default function ChatWindow({
     }
   };
 
+  const handleGifSelect = async (url: string) => {
+    if (!pusherClient) return;
+    
+    setSending(true);
+    try {
+      await fetch("/api/chat/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          chatId,
+          senderId: currentUserId,
+          mediaUrl: url,
+          mediaType: "image",
+          replyTo: replyingTo?._id,
+        }),
+      });
+      setReplyingTo(null);
+      scrollToBottom(true);
+      setShowGifPicker(false);
+    } catch (error) {
+      console.error("Gif upload error:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -1270,6 +1301,12 @@ export default function ChatWindow({
           </div>
 
           <AnimatePresence>
+            {showGifPicker && (
+              <GifPicker 
+                onSelect={handleGifSelect}
+                onClose={() => setShowGifPicker(false)}
+              />
+            )}
             {showScrollBadge && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}
@@ -1308,6 +1345,8 @@ export default function ChatWindow({
             fileInputRef={fileInputRef}
             inputRef={inputRef}
             formatRecordingTime={formatRecordingTime}
+            showGifPicker={showGifPicker}
+            setShowGifPicker={setShowGifPicker}
           />
         </div>
 
