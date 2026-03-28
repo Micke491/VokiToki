@@ -39,13 +39,11 @@ export default function RootLayout({
               (function() {
                 try {
                   const theme = localStorage.getItem('theme');
-                  const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
-                  if (!theme && supportDarkMode) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                  } else if (theme === 'dark') {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                  } else {
+                  // Default to dark unless explicitly set to light
+                  if (theme === 'light') {
                     document.documentElement.setAttribute('data-theme', 'light');
+                  } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
                   }
                 } catch (e) {}
               })();

@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #020617;
+  --background: #020617;
+  --foreground: #f8fafc;
   
-  /* Chat App Theme Variables - Light Mode (Premium Slate) */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-sidebar: #f1f5f9;
-  --bg-hover: #f1f5f9;
-  --bg-selected: #e2e8f0;
+  /* Chat App Theme Variables - Dark Mode (Premium Slate) */
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-sidebar: #020617;
+  --bg-hover: #1e293b;
+  --bg-selected: #334155;
   
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
   
-  --accent-color: #4f46e5; /* Indigo 600 */
-  --border-color: #e2e8f0;
+  --accent-color: #6366f1; /* Indigo 500 */
+  --accent-secondary: #a5b4fc;
+  
+  --border-color: #1e293b;
 }
 
 @theme inline {
@@ -42,26 +44,26 @@
   --color-chat-border: var(--border-color);
 }
 
-/* Dark mode by default if system prefers it, or if data-theme="dark" */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --background: #020617;
-    --foreground: #f8fafc;
+/* Light mode if data-theme="light" or system prefers it (if we wanted to follow system, but instructions say default dark) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --background: #ffffff;
+    --foreground: #020617;
 
-    --bg-primary: #020617;
-    --bg-secondary: #0f172a;
-    --bg-sidebar: #020617;
-    --bg-hover: #1e293b;
-    --bg-selected: #334155;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-sidebar: #f1f5f9;
+    --bg-hover: #f1f5f9;
+    --bg-selected: #e2e8f0;
     
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-tertiary: #64748b;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
     
-    --accent-color: #6366f1; /* Indigo 500 */
-    --accent-secondary: #a5b4fc;
+    --accent-color: #4f46e5; /* Indigo 600 */
+    --accent-secondary: #818cf8;
     
-    --border-color: #1e293b;
+    --border-color: #e2e8f0;
   }
 }
 

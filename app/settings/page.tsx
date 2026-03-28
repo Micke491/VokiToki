@@ -30,7 +30,7 @@ interface User {
 export default function SettingsPage() {
   const router = useRouter();
   const[currentUser, setCurrentUser] = useState<User | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [notifications, setNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ export default function SettingsPage() {
   };
 
   const loadSettings = () => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'light';
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'dark';
     const savedNotifications = localStorage.getItem('notifications') !== 'false';
     const savedSound = localStorage.getItem('soundEnabled') !== 'false';
 
