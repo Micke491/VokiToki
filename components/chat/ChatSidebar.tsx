@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save } from "lucide-react";
+import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save, Camera } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 import toast from "react-hot-toast";
 import AddParticipantModal from "./AddParticipantModal";
+import ConfirmModal from "../ui/ConfirmModal";
 
 interface ChatSidebarProps {
   isOpen: boolean;
@@ -41,13 +42,27 @@ const ChatSidebar = ({
 }: ChatSidebarProps) => {
   const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
-  
-  // Group Management State
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editGroupName, setEditGroupName] = useState(recipientUsername || "");
   const [isSavingGroupInfo, setIsSavingGroupInfo] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type: "danger" | "info";
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    type: "info",
+  });
 
   const isAdmin = currentUserId === groupAdminId;
 
@@ -123,49 +138,125 @@ const ChatSidebar = ({
   };
 
   const handleRemoveParticipant = async (userId: string) => {
-    if (!chatId || !confirm("Remove participant?")) return;
+    if (!chatId) return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Remove Participant",
+      message: "Are you sure you want to remove this participant from the group?",
+      confirmText: "Remove",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/chat/${chatId}/remove`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ userId }),
+          });
+          if (res.ok) {
+            toast.success("Participant removed");
+          } else {
+            const data = await res.json();
+            toast.error(data.error || "Failed to remove participant");
+          }
+        } catch (error) {
+          console.error(error);
+          toast.error("An error occurred");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
+  const handleLeaveOrDelete = async (isDelete = false) => {
+    if (!chatId) return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: isDelete ? "Delete Chat" : "Leave Group",
+      message: `Are you sure you want to ${isDelete ? "delete this chat" : "leave this group"}? This action cannot be undone.`,
+      confirmText: isDelete ? "Delete" : "Leave",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          setIsLeaving(true);
+          const endpoint =
+            isGroup && !isDelete
+              ? `/api/chat/${chatId}/leave`
+              : `/api/chat/${chatId}`;
+          const method = isGroup && !isDelete ? "POST" : "DELETE";
+
+          const res = await fetch(endpoint, {
+            method,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
+          if (res.ok) {
+            window.location.href = "/chat";
+          } else {
+            toast.error(`Failed to ${isDelete ? "delete" : "leave"} chat`);
+            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          }
+        } catch (error) {
+          console.error(error);
+          toast.error("An error occurred");
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        } finally {
+          setIsLeaving(false);
+        }
+      },
+    });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !chatId) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File is too large. Max 5MB.");
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/chat/${chatId}/remove`, {
+      setIsUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/chat/media/upload", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+
+      const res = await fetch(`/api/chat/${chatId}/update`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ avatar: uploadData.url }),
       });
-      if (res.ok) {
-        toast.success("Participant removed");
-      } else {
-        toast.error("Failed to remove participant");
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
-  const handleLeaveOrDelete = async (isDelete = false) => {
-    if (!chatId || !confirm(`Are you sure you want to ${isDelete ? 'delete' : 'leave'} this chat?`)) return;
-    try {
-      setIsLeaving(true);
-      const endpoint = isGroup && !isDelete ? `/api/chat/${chatId}/leave` : `/api/chat/${chatId}`;
-      const method = isGroup && !isDelete ? "POST" : "DELETE";
-      
-      const res = await fetch(endpoint, {
-        method,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
       if (res.ok) {
-        window.location.href = "/chat"; // Fast redirect
+        toast.success("Group avatar updated");
       } else {
-        toast.error(`Failed to ${isDelete ? 'delete' : 'leave'} chat`);
+        toast.error("Failed to update group avatar");
       }
     } catch (error) {
       console.error(error);
-      toast.error("An error occurred");
+      toast.error("Failed to upload avatar");
     } finally {
-      setIsLeaving(false);
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -197,15 +288,41 @@ const ChatSidebar = ({
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Profile Section */}
         <div className="p-6 flex flex-col items-center text-center border-b border-chat-border relative">
-          <div className={`w-24 h-24 rounded-full mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg overflow-hidden ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'}`}>
-            {recipientAvatar ? (
-              <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-                isGroup ? (
-                    <Users className="w-12 h-12" />
-                ) : (
-                    recipientUsername?.charAt(0).toUpperCase() || "?"
-                )
+          <div className="relative group">
+            <div className={`w-24 h-24 rounded-full mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg overflow-hidden transition-all ${isGroup && isAdmin ? 'ring-offset-2 ring-chat-accent ring-2 scale-105' : ''} ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'}`}>
+              {isUploadingAvatar ? (
+                <div className="w-full h-full bg-black/40 flex items-center justify-center backdrop-blur-sm">
+                  <Loader2 className="w-8 h-8 animate-spin text-white" />
+                </div>
+              ) : recipientAvatar ? (
+                <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                  isGroup ? (
+                      <Users className="w-12 h-12" />
+                  ) : (
+                      recipientUsername?.charAt(0).toUpperCase() || "?"
+                  )
+              )}
+            </div>
+            
+            {isGroup && isAdmin && (
+              <>
+                <input 
+                  type="file" 
+                  ref={avatarInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleAvatarUpload} 
+                />
+                <button 
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute bottom-4 right-0 p-2 bg-chat-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
+                  title="Change group photo"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              </>
             )}
           </div>
           {isGroup && isAdmin ? (
@@ -447,6 +564,17 @@ const ChatSidebar = ({
         existingParticipantIds={participants.map(p => p._id)} 
       />
     )}
+
+    <ConfirmModal 
+      isOpen={confirmModal.isOpen}
+      onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      onConfirm={confirmModal.onConfirm}
+      title={confirmModal.title}
+      message={confirmModal.message}
+      confirmText={confirmModal.confirmText}
+      type={confirmModal.type}
+      isLoading={isLeaving}
+    />
     </>
   );
 };

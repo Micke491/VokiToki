@@ -22,6 +22,7 @@ import ReadReceiptModal from "./ReadReceiptModal";
 import CallModal from "./CallModal";
 import IncomingCallModal from "./IncomingCallModal";
 import { IncomingCallData } from "../../types/chat";
+import ConfirmModal from "../ui/ConfirmModal";
 
 export default function ChatWindow({
   chatId,
@@ -75,9 +76,9 @@ export default function ChatWindow({
     null,
   );
   const prevScrollHeightRef = useRef<number>(0);
-  // Call State
   const [activeCall, setActiveCall] = useState<{type: "voice" | "video"} | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -839,10 +840,15 @@ export default function ChatWindow({
   };
 
   const handleDelete = async (messageId: string) => {
-    if (!pusherClient || !confirm("Delete this message for everyone?")) return;
+    if (!pusherClient) return;
+    setMessageToDelete(messageId);
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!messageToDelete || !pusherClient) return;
     try {
       await fetch(
-        `/api/chat/message/messages/${messageId}/delete?forEveryone=true`,
+        `/api/chat/message/messages/${messageToDelete}/delete?forEveryone=true`,
         {
           method: "DELETE",
           headers: {
@@ -852,6 +858,8 @@ export default function ChatWindow({
       );
     } catch (error) {
       console.error("Error deleting message:", error);
+    } finally {
+      setMessageToDelete(null);
     }
   };
 
@@ -1320,6 +1328,16 @@ export default function ChatWindow({
           />
         )}
       </div>
+
+      <ConfirmModal 
+        isOpen={!!messageToDelete}
+        onClose={() => setMessageToDelete(null)}
+        onConfirm={confirmDeleteMessage}
+        title="Delete Message"
+        message="Are you sure you want to delete this message for everyone? This action cannot be undone."
+        confirmText="Delete"
+        type="danger"
+      />
     </div>
   );
 }
