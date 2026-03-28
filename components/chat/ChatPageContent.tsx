@@ -33,6 +33,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -151,7 +152,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     <div className="flex h-screen-safe bg-gradient-to-br from-indigo-700 via-purple-700 to-blue-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 overflow-hidden transition-colors duration-700">
       {/* 1. Global Navigation Sidebar */}
       <div className={`${chatId ? "hidden md:block" : "block"}`}>
-        <SideBar currentUser={currentUser || undefined} />
+        <SideBar 
+          currentUser={currentUser || undefined} 
+          isMobileDrawerOpen={showSidebarDrawer}
+          onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
+        />
       </div>
 
       <main className="flex flex-1 overflow-hidden">
@@ -168,26 +173,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             currentUserId={currentUser?._id}
             selectedChatId={chatId}
             onChatSelect={(id) => router.push(`/chat/${id}`)}
+            onNewChat={() => setShowNewChatModal(true)}
+            onMenuClick={() => setShowSidebarDrawer(true)}
           />
-
-          {/* Floating Action Button */}
-          <button
-            onClick={() => setShowNewChatModal(true)}
-            className="absolute bottom-24 md:bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-10"
-            title="New Chat"
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            >
-              <path d="M12 5v14m-7-7h14" />
-            </svg>
-          </button>
         </div>
 
         {/* 3. Chat Window Panel */}

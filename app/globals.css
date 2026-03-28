@@ -12,8 +12,8 @@
   --bg-selected: #334155;
   
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
+  --text-secondary: #cbd5e1; /* Slate 300 - improved from #94a3b8 */
+  --text-tertiary: #94a3b8;  /* Slate 400 - improved from #64748b */
   
   --accent-color: #6366f1; /* Indigo 500 */
   --accent-secondary: #a5b4fc;
@@ -58,7 +58,7 @@
     
     --text-primary: #0f172a;
     --text-secondary: #475569;
-    --text-tertiary: #94a3b8;
+    --text-tertiary: #64748b; /* Improved from #94a3b8 */
     
     --accent-color: #4f46e5; /* Indigo 600 */
     --accent-secondary: #818cf8;
@@ -78,8 +78,8 @@
   --bg-selected: #334155;
   
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
   
   --accent-color: #6366f1;
   --accent-secondary: #a5b4fc;
@@ -99,7 +99,7 @@
   
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
+  --text-tertiary: #64748b;
   
   --accent-color: #4f46e5;
   --accent-secondary: #818cf8;

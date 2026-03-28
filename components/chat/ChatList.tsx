@@ -33,9 +33,11 @@ interface ChatListProps {
   currentUserId?: string;
   onChatSelect?: (chatId: string) => void;
   selectedChatId?: string;
+  onNewChat?: () => void;
+  onMenuClick?: () => void;
 }
 
-export default function ChatList({ currentUserId, onChatSelect, selectedChatId }: ChatListProps) {
+export default function ChatList({ currentUserId, onChatSelect, selectedChatId, onNewChat, onMenuClick }: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -227,18 +229,28 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       {/* Header */}
       <div className="flex flex-col gap-3 p-5 border-b border-chat-border">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-chat-text-primary">Messages</h2>
-          <div className="flex items-center gap-2 md:hidden">
+          <h2 className="text-2xl font-bold text-chat-text-primary tracking-tight">Messages</h2>
+          <div className="flex items-center gap-1">
             <button 
-              onClick={() => router.push('/settings')}
-              className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
-              title="Settings"
+              onClick={onNewChat}
+              className="p-2 text-chat-accent hover:bg-chat-accent/10 rounded-full transition-all"
+              title="New Chat"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
             </button>
+            <div className="md:hidden">
+              <button 
+                onClick={onMenuClick}
+                className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
+                title="Menu"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
         <div className="relative">
@@ -266,7 +278,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId }
       </div>
       
       {/* List Items */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-20 md:pb-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-safe">
         {chats.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-5 py-16 text-center text-chat-text-tertiary">
             <svg className="w-16 h-16 mb-5 opacity-40 text-chat-text-tertiary" viewBox="0 0 64 64" fill="none">

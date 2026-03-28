@@ -40,7 +40,7 @@ const ChatHeader = ({
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <button
           onClick={onClose}
-          className="flex items-center justify-center w-9 h-9 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors mr-2"
+          className="flex md:hidden items-center justify-center w-9 h-9 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors mr-2"
           aria-label="Back to chats"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">

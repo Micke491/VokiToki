@@ -10,9 +10,11 @@ interface SideBarProps {
     email: string;
     avatar?: string;
   };
+  isMobileDrawerOpen?: boolean;
+  onCloseMobileDrawer?: () => void;
 }
 
-export default function SideBar({ currentUser }: SideBarProps) {
+export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobileDrawer }: SideBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -48,43 +50,64 @@ export default function SideBar({ currentUser }: SideBarProps) {
 
   return (
     <>
-      {/* Desktop / Tablet Sidebar */}
-      <aside className="hidden md:flex sticky top-0 h-screen w-[72px] md:w-[280px] bg-chat-sidebar border-r border-chat-border flex-col transition-all duration-300">
+      {/* Mobile Overlay */}
+      <div 
+        className={`md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMobileDrawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onCloseMobileDrawer}
+      />
 
+      {/* Sidebar (Desktop & Mobile Drawer) */}
+      <aside 
+        className={`
+          fixed md:sticky top-0 left-0 h-screen z-[101] bg-chat-sidebar border-r border-chat-border flex-col transition-all duration-300
+          w-[280px] md:w-[72px] lg:md:w-[280px]
+          ${isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
         {/* Sidebar Header */}
-        <div className="p-4 md:p-5 border-b border-chat-border">
+        <div className="p-5 border-b border-chat-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="shrink-0 w-10 h-10 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center shadow-lg shadow-chat-accent/20">
+            <div className="shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center shadow-lg shadow-chat-accent/20">
               <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
                 <path d="M16 8L8 16L16 24M16 8L24 16L16 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="hidden md:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-chat-text-primary to-chat-text-secondary tracking-tight">
+            <span className="md:hidden lg:md:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-chat-text-primary to-chat-text-secondary tracking-tight">
               ChatApp
             </span>
           </div>
+          <button 
+            className="md:hidden p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
+            onClick={onCloseMobileDrawer}
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 md:p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (
             <button
               key={item.path}
-              onClick={() => router.push(item.path)}
+              onClick={() => { router.push(item.path); onCloseMobileDrawer?.(); }}
               className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all group ${
                 isActive(item.path)
-                ? 'bg-chat-accent text-white shadow-md shadow-chat-accent/30'
+                ? 'bg-chat-accent text-white shadow-md shadow-chat-accent/30 font-bold'
                 : 'text-chat-text-secondary hover:bg-chat-hover hover:text-chat-text-primary'
               }`}
             >
-              {item.icon}
-              <span className="hidden md:block font-medium">{item.label}</span>
+              <div className={isActive(item.path) ? 'text-white' : 'text-chat-accent'}>
+                {item.icon}
+              </div>
+              <span className="md:hidden lg:md:block font-medium">{item.label}</span>
             </button>
           ))}
         </nav>
 
-        {/* Footer / Profile Section */}
-        <div className="p-3 md:p-4 border-t border-chat-border">
+        {/* Profile Section */}
+        <div className="p-4 border-t border-chat-border">
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -97,21 +120,24 @@ export default function SideBar({ currentUser }: SideBarProps) {
                   currentUser?.username?.charAt(0).toUpperCase() || 'U'
                 )}
               </div>
-              <div className="hidden md:flex flex-1 flex-col items-start min-w-0">
+              <div className="md:hidden lg:md:flex flex-1 flex-col items-start min-w-0">
                 <span className="text-sm font-semibold text-chat-text-primary truncate w-full text-left">
                   {currentUser?.username || 'User'}
                 </span>
+                <span className="text-[10px] text-chat-text-tertiary truncate w-full text-left uppercase font-bold tracking-widest">
+                  Online
+                </span>
               </div>
-              <svg className={`hidden md:block w-4 h-4 text-chat-text-tertiary transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className={`md:hidden lg:md:block w-4 h-4 text-chat-text-tertiary transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {/* Profile Popover Menu */}
             {showProfileMenu && (
-              <div className="absolute bottom-full left-0 w-48 mb-2 bg-chat-bg-primary border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+              <div className="absolute bottom-full left-0 w-full mb-2 bg-chat-bg-primary border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[110]">
                 <button
-                  onClick={() => { router.push('/settings'); setShowProfileMenu(false); }}
+                  onClick={() => { router.push('/settings'); setShowProfileMenu(false); onCloseMobileDrawer?.(); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-chat-text-secondary hover:bg-chat-hover transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -119,9 +145,10 @@ export default function SideBar({ currentUser }: SideBarProps) {
                   </svg>
                   Settings
                 </button>
+                <div className="h-px bg-chat-border mx-2" />
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors font-bold"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -133,40 +160,6 @@ export default function SideBar({ currentUser }: SideBarProps) {
           </div>
         </div>
       </aside>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center bg-chat-bg-primary border-t border-chat-border pb-safe">
-        {navItems.map((item) => (
-          <button
-            key={item.path}
-            onClick={() => router.push(item.path)}
-            className={`flex flex-col items-center gap-1 py-3 flex-1 transition-colors ${
-              isActive(item.path)
-              ? 'text-chat-accent'
-              : 'text-chat-text-tertiary'
-            }`}
-          >
-            {item.icon}
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </button>
-        ))}
-        {/* Profile shortcut */}
-        <button
-          onClick={() => router.push('/settings')}
-          className={`flex flex-col items-center gap-1 py-3 flex-1 transition-colors ${
-            isActive('/settings') ? 'text-chat-accent' : 'text-chat-text-tertiary'
-          }`}
-        >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-chat-accent to-chat-accent-secondary flex items-center justify-center text-white text-[10px] font-bold overflow-hidden">
-            {currentUser?.avatar ? (
-              <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              currentUser?.username?.charAt(0).toUpperCase() || 'U'
-            )}
-          </div>
-          <span className="text-[10px] font-medium">Profile</span>
-        </button>
-      </nav>
     </>
   );
 }
