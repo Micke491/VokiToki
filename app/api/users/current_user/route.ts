@@ -82,6 +82,7 @@ export async function PATCH(req: Request) {
     if (avatar !== undefined) currentUser.avatar = avatar;
 
     await currentUser.save();
+    
     return NextResponse.json({ 
         message: 'Profile updated successfully',
         user: {
@@ -89,7 +90,10 @@ export async function PATCH(req: Request) {
             username: currentUser.username,
             email: currentUser.email,
             bio: currentUser.bio,
-            avatar: currentUser.avatar
+            avatar: currentUser.avatar,
+            readReceipts: currentUser.readReceipts,
+            theme: currentUser.theme,
+            twoFactorEnabled: currentUser.twoFactorEnabled
         }
     });
 

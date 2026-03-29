@@ -9,6 +9,7 @@
     chatId: mongoose.Types.ObjectId;
     sender: mongoose.Types.ObjectId;
     text: string;
+    iv?: string;
     read: boolean;
     
     status: 'sent' | 'delivered' | 'seen';
@@ -77,8 +78,12 @@
         required: function(this: any) {
           return !this.mediaUrl;
         },
-        trim: true,
-        maxlength: 5000,
+        iv: {
+          type: String,
+          required: function(this: any) {
+            return !this.mediaUrl;
+          },
+        },
       },
       mediaUrl: {
         type: String,

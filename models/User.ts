@@ -7,6 +7,17 @@ export interface IUser extends Document {
   name?: string;
   bio?: string;
   avatar?: string;
+  publicKey?: string; 
+  readReceipts: boolean; 
+  blockedUsers: mongoose.Types.ObjectId[]; 
+  twoFactorEnabled: boolean; 
+  twoFactorSecret?: string; 
+  theme: 'light' | 'dark' | 'system';
+  mutedChats: {
+    chatId: mongoose.Types.ObjectId;
+    mutedUntil: Date;
+  }[];
+
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   createdAt: Date;
@@ -47,13 +58,39 @@ const UserSchema = new Schema<IUser>(
       type: String,
       maxlength: [100, "Name cannot exceed 100 characters"],
     },
-    resetPasswordToken: {
+    publicKey: {
       type: String,
-      required: false,
+      default: "",
     },
-    resetPasswordExpires: {
-      type: Date,
-      required: false,
+    readReceipts: {
+      type: Boolean,
+      default: true,
+    },
+    blockedUsers: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorSecret: {
+      type: String,
+      default: "",
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'system'],
+      default: 'dark',
+    },
+    mutedChats: {
+      type: [
+        {
+          chatId: Schema.Types.ObjectId,
+          mutedUntil: Date,
+        },
+      ],
+      default: [],
     },
   },
   {

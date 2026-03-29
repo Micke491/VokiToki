@@ -6,7 +6,7 @@ import SideBar from '@/components/layout/Sidebar';
 import { 
   ArrowLeft, Camera, Trash2, Moon, Sun, AlertTriangle, Loader2, 
   User as UserIcon, Image as ImageIcon, CheckCircle, Shield, 
-  Lock, Palette, Settings
+  Lock, Palette, EyeOff, UserX, Smartphone, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,9 @@ interface User {
   email: string;
   bio?: string;
   avatar?: string;
+  readReceipts: boolean;
+  twoFactorEnabled: boolean;
+  theme: 'light' | 'dark' | 'system';
 }
 
 type TabType = 'personal' | 'privacy' | 'appearance' | 'danger';
@@ -35,6 +38,8 @@ export default function SettingsPage() {
   const [editUsername, setEditUsername] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [readReceipts, setReadReceipts] = useState(true);
+  const [twoFactor, setTwoFactor] = useState(false);
 
   useEffect(() => {
     if (feedback) {
@@ -45,7 +50,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchCurrentUser();
-    loadSettings();
   }, []);
 
   const fetchCurrentUser = async () => {
@@ -55,32 +59,58 @@ export default function SettingsPage() {
       });
       if (!response.ok) throw new Error('Not authenticated');
       const data = await response.json();
+      
       setCurrentUser(data.user);
       setEditUsername(data.user.username || '');
       setBio(data.user.bio || '');
       setAvatarUrl(data.user.avatar || '');
+      
+      setReadReceipts(data.user.readReceipts ?? true);
+      setTwoFactor(data.user.twoFactorEnabled ?? false);
+      
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'dark';
+      const userTheme = data.user.theme === 'system' ? savedTheme : (data.user.theme || savedTheme);
+      setTheme(userTheme);
+      document.documentElement.setAttribute('data-theme', userTheme);
+
     } catch (error) {
       console.error('Error fetching user:', error);
-      window.location.href = '/login';
+      router.push('/auth-pages/login');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadSettings = () => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'dark';
-    setTheme(savedTheme);
-    applyTheme(savedTheme);
-  };
+  const handleUpdatePreferences = async (updates: Partial<User>) => {
+    try {
+      const response = await fetch('/api/users/preferences', { 
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(updates),
+      });
 
-  const applyTheme = (selectedTheme: 'light' | 'dark') => {
-    document.documentElement.setAttribute('data-theme', selectedTheme);
-    localStorage.setItem('theme', selectedTheme);
+      if (!response.ok) throw new Error('Failed to update preferences');
+      
+    } catch (error: any) {
+      console.error('Update pref error:', error);
+      setFeedback({ type: 'error', message: 'Failed to save preference.' });
+    }
   };
 
   const handleThemeChange = (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
-    applyTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    handleUpdatePreferences({ theme: newTheme }); 
+  };
+
+  const toggleReadReceipts = () => {
+    const newState = !readReceipts;
+    setReadReceipts(newState);
+    handleUpdatePreferences({ readReceipts: newState });
   };
 
   const handleSaveProfile = async () => {
@@ -100,10 +130,7 @@ export default function SettingsPage() {
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update profile');
-      }
+      if (!response.ok) throw new Error(data.error || 'Failed to update profile');
 
       setCurrentUser(data.user);
       setFeedback({ type: 'success', message: 'Profile updated successfully!' });
@@ -153,7 +180,6 @@ export default function SettingsPage() {
       });
 
       if (!response.ok) throw new Error('Failed to send request');
-      
       setFeedback({ type: 'success', message: 'Password reset link sent to your email.' });
     } catch (error) {
       setFeedback({ type: 'error', message: 'Could not send request. Try again.' });
@@ -190,7 +216,7 @@ export default function SettingsPage() {
 
   const TABS = [
     { id: 'personal', label: 'Personal Info', icon: UserIcon, danger: false },
-    { id: 'privacy', label: 'Privacy & Security', icon: Lock, danger: false },
+    { id: 'privacy', label: 'Privacy & Security', icon: Shield, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
   ] as const;
@@ -310,7 +336,7 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1">Username</label>
                       <div className="relative group">
-                        <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-chat-text-tertiary group-focus-within:text-chat-accent transition-colors" />
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-chat-text-tertiary group-focus-within:text-chat-accent transition-colors" />
                         <input 
                           type="text" 
                           value={editUsername}
@@ -318,10 +344,9 @@ export default function SettingsPage() {
                           className="w-full pl-12 pr-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
                         />
                       </div>
-                      <p className="text-xs text-chat-text-tertiary ml-1 mt-1">You can change this if the new username is not already taken.</p>
                     </div>
 
-                    {/* Bio field replacing Display Name */}
+                    {/* Bio field */}
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1">Bio</label>
                       <textarea 
@@ -345,32 +370,106 @@ export default function SettingsPage() {
                 </motion.section>
               )}
 
-              {/* === PRIVACY TAB === */}
+              {/* === PRIVACY & SECURITY TAB === */}
               {activeTab === 'privacy' && (
                 <motion.section 
                   key="privacy"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-bg-primary/50 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
+                  className="bg-chat-bg-primary/50 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10 space-y-10"
                 >
-                  <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
-                    <Lock className="w-6 h-6 text-chat-accent" />
-                    Privacy & Security
-                  </h2>
-                  
-                  <div className="space-y-6">
-                    <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div>
-                        <h3 className="font-bold text-chat-text-primary text-lg">Password</h3>
-                        <p className="text-sm text-chat-text-secondary mt-1">Request a password change via your registered email address.</p>
+                  {/* Privacy Section */}
+                  <div>
+                    <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
+                      <Shield className="w-6 h-6 text-chat-accent" />
+                      Privacy Settings
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      {/* Read Receipts Toggle */}
+                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
+                        <div>
+                          <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
+                            {readReceipts ? <Eye className="w-4 h-4 text-chat-accent"/> : <EyeOff className="w-4 h-4 text-chat-text-tertiary"/>} 
+                            Read Receipts
+                          </h3>
+                          <p className="text-sm text-chat-text-secondary mt-1 max-w-sm">
+                            If turned off, you won't send read receipts. You also won't be able to see read receipts from other people.
+                          </p>
+                        </div>
+                        <button 
+                          onClick={toggleReadReceipts}
+                          className={`w-14 h-8 rounded-full transition-colors relative shrink-0 ${readReceipts ? 'bg-chat-accent' : 'bg-chat-border'}`}
+                        >
+                          <div className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full transition-transform shadow-sm ${readReceipts ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
                       </div>
-                      <button 
-                        onClick={handlePasswordResetRequest}
-                        disabled={requestingPassword}
-                        className="px-6 py-3 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap"
-                      >
-                        {requestingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                        {requestingPassword ? 'Sending...' : 'Change Password'}
-                      </button>
+
+                      {/* Blocked Users */}
+                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
+                        <div>
+                          <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
+                            <UserX className="w-4 h-4 text-chat-accent"/> Blocked Users
+                          </h3>
+                          <p className="text-sm text-chat-text-secondary mt-1">
+                            Manage contacts you have blocked from messaging you.
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => {/* Implement Block List Modal/Page */}}
+                          className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all text-sm whitespace-nowrap"
+                        >
+                          Manage List
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security Section */}
+                  <div>
+                    <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3 pt-6 border-t border-chat-border">
+                      <Lock className="w-6 h-6 text-chat-accent" />
+                      Security
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      {/* Password Reset */}
+                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                          <h3 className="font-bold text-chat-text-primary text-base">Account Password</h3>
+                          <p className="text-sm text-chat-text-secondary mt-1">Request a password change via your registered email address.</p>
+                        </div>
+                        <button 
+                          onClick={handlePasswordResetRequest}
+                          disabled={requestingPassword}
+                          className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap w-full sm:w-auto"
+                        >
+                          {requestingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                          {requestingPassword ? 'Sending...' : 'Change Password'}
+                        </button>
+                      </div>
+
+                      {/* Two-Factor Authentication (2FA) */}
+                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                          <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
+                            <Smartphone className="w-4 h-4 text-chat-accent"/> 
+                            Two-Step Verification (2FA)
+                          </h3>
+                          <p className="text-sm text-chat-text-secondary mt-1">
+                            Add an extra layer of security requiring an Authenticator app code to log in.
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => {/* Implement 2FA setup route */}}
+                          className={`px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-full sm:w-auto ${
+                            twoFactor 
+                              ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+                              : 'bg-chat-accent text-white hover:opacity-90 shadow-lg'
+                          }`}
+                        >
+                          {twoFactor ? 'Configured' : 'Setup 2FA'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.section>
@@ -384,13 +483,13 @@ export default function SettingsPage() {
                   className="bg-chat-bg-primary/50 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
                 >
                   <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
-                    <ImageIcon className="w-6 h-6 text-chat-accent" />
-                    Appearance
+                    <Palette className="w-6 h-6 text-chat-accent" />
+                    Appearance Preference
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button 
                       onClick={() => handleThemeChange('light')}
-                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'light' ? 'border-chat-accent bg-chat-accent/10' : 'border-chat-border bg-chat-bg-secondary hover:bg-chat-hover'}`}
+                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'light' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-bg-secondary hover:bg-chat-hover'}`}
                     >
                       <Sun className={`w-8 h-8 ${theme === 'light' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`} />
                       <span className={`text-sm font-bold uppercase tracking-widest ${theme === 'light' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`}>Light Mode</span>
@@ -398,7 +497,7 @@ export default function SettingsPage() {
 
                     <button 
                       onClick={() => handleThemeChange('dark')}
-                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'dark' ? 'border-chat-accent bg-chat-accent/10' : 'border-chat-border bg-chat-bg-secondary hover:bg-chat-hover'}`}
+                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'dark' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-bg-secondary hover:bg-chat-hover'}`}
                     >
                       <Moon className={`w-8 h-8 ${theme === 'dark' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`} />
                       <span className={`text-sm font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`}>Dark Mode</span>
@@ -438,7 +537,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal (Same as original) */}
+      {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
