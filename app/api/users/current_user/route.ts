@@ -50,33 +50,51 @@ export async function DELETE(req: Request) {
 export async function PATCH(req: Request) {
   try {
     await connectDB();
-    
     const auth = verifyToken(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
-    const { name, avatar, bio } = body;
+    const { username, bio, avatar } = body;
 
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (avatar !== undefined) updateData.avatar = avatar;
-    if (bio !== undefined) updateData.bio = bio;
-
-    const updatedUser = await User.findByIdAndUpdate(
-      auth.id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).select('-password');
-    
-    if (!updatedUser) {
+    const currentUser = await User.findById(auth.id);
+    if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Profile updated successfully', user: updatedUser }, { status: 200 });
+    if (username && username !== currentUser.username) {
+      const existingUser = await User.findOne({ 
+        username: { $regex: new RegExp(`^${username}$`, 'i') } 
+      });
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Username is already taken by another user.' },
+          { status: 400 }
+        );
+      }
+      
+      currentUser.username = username;
+    }
+
+    if (bio !== undefined) currentUser.bio = bio;
+    if (avatar !== undefined) currentUser.avatar = avatar;
+
+    await currentUser.save();
+    return NextResponse.json({ 
+        message: 'Profile updated successfully',
+        user: {
+            _id: currentUser._id,
+            username: currentUser.username,
+            email: currentUser.email,
+            bio: currentUser.bio,
+            avatar: currentUser.avatar
+        }
+    });
+
   } catch (error: any) {
-    console.error('Error updating profile:', error);
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+    console.error('Update Profile Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -37,15 +37,16 @@ const UserSchema = new Schema<IUser>(
     bio: {
       type: String,
       maxlength: [500, "Bio cannot exceed 500 characters"],
+      default: "",
     },
     avatar: {
       type: String,
+      default: "",
     },
     name: {
       type: String,
       maxlength: [100, "Name cannot exceed 100 characters"],
     },
-    // Removing 'default: undefined' to ensure Mongoose treats them as optional/nullable correctly
     resetPasswordToken: {
       type: String,
       required: false,

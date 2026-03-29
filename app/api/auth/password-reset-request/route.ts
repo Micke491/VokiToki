@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     const body = await req.json();
-    const email = String(body.email); // Cast to string
+    const email = String(body.email); 
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
@@ -20,19 +20,17 @@ export async function POST(req: NextRequest) {
 
     const user = await User.findOne({ email: email.toLowerCase() });
 
-    // Standard security message (Blind return)
     const blindMessage = 'If an account with that email exists, a password reset link has been sent.';
 
     if (!user) {
       return NextResponse.json({ message: blindMessage });
     }
 
-    // Generate secure random token
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
 
     user.resetPasswordToken = resetTokenHash;
-    user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
+    user.resetPasswordExpires = new Date(Date.now() + 3600000); 
     await user.save();
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -41,7 +39,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
-    // Send the UN-HASHED token to the user
     const resetURL = `${appUrl}/reset-password/${resetToken}`;
 
     try {
@@ -51,7 +48,6 @@ export async function POST(req: NextRequest) {
           html: emailService.generatePasswordResetEmail(resetURL, user.username || "User"),
         });
     } catch (emailError) {
-        // If email fails, rollback the DB change so the user isn't stuck with a token they never received
         user.resetPasswordToken = undefined;
         user.resetPasswordExpires = undefined;
         await user.save();

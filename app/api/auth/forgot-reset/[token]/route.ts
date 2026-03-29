@@ -5,7 +5,6 @@ import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import { emailService } from '@/lib/emailService';
 
-// GET: Verify Token Validity (Used when the user first clicks the link)
 export async function GET(
   req: NextRequest,
   props: { params: Promise<{ token: string }> }
@@ -14,12 +13,11 @@ export async function GET(
     await connectDB();
     const { token } = await props.params;
 
-    // Re-hash the token from URL to compare with DB
     const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
       resetPasswordToken: resetTokenHash,
-      resetPasswordExpires: { $gt: new Date() }, // Check if not expired
+      resetPasswordExpires: { $gt: new Date() },
     });
 
     if (!user) {
@@ -36,7 +34,6 @@ export async function GET(
   }
 }
 
-// POST: Execute Password Reset
 export async function POST(
   req: NextRequest,
   props: { params: Promise<{ token: string }> }
@@ -48,7 +45,6 @@ export async function POST(
     const body = await req.json();
     const newPassword = String(body.newPassword);
 
-    // 1. Validation
     if (newPassword.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters long' },
@@ -73,7 +69,6 @@ export async function POST(
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     
-    // Clear reset fields so the token cannot be reused
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     
