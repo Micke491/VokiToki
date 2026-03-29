@@ -124,9 +124,6 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
                 <span className="text-sm font-semibold text-chat-text-primary truncate w-full text-left">
                   {currentUser?.username || 'User'}
                 </span>
-                <span className="text-[10px] text-chat-text-tertiary truncate w-full text-left uppercase font-bold tracking-widest">
-                  Online
-                </span>
               </div>
               <svg className={`md:hidden lg:md:block w-4 h-4 text-chat-text-tertiary transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />

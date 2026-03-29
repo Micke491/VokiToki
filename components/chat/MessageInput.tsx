@@ -1,5 +1,5 @@
 import React from "react";
-import { Mic, Send, Trash2 } from "lucide-react";
+import { Mic, Send, Trash2, Smile, Sticker, Image as ImageIcon } from "lucide-react";
 import { Message } from "../../types/chat";
 
 interface MessageInputProps {
@@ -24,6 +24,10 @@ interface MessageInputProps {
   formatRecordingTime: (seconds: number) => string;
   showGifPicker: boolean;
   setShowGifPicker: (val: boolean) => void;
+  showStickerPicker: boolean;
+  setShowStickerPicker: (val: boolean) => void;
+  showEmojiPickerInput: boolean;
+  setShowEmojiPickerInput: (val: boolean) => void;
 }
 
 const MAX_CHARS = 2000;
@@ -50,6 +54,10 @@ const MessageInput = ({
   formatRecordingTime,
   showGifPicker,
   setShowGifPicker,
+  showStickerPicker,
+  setShowStickerPicker,
+  showEmojiPickerInput,
+  setShowEmojiPickerInput,
 }: MessageInputProps) => {
   return (
     <footer className="p-4 pb-safe bg-chat-bg-primary border-t border-chat-border shrink-0">
@@ -71,6 +79,8 @@ const MessageInput = ({
                           ? "Video"
                           : replyingTo.mediaType === "gif"
                             ? "GIF"
+                          : replyingTo.mediaType === "sticker"
+                            ? "Sticker"
                             : replyingTo.mediaType === "audio"
                               ? "Voice record"
                               : "Photo"
@@ -164,6 +174,7 @@ const MessageInput = ({
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
               className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-chat-hover text-chat-text-tertiary transition-all"
+              title="Upload file (Images, Videos, Audio)"
             >
               {uploading ? (
                 <div className="w-5 h-5 border-2 border-chat-text-tertiary border-t-chat-accent rounded-full animate-spin" />
@@ -186,6 +197,21 @@ const MessageInput = ({
 
             <button
               type="button"
+              onClick={() => {
+                setShowEmojiPickerInput(!showEmojiPickerInput);
+              }}
+              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                showEmojiPickerInput
+                  ? "bg-chat-accent text-white shadow-sm"
+                  : "hover:bg-chat-hover text-chat-text-tertiary"
+              }`}
+              title="Add an emoji"
+            >
+              <Smile className={`w-6 h-6 ${showEmojiPickerInput ? "animate-pulse" : ""}`} />
+            </button>
+
+            <button
+              type="button"
               onClick={() => setShowGifPicker(!showGifPicker)}
               className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
                 showGifPicker
@@ -197,6 +223,19 @@ const MessageInput = ({
               <div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[8px] font-black tracking-tight leading-none pt-0.5">
                 GIF
               </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowStickerPicker(!showStickerPicker)}
+              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                showStickerPicker
+                  ? "bg-chat-accent text-white shadow-sm"
+                  : "hover:bg-chat-hover text-chat-text-tertiary"
+              }`}
+              title="Send a sticker"
+            >
+              <Sticker className="w-6 h-6" />
             </button>
 
             <textarea

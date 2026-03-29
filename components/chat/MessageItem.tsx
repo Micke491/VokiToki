@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Zap, Image as ImageIcon } from "lucide-react";
+import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Zap, Download, Image as ImageIcon } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
@@ -33,6 +33,7 @@ interface MessageItemProps {
   isGroup?: boolean;
   groupAdminId?: string;
   onJumpToMessage?: (messageId: string) => Promise<void> | void;
+  onPreviewImage: (url: string) => void;
 }
 
 const MessageItem = ({
@@ -59,6 +60,7 @@ const MessageItem = ({
   isGroup,
   groupAdminId,
   onJumpToMessage,
+  onPreviewImage,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -124,9 +126,24 @@ const MessageItem = ({
     });
   };
 
-  const handleReplyClick = () => {
-    if (message.replyTo?._id && onJumpToMessage) {
-       onJumpToMessage(message.replyTo._id as unknown as string);
+  const handleDownload = async (e: React.MouseEvent, url: string, filename: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+      // Fallback: open in new tab if fetch fails
+      window.open(url, '_blank');
     }
   };
 
@@ -227,11 +244,17 @@ const MessageItem = ({
                           : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                       }
                       ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
+                      ${message.mediaUrl && !message.text ? "bg-transparent !p-0 shadow-none border-none" : "px-4 py-2.5 shadow-sm"}
                   `}
               >
                 {!message.isDeletedForEveryone && message.replyTo && (
                   <div
-                    onClick={handleReplyClick}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (message.replyTo?._id && onJumpToMessage) {
+                         onJumpToMessage(message.replyTo._id as unknown as string);
+                      }
+                    }}
                     className={`
                               flex mb-2 p-2 rounded text-xs border-l-2 opacity-90 cursor-pointer hover:opacity-100 transition-opacity
                               ${
@@ -293,9 +316,9 @@ const MessageItem = ({
 
                 {message.mediaUrl && !message.isDeletedForEveryone && (
                   <div className="mb-2 rounded-lg overflow-hidden border border-chat-border max-w-[320px] bg-chat-bg-secondary relative group">
-                    {message.mediaType === "gif" && (
-                      <div className="absolute bottom-2 right-2 z-20 px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded text-white text-[11px] font-medium leading-none select-none pointer-events-none border border-white/10 shadow-lg">
-                        gif
+                    {["gif", "sticker"].includes(message.mediaType!) && (
+                      <div className="absolute bottom-2 right-2 z-20 px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded text-white text-[10px] font-bold leading-none select-none pointer-events-none border border-white/10 shadow-lg uppercase tracking-wider">
+                        {message.mediaType}
                       </div>
                     )}
                     {message.mediaType === "video" ? (
@@ -316,32 +339,25 @@ const MessageItem = ({
                         <img
                           src={message.mediaUrl}
                           alt="Shared media"
-                          className="w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                          onClick={() =>
-                            window.open(message.mediaUrl, "_blank")
-                          }
+                          className={`w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-opacity ${message.mediaType === "sticker" ? "max-w-[160px] aspect-square object-contain mx-auto" : ""}`}
+                          onClick={(e) => {
+                            if (message.mediaType === "gif" || message.mediaType === "sticker") {
+                                const target = e.target as HTMLImageElement;
+                                const originalSrc = target.src.split('?t=')[0];
+                                target.src = originalSrc + "?t=" + Date.now();
+                            } else {
+                                onPreviewImage(message.mediaUrl!);
+                            }
+                          }}
                           onLoad={scrollToBottom}
                         />
-                        <a
-                          href={message.mediaUrl}
-                          download
-                          className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        <button
+                          onClick={(e) => handleDownload(e, message.mediaUrl!, `download-${message._id}`)}
+                          className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-black/70 rounded-full text-white backdrop-blur-sm shadow-lg transition-all z-30"
                           title="Download"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            />
-                          </svg>
-                        </a>
+                          <Download className="w-4 h-4" />
+                        </button>
                       </>
                     )}
                   </div>

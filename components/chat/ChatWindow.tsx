@@ -24,6 +24,9 @@ import IncomingCallModal from "./IncomingCallModal";
 import { IncomingCallData } from "../../types/chat";
 import ConfirmModal from "../ui/ConfirmModal";
 import GifPicker from "./GifPicker";
+import StickerPicker from "./StickerPicker";
+import EmojiPicker from "emoji-picker-react";
+import ImagePreviewModal from "../ui/ImagePreviewModal";
 
 export default function ChatWindow({
   chatId,
@@ -60,7 +63,9 @@ export default function ChatWindow({
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [showEmojiPickerInput, setShowEmojiPickerInput] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -81,6 +86,7 @@ export default function ChatWindow({
   const [activeCall, setActiveCall] = useState<{type: "voice" | "video"} | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -865,6 +871,42 @@ export default function ChatWindow({
     }
   };
 
+  const handleStickerSelect = async (url: string) => {
+    if (!pusherClient) return;
+    
+    setSending(true);
+    try {
+      const response = await fetch("/api/chat/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          chatId,
+          senderId: currentUserId,
+          mediaUrl: url,
+          mediaType: "sticker",
+          replyTo: replyingTo?._id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error("Sticker error response:", errData);
+        alert(`Failed to send sticker: ${errData.error || response.statusText}`);
+      } else {
+        setReplyingTo(null);
+        scrollToBottom(true);
+        setShowStickerPicker(false);
+      }
+    } catch (error) {
+      console.error("Sticker upload error:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -1274,6 +1316,7 @@ export default function ChatWindow({
                         isGroup={isGroup}
                         groupAdminId={groupAdminId}
                         onJumpToMessage={jumpToMessage}
+                        onPreviewImage={setPreviewImage}
                       />
                     </div>
                   );
@@ -1310,12 +1353,39 @@ export default function ChatWindow({
           <AnimatePresence>
             {showGifPicker && (
               <GifPicker 
+                key="gif-picker"
                 onSelect={handleGifSelect}
                 onClose={() => setShowGifPicker(false)}
               />
             )}
+            {showStickerPicker && (
+              <StickerPicker 
+                key="sticker-picker"
+                onSelect={handleStickerSelect}
+                onClose={() => setShowStickerPicker(false)}
+              />
+            )}
+            {showEmojiPickerInput && (
+              <motion.div
+                key="emoji-picker"
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                className="absolute bottom-20 left-4 z-[100] shadow-2xl"
+              >
+                 <EmojiPicker
+                   onEmojiClick={(emojiData) => {
+                     setNewMessage(prev => prev + emojiData.emoji);
+                     setShowEmojiPickerInput(false);
+                     inputRef.current?.focus();
+                   }}
+                   theme={"auto" as any}
+                 />
+              </motion.div>
+            )}
             {showScrollBadge && (
               <motion.button
+                key="scroll-badge"
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
@@ -1331,6 +1401,11 @@ export default function ChatWindow({
               </motion.button>
             )}
           </AnimatePresence>
+
+          <ImagePreviewModal 
+            imageUrl={previewImage}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <MessageInput
             newMessage={newMessage}
@@ -1353,7 +1428,29 @@ export default function ChatWindow({
             inputRef={inputRef}
             formatRecordingTime={formatRecordingTime}
             showGifPicker={showGifPicker}
-            setShowGifPicker={setShowGifPicker}
+            setShowGifPicker={(val) => {
+              setShowGifPicker(val);
+              if (val) {
+                setShowStickerPicker(false);
+                setShowEmojiPickerInput(false);
+              }
+            }}
+            showStickerPicker={showStickerPicker}
+            setShowStickerPicker={(val) => {
+              setShowStickerPicker(val);
+              if (val) {
+                setShowGifPicker(false);
+                setShowEmojiPickerInput(false);
+              }
+            }}
+            showEmojiPickerInput={showEmojiPickerInput}
+            setShowEmojiPickerInput={(val) => {
+              setShowEmojiPickerInput(val);
+              if (val) {
+                setShowGifPicker(false);
+                setShowStickerPicker(false);
+              }
+            }}
           />
         </div>
 

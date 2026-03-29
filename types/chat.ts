@@ -19,7 +19,7 @@ export interface Message {
   replyTo?: Message;
   isDeletedForEveryone?: boolean;
   mediaUrl?: string;
-  mediaType?: "image" | "video" | "audio" | "gif";
+  mediaType?: "image" | "video" | "audio" | "gif" | "sticker";
   mediaPublicId?: string;
   reactions?: {
     userId: string;
