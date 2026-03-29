@@ -10,12 +10,9 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    // SECURITY: Cast to string to prevent NoSQL injection
     const username = String(body.username);
-    const email = String(body.email).toLowerCase(); // Normalize email
+    const email = String(body.email).toLowerCase();
     const password = String(body.password);
-
-    // Input Validation
     if (!username || !email || !password) {
       return NextResponse.json(
         { message: "Username, email, and password are required" },
@@ -23,7 +20,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Basic Email Regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json({ message: "Invalid email format" }, { status: 400 });
@@ -36,7 +32,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check for existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
@@ -45,7 +40,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check for existing username
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
       return NextResponse.json(
@@ -54,10 +48,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create User
     const newUser = new User({
       username,
       email,
@@ -66,7 +58,6 @@ export async function POST(req: Request) {
 
     await newUser.save();
 
-    // Generate Token (Auto-login)
     const secret = process.env.JWT_SECRET;
     if (!secret) throw new Error("JWT_SECRET is not defined");
 

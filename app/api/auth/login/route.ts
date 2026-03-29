@@ -10,7 +10,6 @@ export async function POST(req: Request) {
     
     const body = await req.json();
     
-    // SECURITY: Cast to string to prevent NoSQL injection via object payloads
     const email = String(body.email);
     const password = String(body.password);
 
@@ -21,7 +20,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // SECURITY: Fail fast if JWT_SECRET is missing
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       console.error("JWT_SECRET is not defined in environment variables");
