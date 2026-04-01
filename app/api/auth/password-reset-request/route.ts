@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
-    const resetURL = `${appUrl}/reset-password/${resetToken}`;
+    const resetURL = `${appUrl}/auth-pages/reset-password/${resetToken}`;
 
     try {
         await emailService.sendEmail({

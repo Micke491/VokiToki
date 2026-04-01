@@ -17,7 +17,6 @@ export interface IUser extends Document {
     chatId: mongoose.Types.ObjectId;
     mutedUntil: Date;
   }[];
-
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   createdAt: Date;
@@ -91,6 +90,14 @@ const UserSchema = new Schema<IUser>(
         },
       ],
       default: [],
+    },
+    resetPasswordToken: {
+      type: String,
+      default: undefined,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: undefined,
     },
   },
   {
