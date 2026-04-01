@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
 import Chat from '@/models/Chat';
+import User from '@/models/User';   
 import { verifyToken } from '@/lib/auth';
 import { pusherServer } from '@/lib/pusher';
 
@@ -12,7 +13,6 @@ export async function POST(req: Request) {
         if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await req.json();
-        console.log("POST message body:", body);
         const { chatId, senderId, text, replyTo, mediaUrl, mediaType, mediaPublicId, isForwarded } = body;
 
         if (auth.id !== senderId) {
@@ -25,6 +25,16 @@ export async function POST(req: Request) {
         const isParticipant = chat.participants.some(p => p.toString() === senderId);
         if (!isParticipant) {
             return NextResponse.json({ error: "Not a member of this chat" }, { status: 403 });
+        }
+
+        if (!chat.isGroupChat) {
+            const otherParticipantId = chat.participants.find(p => p.toString() !== senderId);
+            if (otherParticipantId) {
+                const otherUser = await User.findById(otherParticipantId);
+                if (!otherUser) {
+                    return NextResponse.json({ error: "Cannot send messages. The other user has deleted their account." }, { status: 403 });
+                }
+            }
         }
 
         const newMessage = await Message.create({
@@ -41,6 +51,7 @@ export async function POST(req: Request) {
         await Chat.findByIdAndUpdate(chatId, {
             lastMessage: newMessage._id,
             updatedAt: new Date(),
+            $set: { hiddenBy: [] }
         });
 
         let populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username email avatar');
@@ -129,8 +140,15 @@ export async function GET(req: Request) {
 
         const unreadMessageIds = messagesToReturn
             .filter(msg => {
+                if (!msg.sender) return false;
+
                 const senderId = msg.sender._id ? msg.sender._id.toString() : msg.sender.toString();
-                const hasRead = msg.readBy?.some((r: any) => r.userId.toString() === auth.id);
+                
+                const hasRead = msg.readBy?.some((r: any) => {
+                    const rId = r.userId?._id ? r.userId._id.toString() : r.userId?.toString();
+                    return rId === auth.id;
+                });
+                
                 return senderId !== auth.id && !hasRead;
             })
             .map(msg => msg._id);

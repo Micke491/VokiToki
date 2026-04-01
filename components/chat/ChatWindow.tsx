@@ -132,7 +132,7 @@ export default function ChatWindow({
         const exists = prev.some((m) => String(m._id) === String(message._id));
         if (exists) return prev;
 
-        if (message.sender._id !== currentUserId) {
+        if (message.sender && message.sender._id !== currentUserId) {
           fetch(`/api/chat/message/messages/${message._id}/status`, {
             method: "PATCH",
             headers: {
@@ -545,7 +545,7 @@ export default function ChatWindow({
     const unreadMessageIds = messages
       .filter(
         (m) =>
-          m.sender._id !== currentUserId &&
+          m.sender?._id !== currentUserId && 
           !m.readBy?.some((r) => r.userId === currentUserId),
       )
       .map((m) => m._id);
@@ -1134,6 +1134,7 @@ export default function ChatWindow({
       )
     : messages;
 
+  const isRecipientDeleted = !isGroup && (recipientUsername === "Unknown User" || !recipientUsername);
   return (
     <div className="flex-1 flex flex-col h-full bg-chat-bg-primary overflow-hidden relative transition-colors duration-300">
       {forwardingMessage && (
@@ -1186,7 +1187,13 @@ export default function ChatWindow({
         chatId={chatId}
         currentUserId={currentUserId}
         currentUserUsername={currentUserUsername || "User"}
-        onCallStart={(callType) => setActiveCall({ type: callType })}
+        onCallStart={(callType) => {
+          if (isRecipientDeleted) {
+            alert("You cannot call a deleted account.");
+            return;
+          }
+          setActiveCall({ type: callType });
+        }}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1225,7 +1232,7 @@ export default function ChatWindow({
                     >
                       <div className="flex items-center gap-2 text-xs text-chat-text-tertiary">
                         <span className="font-semibold text-chat-text-primary">
-                          {msg.sender.username}
+                          {msg.sender?.username || "Unknown User"}
                         </span>
                         <span>
                           {new Date(msg.createdAt).toLocaleDateString()}
@@ -1282,7 +1289,7 @@ export default function ChatWindow({
                   </div>
                 )}
                 {filteredMessages.map((message, index) => {
-                  const isOwn = message.sender._id === currentUserId;
+                  const isOwn = message.sender && message.sender._id === currentUserId;
                   const showDate =
                     index === 0 ||
                     new Date(message.createdAt).toDateString() !==
@@ -1296,7 +1303,7 @@ export default function ChatWindow({
                         message={message}
                         currentUserId={currentUserId}
                         searchQuery={searchQuery}
-                        isOwn={isOwn}
+                        isOwn={isOwn || false}
                         showDate={showDate}
                         dateLabel={formatDate(message.createdAt)}
                         onReply={startReply}
@@ -1325,21 +1332,12 @@ export default function ChatWindow({
             )}
             <div ref={messagesEndRef} />
 
-            {typingUsers.length > 0 && (
+            {typingUsers.length > 0 && !isRecipientDeleted && (
               <div className="px-4 py-2 flex items-center gap-2 text-sm text-chat-text-tertiary">
                 <div className="flex gap-1">
-                  <span
-                    className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
-                    style={{ animationDelay: "0ms" }}
-                  />
-                  <span
-                    className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
-                    style={{ animationDelay: "150ms" }}
-                  />
-                  <span
-                    className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce"
-                    style={{ animationDelay: "300ms" }}
-                  />
+                  <span className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
                 <span className="font-medium text-xs">
                   {typingUsers.length === 1
@@ -1407,51 +1405,60 @@ export default function ChatWindow({
             onClose={() => setPreviewImage(null)}
           />
 
-          <MessageInput
-            newMessage={newMessage}
-            setNewMessage={handleMessageChange}
-            replyingTo={replyingTo}
-            setReplyingTo={setReplyingTo}
-            editingMessage={editingMessage}
-            setEditingMessage={setEditingMessage}
-            sending={sending}
-            uploading={uploading}
-            isRecording={isRecording}
-            recordingDuration={recordingDuration}
-            handleSend={handleSend}
-            handleFileUpload={handleFileUpload}
-            handleKeyDown={handleKeyDown}
-            startRecording={startRecording}
-            stopRecording={stopRecording}
-            cancelRecording={cancelRecording}
-            fileInputRef={fileInputRef}
-            inputRef={inputRef}
-            formatRecordingTime={formatRecordingTime}
-            showGifPicker={showGifPicker}
-            setShowGifPicker={(val) => {
-              setShowGifPicker(val);
-              if (val) {
-                setShowStickerPicker(false);
-                setShowEmojiPickerInput(false);
-              }
-            }}
-            showStickerPicker={showStickerPicker}
-            setShowStickerPicker={(val) => {
-              setShowStickerPicker(val);
-              if (val) {
-                setShowGifPicker(false);
-                setShowEmojiPickerInput(false);
-              }
-            }}
-            showEmojiPickerInput={showEmojiPickerInput}
-            setShowEmojiPickerInput={(val) => {
-              setShowEmojiPickerInput(val);
-              if (val) {
-                setShowGifPicker(false);
-                setShowStickerPicker(false);
-              }
-            }}
-          />
+          {/* READ-ONLY BANNER OR MESSAGE INPUT */}
+          {isRecipientDeleted ? (
+            <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">
+              <span className="px-4 py-2.5 bg-chat-bg-secondary rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
+                This account has been deleted. You can no longer send messages or call.
+              </span>
+            </div>
+          ) : (
+            <MessageInput
+              newMessage={newMessage}
+              setNewMessage={handleMessageChange}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              editingMessage={editingMessage}
+              setEditingMessage={setEditingMessage}
+              sending={sending}
+              uploading={uploading}
+              isRecording={isRecording}
+              recordingDuration={recordingDuration}
+              handleSend={handleSend}
+              handleFileUpload={handleFileUpload}
+              handleKeyDown={handleKeyDown}
+              startRecording={startRecording}
+              stopRecording={stopRecording}
+              cancelRecording={cancelRecording}
+              fileInputRef={fileInputRef}
+              inputRef={inputRef}
+              formatRecordingTime={formatRecordingTime}
+              showGifPicker={showGifPicker}
+              setShowGifPicker={(val) => {
+                setShowGifPicker(val);
+                if (val) {
+                  setShowStickerPicker(false);
+                  setShowEmojiPickerInput(false);
+                }
+              }}
+              showStickerPicker={showStickerPicker}
+              setShowStickerPicker={(val) => {
+                setShowStickerPicker(val);
+                if (val) {
+                  setShowGifPicker(false);
+                  setShowEmojiPickerInput(false);
+                }
+              }}
+              showEmojiPickerInput={showEmojiPickerInput}
+              setShowEmojiPickerInput={(val) => {
+                setShowEmojiPickerInput(val);
+                if (val) {
+                  setShowGifPicker(false);
+                  setShowStickerPicker(false);
+                }
+              }}
+            />
+          )}
         </div>
 
         {showSidebar && (

@@ -64,6 +64,7 @@ const MessageItem = ({
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
+  const sender = message.sender || { _id: 'unknown', username: 'Unknown User', avatar: '' };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -187,7 +188,7 @@ const MessageItem = ({
                 `}
             >
               <div className="w-1 h-3 bg-chat-border rounded-full"></div>
-              <span>Replying to {message.replyTo.sender.username}</span>
+              <span>Replying to {message.replyTo.sender?.username || 'Unknown User'}</span>
             </div>
           )}
 
@@ -197,14 +198,14 @@ const MessageItem = ({
             {/* Avatar (Partner) */}
             {!isOwn && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-chat-bg-secondary flex items-center justify-center text-xs font-bold text-chat-text-secondary select-none overflow-hidden">
-                {message.sender.avatar ? (
+                {sender.avatar ? (
                   <img
-                    src={message.sender.avatar}
+                    src={sender.avatar}
                     alt="Avatar"
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  message.sender.username.charAt(0).toUpperCase()
+                  sender.username.charAt(0).toUpperCase()
                 )}
               </div>
             )}
@@ -214,7 +215,7 @@ const MessageItem = ({
               {isGroup && !isOwn && (
                 <div className="flex items-center gap-1.5 mb-1 ml-1 px-1">
                   <span className="text-[11px] font-bold text-chat-text-tertiary truncate max-w-[120px]">
-                    {message.sender.username}
+                    {sender.username}
                   </span>
                 </div>
               )}
@@ -266,7 +267,7 @@ const MessageItem = ({
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold mb-0.5 opacity-75">
-                        {message.replyTo.sender.username}
+                        {message.replyTo.sender?.username || 'Unknown User'}
                       </p>
                       <p className="line-clamp-1 truncate">
                         {message.replyTo.text ||

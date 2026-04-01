@@ -6,6 +6,8 @@ import { verifyToken } from '@/lib/auth';
 import Message from '@/models/Message';
 import mongoose from 'mongoose';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         await connectDB();
@@ -18,6 +20,7 @@ export async function GET(request: Request) {
 
         const chats = await Chat.find({
             participants: userId,
+            hiddenBy: { $nin: [new mongoose.Types.ObjectId(userId)] } 
         })
             .populate('participants', 'username name avatar email')
             .populate({
@@ -76,9 +79,16 @@ export async function POST(request: Request) {
 
         let chat = await Chat.findOne({
             participants: { $all: [userA, userB] },
+            isGroupChat: false
         }).populate('participants', 'username email avatar');
 
-        if (!chat) {
+        if (chat) {
+            await Chat.findByIdAndUpdate(chat._id, {
+                $pull: { hiddenBy: userA }
+            });
+            
+            chat = await Chat.findById(chat._id).populate('participants', 'username email avatar');
+        } else {
             const users = await User.find({ _id: { $in: [userA, userB] } });
 
             if (users.length < 2 && currentUserId !== recipientId) {
@@ -90,6 +100,7 @@ export async function POST(request: Request) {
             chat = await Chat.create({
                 participants: [userA, userB],
                 participantUsernames,
+                hiddenBy: [] 
             });
 
             await chat.populate('participants', 'username email avatar');
@@ -97,7 +108,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json(chat, { status: 200 });
     } catch (error: any) {
-        console.error('DETAILED SERVER ERROR:', error);
+        console.error('SERVER ERROR IN POST CHATS:', error);
         return NextResponse.json({ message: 'Server Error', details: error.message }, { status: 500 });
     }
 }

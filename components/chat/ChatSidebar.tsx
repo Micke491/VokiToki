@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save, Camera, Zap } from "lucide-react";
+import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon, ExternalLink, Loader2, Edit2, LogOut, UserPlus, Trash2, Save, Camera, Zap, MessageSquareX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 import toast from "react-hot-toast";
@@ -172,23 +172,22 @@ const ChatSidebar = ({
     });
   };
 
-  const handleLeaveOrDelete = async (isDelete = false) => {
+  const handleLeaveOrRemove = async (isRemoveOnly = false) => {
     if (!chatId) return;
 
     setConfirmModal({
       isOpen: true,
-      title: isDelete ? "Delete Chat" : "Leave Group",
-      message: `Are you sure you want to ${isDelete ? "delete this chat" : "leave this group"}? This action cannot be undone.`,
-      confirmText: isDelete ? "Delete" : "Leave",
+      title: isRemoveOnly ? "Remove Chat" : "Leave Group",
+      message: isRemoveOnly 
+        ? "This chat will be removed from your list. Your messages and media will be saved and restored if you message this user again."
+        : "Are you sure you want to leave this group? You will no longer receive new messages.",
+      confirmText: isRemoveOnly ? "Remove" : "Leave",
       type: "danger",
       onConfirm: async () => {
         try {
           setIsLeaving(true);
-          const endpoint =
-            isGroup && !isDelete
-              ? `/api/chat/${chatId}/leave`
-              : `/api/chat/${chatId}`;
-          const method = isGroup && !isDelete ? "POST" : "DELETE";
+          const endpoint = isGroup ? `/api/chat/${chatId}/leave` : `/api/chats/${chatId}`;
+          const method = isGroup ? "POST" : "DELETE";
 
           const res = await fetch(endpoint, {
             method,
@@ -196,10 +195,12 @@ const ChatSidebar = ({
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           });
+          
           if (res.ok) {
+            toast.success(isRemoveOnly ? "Chat removed" : "Left group");
             window.location.href = "/chat";
           } else {
-            toast.error(`Failed to ${isDelete ? "delete" : "leave"} chat`);
+            toast.error(`Failed to ${isRemoveOnly ? "remove" : "leave"} chat`);
             setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           }
         } catch (error) {
@@ -538,7 +539,7 @@ const ChatSidebar = ({
         <div className="p-4 border-t border-chat-border mt-auto">
            {isGroup ? (
               <button
-                onClick={() => handleLeaveOrDelete(false)}
+                onClick={() => handleLeaveOrRemove(false)}
                 disabled={isLeaving}
                 className="w-full py-2.5 px-4 flex items-center justify-center gap-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors disabled:opacity-50"
               >
@@ -547,12 +548,12 @@ const ChatSidebar = ({
               </button>
            ) : (
               <button
-                onClick={() => handleLeaveOrDelete(true)}
+                onClick={() => handleLeaveOrRemove(true)}
                 disabled={isLeaving}
                 className="w-full py-2.5 px-4 flex items-center justify-center gap-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors disabled:opacity-50"
               >
-                {isLeaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                Delete Chat
+                {isLeaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquareX className="w-4 h-4" />}
+                Remove Chat
               </button>
            )}
         </div>

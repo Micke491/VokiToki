@@ -8,6 +8,7 @@ export interface IChat extends Document {
   groupAdmin?: mongoose.Types.ObjectId;
   avatar?: string;
   lastMessage?: mongoose.Types.ObjectId;
+  hiddenBy?: mongoose.Types.ObjectId[]; 
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,25 +31,26 @@ const ChatSchema = new Schema<IChat>(
       type: String,
       default: null,
     },
-    // Simplified array definition to prevent validation hiccups
     participants: [{
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true
     }],
-    // Matches your interface: string[]
     participantUsernames: [String], 
     lastMessage: {
       type: Schema.Types.ObjectId,
       ref: 'Message',
     },
+    hiddenBy: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    }],
   },
   {
     timestamps: true,
   }
 );
 
-// Indexes for performance
 ChatSchema.index({ participants: 1 });
 ChatSchema.index({ updatedAt: -1 });
 

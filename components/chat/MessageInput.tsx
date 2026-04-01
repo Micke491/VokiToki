@@ -68,7 +68,7 @@ const MessageInput = ({
               <span className="font-semibold text-chat-accent">
                 {editingMessage
                   ? "Editing Message"
-                  : `Replying to ${replyingTo?.sender.username}`}
+                  : `Replying to ${replyingTo?.sender?.username || "Unknown User"}`}
               </span>
               <span className="text-chat-text-secondary line-clamp-1 text-xs truncate">
                 {editingMessage
