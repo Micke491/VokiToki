@@ -172,6 +172,41 @@ const ChatSidebar = ({
     });
   };
 
+  const handleChangeAdmin = async (userId: string, username: string) => {
+    if (!chatId) return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Change Group Admin",
+      message: `Are you sure you want to make ${username} the new group admin? You will lose admin privileges.`,
+      confirmText: "Make Admin",
+      type: "info",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/chat/${chatId}/update`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ groupAdmin: userId }),
+          });
+          if (res.ok) {
+            toast.success(`${username} is now the group admin`);
+          } else {
+            const data = await res.json();
+            toast.error(data.error || "Failed to change admin");
+          }
+        } catch (error) {
+          console.error(error);
+          toast.error("An error occurred");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
   const handleLeaveOrRemove = async (isRemoveOnly = false) => {
     if (!chatId) return;
 
@@ -407,13 +442,28 @@ const ChatSidebar = ({
                       )}
                     </p>
                     {isAdmin && groupAdminId !== user._id && (
-                       <button
-                          onClick={() => handleRemoveParticipant(user._id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                          title="Remove user"
-                       >
-                          <X className="w-4 h-4" />
-                       </button>
+                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                          <button
+                             onClick={(e) => {
+                                e.stopPropagation();
+                                handleChangeAdmin(user._id, user.username);
+                             }}
+                             className="p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-full"
+                             title="Make admin"
+                          >
+                             <ShieldCheck className="w-4 h-4" />
+                          </button>
+                          <button
+                             onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveParticipant(user._id);
+                             }}
+                             className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                             title="Remove user"
+                          >
+                             <X className="w-4 h-4" />
+                          </button>
+                       </div>
                     )}
                   </div>
                 </div>

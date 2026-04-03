@@ -1437,14 +1437,9 @@ export default function ChatWindow({
           {/* READ-ONLY BANNER OR MESSAGE INPUT */}
           {isBlockedChat ? (
             <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">
-              <div className="flex items-center gap-3 px-5 py-3 bg-red-500/10 rounded-xl border border-red-500/20 text-center">
-                <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-                <span className="text-sm text-red-500 font-semibold">
-                  You can&apos;t send messages to this conversation. A block exists between you and this user.
-                </span>
-              </div>
+              <span className="px-4 py-2.5 bg-chat-bg-secondary rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
+                You can&apos;t send messages to this conversation. A block exists between you and this user.
+              </span>
             </div>
           ) : isRecipientDeleted ? (
             <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">

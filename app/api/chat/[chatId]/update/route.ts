@@ -19,15 +19,32 @@ export async function PATCH(
         }
 
         const body = await request.json();
-        const { name, avatar } = body;
+        const { name, avatar, groupAdmin } = body;
 
         const chat = await Chat.findById(chatId);
         if (!chat) return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
         if (!chat.isGroupChat) return NextResponse.json({ error: 'Not a group chat' }, { status: 400 });
         if (chat.groupAdmin?.toString() !== auth.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
-        if (name !== undefined) chat.name = name;
-        if (avatar !== undefined) chat.avatar = avatar;
+        let systemMessageText = '';
+        const currentUser = await User.findById(auth.id);
+
+        if (name !== undefined) {
+            chat.name = name;
+            systemMessageText = `${currentUser?.username || 'Admin'} updated the group name`;
+        }
+        if (avatar !== undefined) {
+            chat.avatar = avatar;
+            systemMessageText = `${currentUser?.username || 'Admin'} updated the group avatar`;
+        }
+        if (groupAdmin !== undefined) {
+            if (!chat.participants.some(p => p.toString() === groupAdmin)) {
+                return NextResponse.json({ error: 'New admin must be a participant' }, { status: 400 });
+            }
+            chat.groupAdmin = groupAdmin as any;
+            const newAdminUser = await User.findById(groupAdmin);
+            systemMessageText = `${currentUser?.username || 'Admin'} promoted ${newAdminUser?.username || 'a user'} to admin`;
+        }
 
         await chat.save();
 
@@ -39,27 +56,24 @@ export async function PATCH(
             return pusherServer.trigger(`user-${pid.toString()}`, 'chat-update', {
                 chatId: populatedChat?._id,
                 name: populatedChat?.name,
-                avatar: populatedChat?.avatar
+                avatar: populatedChat?.avatar,
+                groupAdmin: populatedChat?.groupAdmin,
+                participants: populatedChat?.participants
             });
         });
         await Promise.all(updatePromises);
 
-        let updateDesc = 'group details';
-        if (name && avatar) updateDesc = 'group name and avatar';
-        else if (name) updateDesc = 'group name';
-        else if (avatar) updateDesc = 'group avatar';
-        
-        const currentUser = await User.findById(auth.id);
-        const systemMessageText = `${currentUser?.username || 'Admin'} updated the ${updateDesc}`;
-        const newSystemMessage = await Message.create({
-            chatId,
-            sender: auth.id,
-            text: systemMessageText,
-            isSystemMessage: true
-        });
-        
-        const populatedMessage = await Message.findById(newSystemMessage._id).populate('sender', 'username avatar');
-        await pusherServer.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
+        if (systemMessageText) {
+            const newSystemMessage = await Message.create({
+                chatId,
+                sender: auth.id,
+                text: systemMessageText,
+                isSystemMessage: true
+            });
+            
+            const populatedMessage = await Message.findById(newSystemMessage._id).populate('sender', 'username avatar');
+            await pusherServer.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
+        }
 
         return NextResponse.json(populatedChat, { status: 200 });
     } catch (error) {

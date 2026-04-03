@@ -201,6 +201,26 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
     }
   };
 
+  const handleLeaveGroup = async (chatId: string) => {
+    setOpenMenuId(null);
+    try {
+      const response = await fetch(`/api/chat/${chatId}/leave`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (response.ok) {
+        setChats(prev => prev.filter(c => c._id !== chatId));
+        if (selectedChatId === chatId) {
+          router.push('/chat');
+        }
+      }
+    } catch (error) {
+      console.error('Error leaving group:', error);
+    }
+  };
+
   const handleBlockUser = async (targetUserId: string, chatId: string) => {
     setBlocking(true);
     try {
@@ -444,15 +464,27 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                     onClick={(e) => e.stopPropagation()}
                     className="absolute right-4 top-12 z-50 w-44 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
                   >
-                    <button
-                      onClick={() => handleRemoveChat(chat._id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
-                    >
-                      <svg className="w-4 h-4 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Remove Chat
-                    </button>
+                    {isGroup ? (
+                      <button
+                        onClick={() => handleLeaveGroup(chat._id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Leave Group
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRemoveChat(chat._id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Remove Chat
+                      </button>
+                    )}
                     {!isGroup && (
                       <button
                         onClick={() => {
