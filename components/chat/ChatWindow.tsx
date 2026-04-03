@@ -87,11 +87,30 @@ export default function ChatWindow({
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isBlockedChat, setIsBlockedChat] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
     setWallpaper(saved || null);
   }, [chatId]);
+
+  useEffect(() => {
+    if (isGroup) return;
+    const checkBlockStatus = async () => {
+      try {
+        const response = await fetch(`/api/users/block/check?chatId=${chatId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setIsBlockedChat(data.blocked);
+        }
+      } catch (error) {
+        console.error('Error checking block status:', error);
+      }
+    };
+    checkBlockStatus();
+  }, [chatId, isGroup]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -314,6 +333,12 @@ export default function ChatWindow({
       if (data.chatId === chatId) {
         setActiveCall(null);
         setIncomingCall(null);
+      }
+    });
+
+    channel.bind("user-blocked", (data: { blockedBy: string; blockedUserId: string }) => {
+      if (data.blockedBy === currentUserId || data.blockedUserId === currentUserId) {
+        setIsBlockedChat(true);
       }
     });
 
@@ -1192,6 +1217,10 @@ export default function ChatWindow({
             alert("You cannot call a deleted account.");
             return;
           }
+          if (isBlockedChat) {
+            alert("You cannot call this user. There is a block between you.");
+            return;
+          }
           setActiveCall({ type: callType });
         }}
       />
@@ -1406,7 +1435,18 @@ export default function ChatWindow({
           />
 
           {/* READ-ONLY BANNER OR MESSAGE INPUT */}
-          {isRecipientDeleted ? (
+          {isBlockedChat ? (
+            <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">
+              <div className="flex items-center gap-3 px-5 py-3 bg-red-500/10 rounded-xl border border-red-500/20 text-center">
+                <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+                <span className="text-sm text-red-500 font-semibold">
+                  You can&apos;t send messages to this conversation. A block exists between you and this user.
+                </span>
+              </div>
+            </div>
+          ) : isRecipientDeleted ? (
             <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">
               <span className="px-4 py-2.5 bg-chat-bg-secondary rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
                 This account has been deleted. You can no longer send messages or call.

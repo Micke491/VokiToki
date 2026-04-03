@@ -34,6 +34,14 @@ export async function POST(req: Request) {
                 if (!otherUser) {
                     return NextResponse.json({ error: "Cannot send messages. The other user has deleted their account." }, { status: 403 });
                 }
+
+                const senderUser = await User.findById(senderId).select('blockedUsers');
+                const iBlockedThem = senderUser?.blockedUsers?.some((id: any) => id.toString() === otherParticipantId.toString());
+                const theyBlockedMe = otherUser.blockedUsers?.some((id: any) => id.toString() === senderId);
+
+                if (iBlockedThem || theyBlockedMe) {
+                    return NextResponse.json({ error: "You cannot send messages to this user." }, { status: 403 });
+                }
             }
         }
 

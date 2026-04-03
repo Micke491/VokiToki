@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SideBar from '@/components/layout/Sidebar';
+import BlockedUsersModal from '@/components/ui/BlockedUsersModal';
 import { 
   ArrowLeft, Camera, Trash2, Moon, Sun, AlertTriangle, Loader2, 
   User as UserIcon, Image as ImageIcon, CheckCircle, Shield, 
@@ -40,6 +41,7 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [readReceipts, setReadReceipts] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
+  const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
 
   useEffect(() => {
     if (feedback) {
@@ -415,7 +417,7 @@ export default function SettingsPage() {
                           </p>
                         </div>
                         <button 
-                          onClick={() => {/* Implement Block List Modal/Page */}}
+                          onClick={() => setShowBlockedUsersModal(true)}
                           className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all text-sm whitespace-nowrap"
                         >
                           Manage List
@@ -585,6 +587,12 @@ export default function SettingsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Blocked Users Modal */}
+      <BlockedUsersModal
+        isOpen={showBlockedUsersModal}
+        onClose={() => setShowBlockedUsersModal(false)}
+      />
     </div>
   );
 }

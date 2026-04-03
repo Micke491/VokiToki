@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
+import ConfirmModal from '../ui/ConfirmModal';
 
 interface Chat {
   _id: string;
@@ -42,6 +43,10 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [blockConfirm, setBlockConfirm] = useState<{ chatId: string; userId: string; username: string } | null>(null);
+  const [blocking, setBlocking] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const pusherClientRef = useRef<Pusher | null>(null);
 
@@ -164,6 +169,62 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
     }
   };
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    if (openMenuId) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
+
+  const handleRemoveChat = async (chatId: string) => {
+    setOpenMenuId(null);
+    try {
+      const response = await fetch(`/api/chats/${chatId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (response.ok) {
+        setChats(prev => prev.filter(c => c._id !== chatId));
+        if (selectedChatId === chatId) {
+          router.push('/chat');
+        }
+      }
+    } catch (error) {
+      console.error('Error removing chat:', error);
+    }
+  };
+
+  const handleBlockUser = async (targetUserId: string, chatId: string) => {
+    setBlocking(true);
+    try {
+      const response = await fetch('/api/users/block', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ targetUserId }),
+      });
+      if (response.ok) {
+        setChats(prev => prev.filter(c => c._id !== chatId));
+        if (selectedChatId === chatId) {
+          router.push('/chat');
+        }
+      }
+    } catch (error) {
+      console.error('Error blocking user:', error);
+    } finally {
+      setBlocking(false);
+      setBlockConfirm(null);
+    }
+  };
 
 
   const handleChatClick = (chatId: string) => {
@@ -290,7 +351,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
             <p className="mb-5 text-base">No conversations yet</p>
             <button 
               className="px-6 py-2.5 font-medium text-white bg-chat-accent rounded-lg hover:opacity-90 transition-colors"
-              onClick={() => router.push('/chat')}
+              onClick={onNewChat}
             >
               Start a chat
             </button>
@@ -311,7 +372,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                 key={chat._id}
                 onClick={() => handleChatClick(chat._id)}
                 className={`
-                  flex gap-3 px-5 py-3 border-b border-chat-border cursor-pointer transition-colors
+                  group/chat relative flex gap-3 px-5 py-3 border-b border-chat-border cursor-pointer transition-colors
                   hover:bg-chat-hover
                   ${isSelected ? 'bg-chat-selected border-l-[3px] border-l-chat-accent' : 'border-l-[3px] border-l-transparent'}
                 `}
@@ -343,9 +404,26 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                     <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'}`}>
                       {chatName}
                     </span>
-                    <span className={`text-xs whitespace-nowrap ml-2 ${isUnread ? 'font-bold text-chat-accent' : 'text-chat-text-tertiary'}`}>
-                      {chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : formatTime(chat.updatedAt)}
-                    </span>
+                    <div className="flex items-center gap-1 ml-2 shrink-0">
+                      <span className={`text-xs whitespace-nowrap ${isUnread ? 'font-bold text-chat-accent' : 'text-chat-text-tertiary'}`}>
+                        {chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : formatTime(chat.updatedAt)}
+                      </span>
+                      {/* Three-dot menu button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === chat._id ? null : chat._id);
+                        }}
+                        className="p-1 rounded-full text-chat-text-tertiary hover:text-chat-text-primary hover:bg-chat-bg-secondary opacity-0 group-hover/chat:opacity-100 transition-all"
+                        title="Options"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
                     {chat.lastMessage && (
@@ -358,11 +436,64 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                     {chat.lastMessage?.text || (!chat.lastMessage && 'No messages yet')}
                   </div>
                 </div>
+
+                {/* Dropdown Menu */}
+                {openMenuId === chat._id && (
+                  <div
+                    ref={menuRef}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-4 top-12 z-50 w-44 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <button
+                      onClick={() => handleRemoveChat(chat._id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Remove Chat
+                    </button>
+                    {!isGroup && (
+                      <button
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          setBlockConfirm({
+                            chatId: chat._id,
+                            userId: otherUser._id,
+                            username: otherUser.username,
+                          });
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors border-t border-chat-border"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                        Block User
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })
         )}
       </div>
+
+      {/* Block User Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!blockConfirm}
+        onClose={() => setBlockConfirm(null)}
+        onConfirm={() => {
+          if (blockConfirm) {
+            handleBlockUser(blockConfirm.userId, blockConfirm.chatId);
+          }
+        }}
+        title="Block User"
+        message={`Are you sure you want to block ${blockConfirm?.username || 'this user'}? They won't be able to find or message you, and this chat will be removed from your list.`}
+        confirmText="Block"
+        type="danger"
+        isLoading={blocking}
+      />
     </div>
   );
 }

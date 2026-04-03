@@ -19,9 +19,19 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: "Search query is required" }, { status: 400 });
         }
 
+        const currentUser = await User.findById(auth.id).select('blockedUsers');
+        const myBlockedIds = currentUser?.blockedUsers?.map((id: any) => id.toString()) || [];
+
+        const usersWhoBlockedMe = await User.find({
+            blockedUsers: auth.id
+        }).select('_id');
+        const blockedByIds = usersWhoBlockedMe.map(u => u._id.toString());
+
+        const allExcludedIds = [...new Set([...myBlockedIds, ...blockedByIds, auth.id])];
+
         const users = await User.find({
             username: { $regex: query, $options: "i" },
-            _id: { $ne: auth.id } 
+            _id: { $nin: allExcludedIds } 
         })
             .select("username name avatar")
             .limit(10);

@@ -76,6 +76,17 @@ export async function POST(request: Request) {
 
         const userA = new mongoose.Types.ObjectId(currentUserId);
         const userB = new mongoose.Types.ObjectId(recipientId);
+        const [currentUserDoc, recipientDoc] = await Promise.all([
+            User.findById(currentUserId).select('blockedUsers'),
+            User.findById(recipientId).select('blockedUsers'),
+        ]);
+
+        const iBlockedThem = currentUserDoc?.blockedUsers?.some((id: any) => id.toString() === recipientId);
+        const theyBlockedMe = recipientDoc?.blockedUsers?.some((id: any) => id.toString() === currentUserId);
+
+        if (iBlockedThem || theyBlockedMe) {
+            return NextResponse.json({ message: 'This user is not available' }, { status: 403 });
+        }
 
         let chat = await Chat.findOne({
             participants: { $all: [userA, userB] },
