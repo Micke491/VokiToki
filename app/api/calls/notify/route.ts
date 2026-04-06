@@ -66,7 +66,6 @@ export async function POST(req: Request) {
       });
     } catch (createError: any) {
       console.error("Message creation error:", createError);
-      // Return detailed validation errors if available
       const details = createError.errors
         ? Object.values(createError.errors).map((e: any) => e.message).join(', ')
         : createError.message;
@@ -95,7 +94,18 @@ export async function POST(req: Request) {
           unreadCount: participantId.toString() !== auth.id ? 1 : 0
         });
       });
-      await Promise.all(chatUpdatePromises);
+
+      const callIncomingPromises = chat.participants.map((participantId: any) => {
+        return pusherServer.trigger(`user-${participantId.toString()}`, "call:incoming", {
+          chatId,
+          callType,
+          callerName,
+          callerAvatar,
+          callerId: auth.id,
+        });
+      });
+
+      await Promise.all([...chatUpdatePromises, ...callIncomingPromises]);
     }
 
     return NextResponse.json({ success: true, message: populatedMessage });

@@ -18,37 +18,10 @@ export default function CallButton({
 }: CallButtonProps) {
   const [loadingType, setLoadingType] = useState<"voice" | "video" | null>(null);
 
-  const startCall = async (type: "voice" | "video") => {
-    if (loadingType) return;
-    setLoadingType(type);
-
-    try {
-      const notifyRes = await fetch("/api/calls/notify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          chatId,
-          callType: type,
-          callerName: currentUserUsername,
-          callerAvatar: currentUserAvatar,
-        }),
-      });
-
-      if (!notifyRes.ok) {
-        const errorData = await notifyRes.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || errorData.details || `HTTP ${notifyRes.status}`);
-      }
-
-      onCallStart(type);
-    } catch (error: any) {
-      console.error("Error starting call:", error);
-      alert(`Could not start the call: ${error.message}`);
-    } finally {
-      setLoadingType(null);
-    }
+  const startCall = (type: "voice" | "video") => {
+    window.dispatchEvent(new CustomEvent("start-call", { 
+      detail: { chatId, type } 
+    }));
   };
 
   return (

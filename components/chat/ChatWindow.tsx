@@ -19,9 +19,6 @@ import MessageInput from "./MessageInput";
 import ChatSidebar from "./ChatSidebar";
 import ForwardMessageModal from "./ForwardMessageModal";
 import ReadReceiptModal from "./ReadReceiptModal";
-import CallModal from "./CallModal";
-import IncomingCallModal from "./IncomingCallModal";
-import { IncomingCallData } from "../../types/chat";
 import ConfirmModal from "../ui/ConfirmModal";
 import GifPicker from "./GifPicker";
 import StickerPicker from "./StickerPicker";
@@ -76,15 +73,9 @@ export default function ChatWindow({
   const [unreadCountBelow, setUnreadCountBelow] = useState(0);
   const [wallpaper, setWallpaper] = useState<string | null>(null);
   const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
-  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(
-    null,
-  );
-  const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(
-    null,
-  );
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
-  const [activeCall, setActiveCall] = useState<{type: "voice" | "video"} | null>(null);
-  const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isBlockedChat, setIsBlockedChat] = useState(false);
@@ -321,22 +312,6 @@ export default function ChatWindow({
           m._id === data.messageId ? { ...m, isPinned: false } : m,
         ),
       );
-    });
-
-    channel.bind("call:incoming", (data: IncomingCallData) => {
-      if (data.callerId !== currentUserId) {
-        setIncomingCall(data);
-      }
-    });
-
-    channel.bind("call:ended", (data: { chatId: string; message?: Message }) => {
-      if (data.chatId === chatId) {
-        setActiveCall(null);
-        setIncomingCall(null);
-        if (data.message) {
-          setMessages((prev) => [...prev, data.message!]);
-        }
-      }
     });
 
     channel.bind("user-blocked", (data: { blockedBy: string; blockedUserId: string }) => {
@@ -1002,14 +977,6 @@ export default function ChatWindow({
     }
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
@@ -1182,26 +1149,6 @@ export default function ChatWindow({
         />
       )}
 
-      {incomingCall && (
-        <IncomingCallModal 
-          callData={incomingCall}
-          onAccept={() => {
-            setActiveCall({ type: incomingCall.callType });
-            setIncomingCall(null);
-          }}
-          onDecline={() => setIncomingCall(null)}
-        />
-      )}
-
-      {activeCall && (
-        <CallModal 
-          chatId={chatId}
-          callType={activeCall.type}
-          username={currentUserUsername || "User"}
-          onLeave={() => setActiveCall(null)}
-        />
-      )}
-
       <ChatHeader
         recipientUsername={recipientUsername}
         recipientAvatar={recipientAvatar}
@@ -1224,7 +1171,8 @@ export default function ChatWindow({
             alert("You cannot call this user. There is a block between you.");
             return;
           }
-          setActiveCall({ type: callType });
+          // Dispatches a global event that allows ChatPageContent to pick up the incoming CallModal logic
+          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type: callType } }));
         }}
       />
 
@@ -1365,7 +1313,8 @@ export default function ChatWindow({
                             alert("You cannot call this user. There is a block between you.");
                             return;
                           }
-                          setActiveCall({ type });
+                          // Triggers the active UI call locally/globally
+                          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type } }));
                         }}
                       />
                     </div>

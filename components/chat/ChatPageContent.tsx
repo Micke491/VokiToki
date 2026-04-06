@@ -7,6 +7,8 @@ import ChatList from "@/components/chat/ChatList";
 import ChatWindow from "@/components/chat/ChatWindow";
 import NewChatModal from "@/components/chat/NewChatModal";
 import SideBar from "@/components/layout/Sidebar";
+import CallModal from "@/components/chat/CallModal";
+import IncomingCallModal from "@/components/chat/IncomingCallModal";
 
 interface User {
   _id: string;
@@ -35,6 +37,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [incomingCall, setIncomingCall] = useState<any | null>(null);
+  const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -45,6 +49,34 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       fetchChatDetails(chatId);
     }
   }, [chatId]);
+
+  useEffect(() => {
+    const handleStartCall = async (e: Event) => {
+      const { chatId, type } = (e as CustomEvent).detail;
+      if (!currentUser) return;
+      
+      try {
+        await fetch("/api/calls/notify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            chatId,
+            callType: type,
+            callerName: currentUser.username,
+            callerAvatar: currentUser.avatar,
+          }),
+        });
+        setActiveCall({ chatId, type });
+      } catch (err) {
+        console.error("Failed to initiate call:", err);
+      }
+    };
+    window.addEventListener("start-call", handleStartCall);
+    return () => window.removeEventListener("start-call", handleStartCall);
+  }, [currentUser]);
 
   useEffect(() => {
     if (!chatId) return;
@@ -66,6 +98,40 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       pusher.disconnect();
     };
   }, [chatId]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
+
+    const channel = pusher.subscribe(`user-${currentUser._id}`);
+
+    channel.bind("call:incoming", (data: any) => {
+      if (data.callerId !== currentUser._id) {
+        setIncomingCall(data);
+      }
+    });
+
+    channel.bind("call:ended", (data: any) => {
+      setIncomingCall((prev: any) => {
+         if (prev?.chatId === data.chatId) return null;
+         return prev;
+      });
+      setActiveCall((prev: any) => {
+         if (prev?.chatId === data.chatId) return null;
+         return prev;
+      });
+    });
+
+    return () => {
+      pusher.unsubscribe(`user-${currentUser._id}`);
+      pusher.disconnect();
+    };
+  }, [currentUser]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -255,6 +321,26 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         isOpen={showNewChatModal}
         onClose={() => setShowNewChatModal(false)}
       />
+
+      {incomingCall && (
+        <IncomingCallModal 
+          callData={incomingCall}
+          onAccept={() => {
+            setActiveCall({ chatId: incomingCall.chatId, type: incomingCall.callType });
+            setIncomingCall(null);
+          }}
+          onDecline={() => setIncomingCall(null)}
+        />
+      )}
+
+      {activeCall && currentUser && (
+        <CallModal 
+          chatId={activeCall.chatId}
+          callType={activeCall.type}
+          username={currentUser.username}
+          onLeave={() => setActiveCall(null)}
+        />
+      )}
     </div>
   );
 }

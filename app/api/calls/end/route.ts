@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { headers } from "next/headers";
-import Pusher from "pusher";
 import { connectDB } from "@/lib/db";
 import Message from "@/models/Message";
 import Chat from "@/models/Chat";
-
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+import { pusherServer } from "@/lib/pusher";
 
 export async function POST(req: Request) {
   try {
@@ -39,49 +31,60 @@ export async function POST(req: Request) {
 
     await connectDB();
 
-    // Find the last call message to determine the call type if not provided
-    let endedCallType = callType;
-    if (!endedCallType) {
-      const lastCallMessage = await Message.findOne({
-        chatId,
-        mediaType: 'call',
-        text: { $not: /Ended/ }
-      }).sort({ createdAt: -1 });
-
-      if (lastCallMessage) {
-        endedCallType = lastCallMessage.text?.toLowerCase().includes('video') ? 'video' : 'voice';
-      }
-    }
-
-    const callEndedText = `${endedCallType === 'video' ? 'Video' : 'Voice'} Call Ended`;
-
-    // Create the "Call Ended" message
-    const endedCallMessage = await Message.create({
+    const lastCallMessage = await Message.findOne({
       chatId,
-      sender: decoded.userId,
-      text: callEndedText,
-      isSystemMessage: false,
       mediaType: 'call',
-      status: 'sent',
-      read: false
-    });
+      text: { $not: /Ended/i }
+    }).sort({ createdAt: -1 });
 
-    const populatedMessage = await Message.findById(endedCallMessage._id)
-      .populate('sender', 'username email avatar');
+    let endedCallType = callType;
+    let populatedMessage;
 
-    if (populatedMessage) {
-      await pusher.trigger(`chat-${chatId}`, "call:ended", {
+    if (lastCallMessage) {
+      endedCallType = callType || (lastCallMessage.text?.toLowerCase().includes('video') ? 'video' : 'voice');
+      lastCallMessage.text = `${endedCallType === 'video' ? 'Video' : 'Voice'} Call Ended`;
+      await lastCallMessage.save();
+
+      populatedMessage = await Message.findById(lastCallMessage._id)
+        .populate('sender', 'username email avatar');
+    } else {
+      endedCallType = callType || 'voice';
+      const callEndedText = `${endedCallType === 'video' ? 'Video' : 'Voice'} Call Ended`;
+      
+      const endedCallMessage = await Message.create({
         chatId,
-        message: populatedMessage
+        sender: decoded.userId,
+        text: callEndedText,
+        isSystemMessage: false,
+        mediaType: 'call',
+        status: 'sent',
+        read: false
       });
 
-      await pusher.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
+      populatedMessage = await Message.findById(endedCallMessage._id)
+        .populate('sender', 'username email avatar');
 
       await Chat.findByIdAndUpdate(chatId, {
         lastMessage: endedCallMessage._id,
         updatedAt: new Date(),
         $set: { hiddenBy: [] }
       });
+    }
+
+    if (populatedMessage) {
+      await pusherServer.trigger(`chat-${chatId}`, "call:ended", { chatId });
+
+      await pusherServer.trigger(`chat-${chatId}`, 'message-updated', populatedMessage);
+
+      const chat = await Chat.findById(chatId);
+      if (chat) {
+         const userPromises = chat.participants.map((p: any) => 
+            pusherServer.trigger(`user-${p.toString()}`, "call:ended", {
+               chatId,
+            })
+         );
+         await Promise.all(userPromises);
+      }
     }
 
     return NextResponse.json({ success: true, message: populatedMessage });
