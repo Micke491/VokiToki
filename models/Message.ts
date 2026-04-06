@@ -28,7 +28,7 @@
     replyTo?: mongoose.Types.ObjectId;
     
     mediaUrl?: string;
-    mediaType?: 'image' | 'video' | 'audio' | 'gif' | 'sticker';
+    mediaType?: 'image' | 'video' | 'audio' | 'gif' | 'sticker' | 'call';
     mediaPublicId?: string;
     
     isForwarded: boolean;
@@ -78,11 +78,11 @@
         required: function(this: any) {
           return !this.mediaUrl;
         },
-        iv: {
-          type: String,
-          required: function(this: any) {
-            return !this.mediaUrl;
-          },
+      },
+      iv: {
+        type: String,
+        required: function(this: any) {
+          return !this.mediaUrl && !this.isSystemMessage && this.mediaType !== 'call';
         },
       },
       mediaUrl: {
@@ -90,7 +90,7 @@
       },
       mediaType: {
         type: String,
-        enum: ['image', 'video', 'audio', 'gif', 'sticker'],
+        enum: ['image', 'video', 'audio', 'gif', 'sticker', 'call'],
       },
       mediaPublicId: {
         type: String,

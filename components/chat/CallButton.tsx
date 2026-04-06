@@ -38,7 +38,8 @@ export default function CallButton({
       });
 
       if (!notifyRes.ok) {
-        throw new Error("Failed to notify participants");
+        const errorData = await notifyRes.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || errorData.details || `HTTP ${notifyRes.status}`);
       }
 
       onCallStart(type);

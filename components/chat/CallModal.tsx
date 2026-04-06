@@ -44,7 +44,7 @@ export default function CallModal({ onLeave, chatId, callType, username }: CallM
         "Content-Type": "application/json",
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify({ chatId }),
+      body: JSON.stringify({ chatId, callType }),
     }).catch(console.error);
   };
 

@@ -329,10 +329,13 @@ export default function ChatWindow({
       }
     });
 
-    channel.bind("call:ended", (data: { chatId: string }) => {
+    channel.bind("call:ended", (data: { chatId: string; message?: Message }) => {
       if (data.chatId === chatId) {
         setActiveCall(null);
         setIncomingCall(null);
+        if (data.message) {
+          setMessages((prev) => [...prev, data.message!]);
+        }
       }
     });
 
@@ -1353,6 +1356,17 @@ export default function ChatWindow({
                         groupAdminId={groupAdminId}
                         onJumpToMessage={jumpToMessage}
                         onPreviewImage={setPreviewImage}
+                        onCallAction={(type) => {
+                          if (isRecipientDeleted) {
+                            alert("You cannot call a deleted account.");
+                            return;
+                          }
+                          if (isBlockedChat) {
+                            alert("You cannot call this user. There is a block between you.");
+                            return;
+                          }
+                          setActiveCall({ type });
+                        }}
                       />
                     </div>
                   );

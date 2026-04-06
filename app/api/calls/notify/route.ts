@@ -1,33 +1,16 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
-import { headers } from "next/headers";
-import Pusher from "pusher";
 import { connectDB } from "@/lib/db";
 import Chat from "@/models/Chat";
 import User from "@/models/User";
-
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+import Message from "@/models/Message";
+import { pusherServer } from "@/lib/pusher";
+import { verifyToken } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    const headersList = await headers();
-    const authHeader = headersList.get("authorization");
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const auth = verifyToken(req);
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-
-    if (!decoded.userId) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -39,36 +22,88 @@ export async function POST(req: Request) {
 
     await connectDB();
     const chat = await Chat.findById(chatId);
-    if (chat && !chat.isGroupChat) {
+    if (!chat) {
+       return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+    }
+
+    if (!chat.isGroupChat) {
       const otherParticipantId = chat.participants.find(
-        (p: any) => p.toString() !== decoded.userId
+        (p: any) => p.toString() !== auth.id
       );
       if (otherParticipantId) {
         const [caller, recipient] = await Promise.all([
-          User.findById(decoded.userId).select('blockedUsers'),
+          User.findById(auth.id).select('blockedUsers'),
           User.findById(otherParticipantId).select('blockedUsers'),
         ]);
         const iBlockedThem = caller?.blockedUsers?.some((id: any) => id.toString() === otherParticipantId.toString());
-        const theyBlockedMe = recipient?.blockedUsers?.some((id: any) => id.toString() === decoded.userId);
+        const theyBlockedMe = recipient?.blockedUsers?.some((id: any) => id.toString() === auth.id);
         if (iBlockedThem || theyBlockedMe) {
           return NextResponse.json({ error: "You cannot call this user." }, { status: 403 });
         }
       }
     }
 
-    await pusher.trigger(`chat-${chatId}`, "call:incoming", {
+    await pusherServer.trigger(`chat-${chatId}`, "call:incoming", {
       chatId,
       callType,
       callerName,
       callerAvatar,
-      callerId: decoded.userId,
+      callerId: auth.id,
     });
 
-    return NextResponse.json({ success: true });
+    const callMessageText = `${callType === 'video' ? 'Video' : 'Voice'} call`;
+
+    let newCallMessage;
+    try {
+      newCallMessage = await Message.create({
+        chatId,
+        sender: auth.id,
+        text: callMessageText,
+        isSystemMessage: false,
+        mediaType: 'call',
+        status: 'sent',
+        read: false
+      });
+    } catch (createError: any) {
+      console.error("Message creation error:", createError);
+      // Return detailed validation errors if available
+      const details = createError.errors
+        ? Object.values(createError.errors).map((e: any) => e.message).join(', ')
+        : createError.message;
+      return NextResponse.json(
+        { error: "Failed to create call message", details },
+        { status: 500 }
+      );
+    }
+
+    const populatedMessage = await Message.findById(newCallMessage!._id)
+      .populate('sender', 'username email avatar');
+
+    if (populatedMessage) {
+      await pusherServer.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
+
+      await Chat.findByIdAndUpdate(chatId, {
+        lastMessage: newCallMessage!._id,
+        updatedAt: new Date(),
+        $set: { hiddenBy: [] }
+      });
+
+      const chatUpdatePromises = chat.participants.map((participantId: any) => {
+        return pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
+          chatId,
+          lastMessage: populatedMessage,
+          unreadCount: participantId.toString() !== auth.id ? 1 : 0
+        });
+      });
+      await Promise.all(chatUpdatePromises);
+    }
+
+    return NextResponse.json({ success: true, message: populatedMessage });
   } catch (error) {
     console.error("Error notifying call:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: errorMessage },
       { status: 500 }
     );
   }

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { headers } from "next/headers";
 import Pusher from "pusher";
+import { connectDB } from "@/lib/db";
+import Message from "@/models/Message";
+import Chat from "@/models/Chat";
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID!,
@@ -28,17 +31,60 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { chatId } = body;
+    const { chatId, callType } = body;
 
     if (!chatId) {
       return NextResponse.json({ error: "Missing chatId" }, { status: 400 });
     }
 
-    await pusher.trigger(`chat-${chatId}`, "call:ended", {
+    await connectDB();
+
+    // Find the last call message to determine the call type if not provided
+    let endedCallType = callType;
+    if (!endedCallType) {
+      const lastCallMessage = await Message.findOne({
+        chatId,
+        mediaType: 'call',
+        text: { $not: /Ended/ }
+      }).sort({ createdAt: -1 });
+
+      if (lastCallMessage) {
+        endedCallType = lastCallMessage.text?.toLowerCase().includes('video') ? 'video' : 'voice';
+      }
+    }
+
+    const callEndedText = `${endedCallType === 'video' ? 'Video' : 'Voice'} Call Ended`;
+
+    // Create the "Call Ended" message
+    const endedCallMessage = await Message.create({
       chatId,
+      sender: decoded.userId,
+      text: callEndedText,
+      isSystemMessage: false,
+      mediaType: 'call',
+      status: 'sent',
+      read: false
     });
 
-    return NextResponse.json({ success: true });
+    const populatedMessage = await Message.findById(endedCallMessage._id)
+      .populate('sender', 'username email avatar');
+
+    if (populatedMessage) {
+      await pusher.trigger(`chat-${chatId}`, "call:ended", {
+        chatId,
+        message: populatedMessage
+      });
+
+      await pusher.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
+
+      await Chat.findByIdAndUpdate(chatId, {
+        lastMessage: endedCallMessage._id,
+        updatedAt: new Date(),
+        $set: { hiddenBy: [] }
+      });
+    }
+
+    return NextResponse.json({ success: true, message: populatedMessage });
   } catch (error) {
     console.error("Error ending call:", error);
     return NextResponse.json(

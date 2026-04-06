@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Zap, Download, Image as ImageIcon } from "lucide-react";
+import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Phone, Zap, Download, Image as ImageIcon } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
@@ -34,6 +34,7 @@ interface MessageItemProps {
   groupAdminId?: string;
   onJumpToMessage?: (messageId: string) => Promise<void> | void;
   onPreviewImage: (url: string) => void;
+  onCallAction?: (callType: "voice" | "video") => void;
 }
 
 const MessageItem = ({
@@ -61,6 +62,7 @@ const MessageItem = ({
   groupAdminId,
   onJumpToMessage,
   onPreviewImage,
+  onCallAction,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -245,7 +247,7 @@ const MessageItem = ({
                           : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                       }
                       ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
-                      ${message.mediaUrl && !message.text ? "bg-transparent !p-0 shadow-none border-none" : "px-4 py-2.5 shadow-sm"}
+                      ${(message.mediaUrl && !message.text) || message.mediaType === 'call' ? "bg-transparent !p-0 shadow-none border-none" : "px-4 py-2.5 shadow-sm"}
                   `}
               >
                 {!message.isDeletedForEveryone && message.replyTo && (
@@ -315,6 +317,61 @@ const MessageItem = ({
                   </div>
                 )}
 
+                {message.mediaType === 'call' && !message.isDeletedForEveryone && (() => {
+                  const isEnded = message.text?.toLowerCase().includes('ended');
+                  const isVideo = message.text?.toLowerCase().includes('video');
+                  
+                  return (
+                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                      isEnded 
+                        ? 'bg-chat-bg-secondary/50 border border-chat-border opacity-80'
+                        : isOwn 
+                          ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 shadow-lg shadow-green-500/5' 
+                          : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/5'
+                    }`}>
+                      <div className={`p-2.5 rounded-full transition-colors ${
+                        isEnded 
+                          ? 'bg-chat-bg-primary text-chat-text-tertiary' 
+                          : isOwn ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {isVideo ? <Video className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
+                      </div>
+                      
+                      <div className="flex flex-col min-w-0">
+                        <span className={`text-sm font-bold truncate ${
+                          isEnded ? 'text-chat-text-secondary' : isOwn ? 'text-green-300' : 'text-blue-300'
+                        }`}>
+                          {message.text}
+                        </span>
+                        <span className={`text-[11px] font-medium ${
+                          isEnded ? 'text-chat-text-tertiary' : isOwn ? 'text-green-400/70' : 'text-blue-400/70'
+                        }`}>
+                          {isEnded ? 'Call Ended' : (isOwn ? 'Outgoing' : 'Incoming')}
+                        </span>
+                      </div>
+
+                      {onCallAction && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCallAction(isVideo ? "video" : "voice");
+                          }}
+                          className={`ml-auto px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 ${
+                            isEnded
+                              ? 'bg-chat-bg-primary hover:bg-chat-hover text-chat-text-primary border border-chat-border'
+                              : isOwn 
+                                ? 'bg-green-500/30 hover:bg-green-500/50 text-green-200 border border-green-500/20' 
+                                : 'bg-blue-500/30 hover:bg-blue-500/50 text-blue-200 border border-blue-500/20'
+                          }`}
+                        >
+                          {isVideo ? <Video className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
+                          {isEnded ? 'Call Again' : (isOwn ? 'Call Again' : 'Join Call')}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {message.mediaUrl && !message.isDeletedForEveryone && (
                   <div className="mb-2 rounded-lg overflow-hidden border border-chat-border max-w-[320px] bg-chat-bg-secondary relative group">
                     {["gif", "sticker"].includes(message.mediaType!) && (
@@ -364,7 +421,7 @@ const MessageItem = ({
                   </div>
                 )}
 
-                {message.text && (
+                {message.text && message.mediaType !== 'call' && (
                   <>
                     <HighlightText
                       text={message.text}
