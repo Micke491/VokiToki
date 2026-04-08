@@ -757,7 +757,7 @@ export default function ChatWindow({
         });
         setEditingMessage(null);
       } else {
-        await fetch("/api/chat/message", {
+        const response = await fetch("/api/chat/message", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -770,6 +770,12 @@ export default function ChatWindow({
             replyTo: replyingTo?._id,
           }),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to send message");
+        }
+
         setReplyingTo(null);
         scrollToBottom(true);
         markAllAsRead();

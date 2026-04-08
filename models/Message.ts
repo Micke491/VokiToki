@@ -81,9 +81,6 @@
       },
       iv: {
         type: String,
-        required: function(this: any) {
-          return !this.mediaUrl && !this.isSystemMessage && this.mediaType !== 'call';
-        },
       },
       mediaUrl: {
         type: String,
