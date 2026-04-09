@@ -218,10 +218,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     <div className="flex h-screen-safe bg-gradient-to-br from-indigo-700 via-purple-700 to-blue-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 overflow-hidden transition-colors duration-700">
       {/* 1. Global Navigation Sidebar */}
       <div className={`${chatId ? "hidden md:block" : "block"}`}>
-        <SideBar 
-          currentUser={currentUser || undefined} 
+        <SideBar
+          currentUser={currentUser || undefined}
           isMobileDrawerOpen={showSidebarDrawer}
           onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
+          isHidden={!!activeCall}
         />
       </div>
 

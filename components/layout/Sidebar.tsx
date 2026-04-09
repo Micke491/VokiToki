@@ -12,9 +12,11 @@ interface SideBarProps {
   };
   isMobileDrawerOpen?: boolean;
   onCloseMobileDrawer?: () => void;
+  isHidden?: boolean;
 }
 
-export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobileDrawer }: SideBarProps) {
+export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobileDrawer, isHidden }: SideBarProps) {
+  if (isHidden) return null;
   const pathname = usePathname();
   const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
