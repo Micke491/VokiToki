@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import Message from "@/models/Message";
 import Chat from "@/models/Chat";
 import { pusherServer } from "@/lib/pusher";
+import { RoomServiceClient } from "livekit-server-sdk";
 
 export async function POST(req: Request) {
   try {
@@ -30,6 +31,31 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
+
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+    if (apiKey && apiSecret) {
+      try {
+        const roomService = new RoomServiceClient(
+          process.env.NEXT_PUBLIC_LIVEKIT_URL!,
+          apiKey,
+          apiSecret
+        );
+
+        const participants = await roomService.listParticipants(chatId);
+
+        if (participants && participants.length > 0) {
+          return NextResponse.json({
+            success: true,
+            message: "Call still active",
+            participantsRemaining: participants.length
+          });
+        }
+      } catch (roomError: any) {
+        console.log("LiveKit room check:", roomError.message || "Room not found");
+      }
+    }
 
     const lastCallMessage = await Message.findOne({
       chatId,

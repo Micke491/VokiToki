@@ -53,47 +53,61 @@ export async function POST(req: Request) {
 
     const callMessageText = `${callType === 'video' ? 'Video' : 'Voice'} call`;
 
+    const existingActiveCall = await Message.findOne({
+      chatId,
+      mediaType: 'call',
+      text: { $not: /Ended/i }
+    }).sort({ createdAt: -1 });
+
     let newCallMessage;
-    try {
-      newCallMessage = await Message.create({
-        chatId,
-        sender: auth.id,
-        text: callMessageText,
-        isSystemMessage: false,
-        mediaType: 'call',
-        status: 'sent',
-        read: false
-      });
-    } catch (createError: any) {
-      console.error("Message creation error:", createError);
-      const details = createError.errors
-        ? Object.values(createError.errors).map((e: any) => e.message).join(', ')
-        : createError.message;
-      return NextResponse.json(
-        { error: "Failed to create call message", details },
-        { status: 500 }
-      );
+    if (existingActiveCall) {
+      newCallMessage = existingActiveCall;
+    } else {
+      try {
+        newCallMessage = await Message.create({
+          chatId,
+          sender: auth.id,
+          text: callMessageText,
+          isSystemMessage: false,
+          mediaType: 'call',
+          status: 'sent',
+          read: false
+        });
+      } catch (createError: any) {
+        console.error("Message creation error:", createError);
+        const details = createError.errors
+          ? Object.values(createError.errors).map((e: any) => e.message).join(', ')
+          : createError.message;
+        return NextResponse.json(
+          { error: "Failed to create call message", details },
+          { status: 500 }
+        );
+      }
     }
 
     const populatedMessage = await Message.findById(newCallMessage!._id)
       .populate('sender', 'username email avatar');
 
     if (populatedMessage) {
-      await pusherServer.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
+      if (!existingActiveCall) {
+        await pusherServer.trigger(`chat-${chatId}`, 'receive-message', populatedMessage);
 
-      await Chat.findByIdAndUpdate(chatId, {
-        lastMessage: newCallMessage!._id,
-        updatedAt: new Date(),
-        $set: { hiddenBy: [] }
-      });
-
-      const chatUpdatePromises = chat.participants.map((participantId: any) => {
-        return pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
-          chatId,
-          lastMessage: populatedMessage,
-          unreadCount: participantId.toString() !== auth.id ? 1 : 0
+        await Chat.findByIdAndUpdate(chatId, {
+          lastMessage: newCallMessage!._id,
+          updatedAt: new Date(),
+          $set: { hiddenBy: [] }
         });
-      });
+
+        const chatUpdatePromises = chat.participants.map((participantId: any) => {
+          return pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
+            chatId,
+            lastMessage: populatedMessage,
+            unreadCount: participantId.toString() !== auth.id ? 1 : 0
+          });
+        });
+
+        await Promise.all(chatUpdatePromises);
+      }
 
       const callIncomingPromises = chat.participants.map((participantId: any) => {
         return pusherServer.trigger(`user-${participantId.toString()}`, "call:incoming", {
@@ -105,7 +119,7 @@ export async function POST(req: Request) {
         });
       });
 
-      await Promise.all([...chatUpdatePromises, ...callIncomingPromises]);
+      await Promise.all(callIncomingPromises);
     }
 
     return NextResponse.json({ success: true, message: populatedMessage });
