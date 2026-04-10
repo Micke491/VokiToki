@@ -17,6 +17,7 @@ interface ChatHeaderProps {
   currentUserUsername: string;
   currentUserAvatar?: string;
   onCallStart: (callType: "voice" | "video") => void;
+  onMenuClick?: () => void;
 }
 
 const ChatHeader = ({
@@ -34,19 +35,33 @@ const ChatHeader = ({
   currentUserUsername,
   currentUserAvatar,
   onCallStart,
+  onMenuClick,
 }: ChatHeaderProps) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-transparent shrink-0 z-10">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <button
-          onClick={onClose}
-          className="flex md:hidden items-center justify-center w-9 h-9 text-chat-text-secondary hover:bg-chat-hover rounded-full transition-colors mr-2"
-          aria-label="Back to chats"
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
-            <path d="M12 4L6 10L12 16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        <div className="flex md:hidden items-center mr-1">
+          <button
+            onClick={onMenuClick}
+            className="flex items-center justify-center w-9 h-9 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors mr-1"
+            aria-label="Open menu"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+               <line x1="3" y1="12" x2="21" y2="12"></line>
+               <line x1="3" y1="6" x2="21" y2="6"></line>
+               <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-9 h-9 text-chat-text-secondary hover:bg-chat-hover rounded-full transition-colors"
+            aria-label="Back to chats"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+              <path d="M12 4L6 10L12 16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
         {!showSearch ? (
           <>
             <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'} shadow-sm overflow-hidden shrink-0`}>

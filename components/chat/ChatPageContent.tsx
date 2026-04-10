@@ -137,7 +137,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        router.push("/login");
+        router.push("/auth-pages/login");
         return;
       }
       const response = await fetch("/api/users/current_user", {
@@ -152,7 +152,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       setCurrentUser(data.user);
     } catch (error) {
       console.error("Error fetching user:", error);
-      router.push("/login");
+      router.push("/auth-pages/login");
     } finally {
       setLoading(false);
     }
@@ -226,7 +226,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       </div>
 
       {/* 1. Global Navigation Sidebar */}
-      <div className={`${chatId ? "hidden md:block" : "block"} relative z-10`}>
+      <div className={`${chatId && !showSidebarDrawer ? "hidden md:block" : "block"} relative z-[100]`}>
         <SideBar
           currentUser={currentUser || undefined}
           isMobileDrawerOpen={showSidebarDrawer}
@@ -271,6 +271,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               isGroup={chatMetadata.isGroup}
               groupAdminId={selectedChat?.groupAdmin}
               participants={selectedChat?.participants}
+              onMenuClick={() => setShowSidebarDrawer(true)}
             />
           ) : (
             /* Empty State */

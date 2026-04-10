@@ -282,3 +282,12 @@ textarea {
   border-radius: 9999px;
   transform: translateY(-20%);
 }
+
+/* Hide scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

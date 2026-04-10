@@ -1,5 +1,5 @@
-import React from "react";
-import { Mic, Send, Trash2, Smile, Sticker, Image as ImageIcon } from "lucide-react";
+import React, { useState } from "react";
+import { Mic, Send, Trash2, Smile, Sticker, Image as ImageIcon, Plus, X } from "lucide-react";
 import { Message } from "../../types/chat";
 
 interface MessageInputProps {
@@ -59,10 +59,11 @@ const MessageInput = ({
   showEmojiPickerInput,
   setShowEmojiPickerInput,
 }: MessageInputProps) => {
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   return (
-    <footer className="p-4 pb-safe bg-transparent border-t border-chat-border shrink-0 relative z-10">
+    <footer className="p-2 md:p-4 pb-safe bg-transparent border-t border-chat-border shrink-0 relative z-10 transition-all duration-300">
       {(replyingTo || editingMessage) && (
-        <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-input rounded-lg border-l-4 border-chat-accent">
+        <div className="w-full max-w-7xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-input rounded-lg border-l-4 border-chat-accent animate-in slide-in-from-bottom-2">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="flex flex-col text-sm flex-1 min-w-0">
               <span className="font-semibold text-chat-accent">
@@ -140,7 +141,7 @@ const MessageInput = ({
       )}
 
       <form
-        className={`max-w-4xl mx-auto flex items-center gap-3 px-4 py-2 bg-chat-input rounded-[28px] focus-within:ring-2 focus-within:ring-chat-accent/20 transition-all border border-transparent focus-within:border-chat-accent/30 ${
+        className={`w-full max-w-[98%] lg:max-w-7xl mx-auto flex items-center gap-1.5 md:gap-3 px-2 md:px-4 py-1.5 md:py-2 bg-chat-input rounded-[28px] focus-within:ring-2 focus-within:ring-chat-accent/20 transition-all border border-transparent focus-within:border-chat-accent/30 ${
           isRecording ? "ring-2 ring-red-500/20 border-red-500/30" : ""
         }`}
         onSubmit={handleSend}
@@ -195,48 +196,71 @@ const MessageInput = ({
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setShowEmojiPickerInput(!showEmojiPickerInput);
-              }}
-              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
-                showEmojiPickerInput
-                  ? "bg-chat-accent text-white shadow-sm"
-                  : "hover:bg-chat-hover text-chat-text-tertiary"
-              }`}
-              title="Add an emoji"
-            >
-              <Smile className={`w-6 h-6 ${showEmojiPickerInput ? "animate-pulse" : ""}`} />
-            </button>
+            <div className="flex items-center">
+              {/* Media Toggle for Mobile */}
+              <button
+                type="button"
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className={`md:hidden flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all ${
+                  showMobileMenu ? "bg-chat-accent text-white rotate-45" : "hover:bg-chat-hover text-chat-text-tertiary"
+                }`}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowGifPicker(!showGifPicker)}
-              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
-                showGifPicker
-                  ? "bg-chat-accent text-white shadow-sm"
-                  : "hover:bg-chat-hover text-chat-text-tertiary"
-              }`}
-              title="Send a GIF"
-            >
-              <div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[8px] font-black tracking-tight leading-none pt-0.5">
-                GIF
+              {/* Desktop Desktop Actions or Mobile Expanded Menu */}
+              <div className={`${showMobileMenu ? "flex absolute bottom-full left-4 mb-3 p-2 bg-chat-glass backdrop-blur-xl border border-chat-border rounded-2xl shadow-xl animate-in slide-in-from-bottom-2" : "hidden md:flex"} items-center gap-1`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEmojiPickerInput(!showEmojiPickerInput);
+                    if (showMobileMenu) setShowMobileMenu(false);
+                  }}
+                  className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                    showEmojiPickerInput
+                      ? "bg-chat-accent text-white shadow-sm"
+                      : "hover:bg-chat-hover text-chat-text-tertiary"
+                  }`}
+                  title="Add an emoji"
+                >
+                  <Smile className={`w-6 h-6 ${showEmojiPickerInput ? "animate-pulse" : ""}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowGifPicker(!showGifPicker);
+                    if (showMobileMenu) setShowMobileMenu(false);
+                  }}
+                  className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                    showGifPicker
+                      ? "bg-chat-accent text-white shadow-sm"
+                      : "hover:bg-chat-hover text-chat-text-tertiary"
+                  }`}
+                  title="Send a GIF"
+                >
+                  <div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[8px] font-black tracking-tight leading-none pt-0.5">
+                    GIF
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStickerPicker(!showStickerPicker);
+                    if (showMobileMenu) setShowMobileMenu(false);
+                  }}
+                  className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                    showStickerPicker
+                      ? "bg-chat-accent text-white shadow-sm"
+                      : "hover:bg-chat-hover text-chat-text-tertiary"
+                  }`}
+                  title="Send a sticker"
+                >
+                  <Sticker className="w-6 h-6" />
+                </button>
               </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowStickerPicker(!showStickerPicker)}
-              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
-                showStickerPicker
-                  ? "bg-chat-accent text-white shadow-sm"
-                  : "hover:bg-chat-hover text-chat-text-tertiary"
-              }`}
-              title="Send a sticker"
-            >
-              <Sticker className="w-6 h-6" />
-            </button>
+            </div>
 
             <textarea
               ref={inputRef}
@@ -253,7 +277,7 @@ const MessageInput = ({
               }
               rows={1}
               disabled={sending}
-              className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-chat-text-primary placeholder-chat-text-tertiary resize-none overflow-y-auto focus:outline-none"
+              className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-chat-text-primary placeholder-chat-text-tertiary resize-none overflow-y-auto focus:outline-none scrollbar-none"
             />
             {newMessage.length > MAX_CHARS * 0.8 && (
                <div className={`absolute -top-6 right-8 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border ${

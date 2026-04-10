@@ -35,6 +35,7 @@ export default function ChatWindow({
   groupAdminId,
   participants,
   onClose,
+  onMenuClick,
 }: ChatWindowProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1165,6 +1166,7 @@ export default function ChatWindow({
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        onMenuClick={onMenuClick}
         chatId={chatId}
         currentUserId={currentUserId}
         currentUserUsername={currentUserUsername || "User"}

@@ -7,7 +7,7 @@ import BlockedUsersModal from '@/components/ui/BlockedUsersModal';
 import {
   ArrowLeft, Camera, Trash2, Moon, Sun, AlertTriangle, Loader2,
   User as UserIcon, Image as ImageIcon, CheckCircle, Shield,
-  Lock, Palette, EyeOff, UserX, Smartphone, Eye
+  Lock, Palette, EyeOff, UserX, Smartphone, Eye, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -35,6 +35,7 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [requestingPassword, setRequestingPassword] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [editUsername, setEditUsername] = useState('');
   const [bio, setBio] = useState('');
@@ -234,7 +235,13 @@ export default function SettingsPage() {
         <div className="ambient-glow-inner" />
       </div>
 
-      <SideBar currentUser={currentUser || undefined} />
+      <div className={`${!showSidebarDrawer ? "hidden md:block" : "block"} relative z-[100]`}>
+        <SideBar 
+          currentUser={currentUser || undefined} 
+          isMobileDrawerOpen={showSidebarDrawer}
+          onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
+        />
+      </div>
 
       {/* Toast Notification */}
       <AnimatePresence>
@@ -266,10 +273,16 @@ export default function SettingsPage() {
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-black text-chat-text-primary tracking-tight">Settings</h1>
               <p className="text-chat-text-secondary font-medium mt-1">Manage your preferences and account</p>
             </div>
+            <button
+              onClick={() => setShowSidebarDrawer(true)}
+              className="md:hidden p-3 bg-chat-bg-secondary hover:bg-chat-hover border border-chat-border rounded-2xl text-chat-text-primary transition-all ml-auto"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
           </div>
         </header>
 

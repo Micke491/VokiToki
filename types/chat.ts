@@ -51,6 +51,7 @@ export interface ChatWindowProps {
     email: string;
     avatar?: string;
   }>;
+  onMenuClick?: () => void;
 }
 
 export interface IncomingCallData {
