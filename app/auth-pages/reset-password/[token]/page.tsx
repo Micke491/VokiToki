@@ -36,52 +36,60 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.1),transparent_50%)]" />
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans flex items-center justify-center px-4 relative overflow-hidden selection:bg-blue-500/30">
+      <div className="pointer-events-none absolute inset-0 flex justify-center">
+        <div className="h-[40rem] w-[100%] max-w-[60rem] bg-blue-500/10 blur-[120px] rounded-full translate-y-[-20%]"></div>
+      </div>
       
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-[440px]">
-        <div className="bg-slate-900/50 backdrop-blur-2xl rounded-[2.5rem] p-10 border border-white/10">
+        <div className="bg-[#09090b]/80 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-zinc-800 p-10">
           <div className="text-center mb-10">
-            <div className="inline-flex p-4 bg-purple-600 rounded-2xl mb-6 shadow-lg shadow-purple-500/20">
-              <Lock className="w-8 h-8 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-xl shadow-blue-600/20 mb-6">
+              <Lock className="w-8 h-8 text-zinc-100" />
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">New Password</h1>
-            <p className="text-slate-400 font-medium mt-2">Create a secure password for your account</p>
+            <h1 className="text-3xl font-black text-zinc-100 tracking-tight">New Password</h1>
+            <p className="text-zinc-400 font-medium mt-2">Create a secure password for your account</p>
           </div>
 
           {success ? (
             <div className="text-center space-y-4">
-              <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold text-white">Updated!</h3>
-              <p className="text-slate-400">Your password has been reset. Redirecting to login...</p>
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-zinc-100">Updated!</h3>
+              <p className="text-zinc-400">Your password has been reset. Redirecting to login...</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 flex gap-3 items-center text-red-400 text-sm font-bold">
-                  <AlertTriangle size={18} /> {error}
+                <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 flex gap-3 items-start text-red-300 text-sm font-medium">
+                  <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" /> <p>{error}</p>
                 </div>
               )}
               
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">New Password</label>
-                <input 
-                  type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-4 bg-slate-800/50 border border-white/5 rounded-2xl text-white outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-                  placeholder="••••••••"
-                />
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">New Password</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-blue-500 transition-colors" size={20}/>
+                  <input 
+                    type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium placeholder-zinc-500"
+                    placeholder="••••••••"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
-                <input 
-                  type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)}
-                  className="w-full px-4 py-4 bg-slate-800/50 border border-white/5 rounded-2xl text-white outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-                  placeholder="••••••••"
-                />
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Confirm New Password</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-blue-500 transition-colors" size={20}/>
+                  <input 
+                    type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium placeholder-zinc-500"
+                    placeholder="••••••••"
+                  />
+                </div>
               </div>
 
-              <button disabled={loading} className="w-full py-4 bg-white text-slate-950 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95 shadow-xl shadow-white/5 mt-4">
+              <button disabled={loading} className="w-full py-4 bg-blue-600 text-zinc-100 font-bold rounded-2xl hover:bg-blue-500 transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)] transform active:scale-[0.98] mt-4">
                 {loading ? <Loader2 className="animate-spin" /> : 'Update Password'}
               </button>
             </form>
