@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { X, Users, MessageCircle } from 'lucide-react';
 
 interface User {
   _id: string;
@@ -71,7 +72,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
       const data = await response.json();
       // Filter out already selected users in group mode
-      const filteredUsers = data.users.filter((u: User) => 
+      const filteredUsers = data.users.filter((u: User) =>
         !selectedUsers.some(selected => selected._id === u._id)
       );
       setUsers(filteredUsers || []);
@@ -90,7 +91,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
     try {
       setCreating(true);
-      const response = await fetch('/api/chats', { 
+      const response = await fetch('/api/chats', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,15 +121,15 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
     try {
       setCreating(true);
-      const response = await fetch('/api/chats/GroupChat', { 
+      const response = await fetch('/api/chats/GroupChat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ 
-          name: groupName, 
-          participants: selectedUsers.map(u => u._id) 
+        body: JSON.stringify({
+          name: groupName,
+          participants: selectedUsers.map(u => u._id)
         }),
       });
 
@@ -170,84 +171,86 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
       {/* Modal Overlay */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" 
-        onClick={onClose} 
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-        
+      <div className="relative w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 bg-chat-glass backdrop-blur-2xl border border-chat-border">
+
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex items-center justify-between p-5 border-b border-chat-border">
+          <h2 className="text-xl font-semibold text-chat-text-primary">
             {isGroup ? 'New Group' : 'New Message'}
           </h2>
-          <button 
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          <button
+            className="p-1.5 rounded-lg transition-colors text-chat-text-secondary hover:bg-chat-hover"
             onClick={onClose}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+            <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Mode Toggle */}
         <div className="px-5 pt-4">
-            <div className="flex p-1 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
-                <button
-                    onClick={() => setIsGroup(false)}
-                    className="flex-1 py-1.5 text-sm font-medium rounded-lg transition-all"
-                    style={!isGroup ? { background: 'var(--bg-hover)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'var(--text-secondary)' }}
-                >
-                    Direct Message
-                </button>
-                <button
-                    onClick={() => setIsGroup(true)}
-                    className="flex-1 py-1.5 text-sm font-medium rounded-lg transition-all"
-                    style={isGroup ? { background: 'var(--bg-hover)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'var(--text-secondary)' }}
-                >
-                    Group Chat
-                </button>
-            </div>
+          <div className="flex p-1 rounded-xl bg-chat-input">
+            <button
+              onClick={() => setIsGroup(false)}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+                !isGroup
+                  ? 'bg-chat-hover text-chat-text-primary shadow-sm'
+                  : 'text-chat-text-secondary'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Direct
+            </button>
+            <button
+              onClick={() => setIsGroup(true)}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+                isGroup
+                  ? 'bg-chat-hover text-chat-text-primary shadow-sm'
+                  : 'text-chat-text-secondary'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Group
+            </button>
+          </div>
         </div>
 
         {/* Group Name Input */}
         {isGroup && (
-           <div className="px-5 pt-4">
-               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Group Name</label>
-               <input
-                 type="text"
-                 placeholder="Enter group name"
-                 value={groupName}
-                 onChange={(e) => setGroupName(e.target.value)}
-                 className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                 style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-               />
-           </div>
+          <div className="px-5 pt-4">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-chat-text-secondary">Group Name</label>
+            <input
+              type="text"
+              placeholder="Enter group name"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all bg-chat-input border border-chat-border text-chat-text-primary placeholder-chat-text-tertiary"
+            />
+          </div>
         )}
 
         {/* Selected Users (Chips) */}
         {isGroup && selectedUsers.length > 0 && (
-            <div className="px-5 pt-3 flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
-                {selectedUsers.map(user => (
-                    <div key={user._id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-800">
-                        {user.username}
-                        <button onClick={() => removeSelectedUser(user._id)} className="p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-md">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6L18 18"></path></svg>
-                        </button>
-                    </div>
-                ))}
-            </div>
+          <div className="px-5 pt-3 flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
+            {selectedUsers.map(user => (
+              <div key={user._id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-chat-accent/20 text-chat-accent rounded-lg text-xs font-medium border border-chat-accent/30">
+                {user.username}
+                <button onClick={() => removeSelectedUser(user._id)} className="p-0.5 hover:bg-chat-accent/20 rounded-md">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Search Container */}
-        <div className="relative p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <svg className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-400" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <div className="relative p-4 border-b border-chat-border">
+          <svg className="absolute left-8 top-1/2 -translate-y-1/2 text-chat-text-tertiary" width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
           <input
@@ -256,55 +259,52 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all bg-chat-input border border-chat-border text-chat-text-primary placeholder-chat-text-tertiary"
           />
         </div>
 
         {/* Users List */}
         <div className="flex-1 overflow-y-auto min-h-[150px]">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-slate-500 gap-3">
-              <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+            <div className="flex flex-col items-center justify-center py-10 text-chat-text-secondary gap-3">
+              <div className="w-6 h-6 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
               <p className="text-sm">Searching...</p>
             </div>
           ) : users.length === 0 && searchQuery.trim().length >= 2 ? (
-            <div className="flex items-center justify-center py-10 text-slate-500">
+            <div className="flex items-center justify-center py-10 text-chat-text-tertiary">
               <p className="text-sm italic">No users found</p>
             </div>
           ) : users.length === 0 ? (
-            <div className="flex items-center justify-center py-10 text-slate-400">
+            <div className="flex items-center justify-center py-10 text-chat-text-tertiary">
               <p className="text-sm">Type to search for users</p>
             </div>
           ) : (
-            <div style={{ borderTop: '1px solid var(--border-color)' }}>
+            <div className="border-t border-chat-border">
               {users.map(user => (
-                <div 
-                  key={user._id} 
-                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors ${(creating) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  onMouseEnter={e => { if (!creating) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                <div
+                  key={user._id}
+                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors ${(creating) ? 'opacity-60 cursor-not-allowed' : 'hover:bg-chat-hover'}`}
                   onClick={() => !creating && startChat(user._id)}
                 >
                   {/* Avatar */}
-                  <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-semibold text-white text-lg shadow-sm">
+                  <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center font-semibold text-white text-lg shadow-sm">
                     {user.username.charAt(0).toUpperCase()}
                   </div>
-                  
+
                   {/* User Details */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-[15px] font-medium truncate text-chat-text-primary">
                       {user.username}
                     </p>
                     {user.name && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                      <p className="text-xs truncate text-chat-text-secondary">
                         {user.name}
                       </p>
                     )}
                   </div>
 
                   {creating && !isGroup && (
-                    <div className="w-5 h-5 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
                   )}
                 </div>
               ))}
@@ -314,22 +314,22 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
         {/* Group Action Footer */}
         {isGroup && (
-            <div className="p-4" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-                <button
-                    onClick={createGroupChat}
-                    disabled={creating || !groupName.trim() || selectedUsers.length < 2}
-                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                    {creating ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Creating...
-                        </>
-                    ) : (
-                        `Create Group (${selectedUsers.length})`
-                    )}
-                </button>
-            </div>
+          <div className="p-4 border-t border-chat-border bg-chat-input">
+            <button
+              onClick={createGroupChat}
+              disabled={creating || !groupName.trim() || selectedUsers.length < 2}
+              className="w-full py-3 bg-chat-accent hover:bg-chat-accent-hover text-white rounded-xl font-semibold shadow-lg shadow-chat-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              {creating ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                `Create Group (${selectedUsers.length})`
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>

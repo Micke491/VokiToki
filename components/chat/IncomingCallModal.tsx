@@ -35,7 +35,7 @@ export default function IncomingCallModal({ callData, onAccept, onDecline }: Inc
         initial={{ opacity: 0, y: -50, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -50, scale: 0.9 }}
-        className="fixed top-6 left-1/2 -translate-x-1/2 z-[110] bg-chat-bg-primary rounded-2xl shadow-2xl border border-chat-border p-4 w-[90%] max-w-sm flex flex-col items-center"
+        className="fixed top-6 left-1/2 -translate-x-1/2 z-[110] bg-chat-glass backdrop-blur-2xl rounded-2xl shadow-2xl border border-chat-border p-4 w-[90%] max-w-sm flex flex-col items-center"
       >
         <div className="w-16 h-16 rounded-full overflow-hidden mb-3 bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center shadow-lg border-2 border-chat-bg-primary">
           {callData.callerAvatar ? (

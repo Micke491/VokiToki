@@ -60,9 +60,9 @@ const MessageInput = ({
   setShowEmojiPickerInput,
 }: MessageInputProps) => {
   return (
-    <footer className="p-4 pb-safe bg-chat-bg-primary border-t border-chat-border shrink-0">
+    <footer className="p-4 pb-safe bg-transparent border-t border-chat-border shrink-0 relative z-10">
       {(replyingTo || editingMessage) && (
-        <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-bg-secondary rounded-lg border-l-4 border-chat-accent">
+        <div className="max-w-4xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-input rounded-lg border-l-4 border-chat-accent">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="flex flex-col text-sm flex-1 min-w-0">
               <span className="font-semibold text-chat-accent">
@@ -90,7 +90,7 @@ const MessageInput = ({
             {replyingTo?.mediaUrl && (
               <div className="flex-shrink-0 w-10 h-10 rounded overflow-hidden border border-chat-border">
                 {replyingTo.mediaType === "video" ? (
-                  <div className="w-full h-full bg-chat-bg-secondary flex items-center justify-center">
+                  <div className="w-full h-full bg-chat-input flex items-center justify-center">
                     <svg
                       className="w-5 h-5 text-chat-text-tertiary"
                       fill="currentColor"
@@ -105,7 +105,7 @@ const MessageInput = ({
                     </svg>
                   </div>
                 ) : replyingTo.mediaType === "audio" ? (
-                  <div className="w-full h-full bg-chat-bg-secondary flex items-center justify-center">
+                  <div className="w-full h-full bg-chat-input flex items-center justify-center">
                     <Mic className="w-5 h-5 text-chat-text-tertiary" />
                   </div>
                 ) : (
@@ -140,7 +140,7 @@ const MessageInput = ({
       )}
 
       <form
-        className={`max-w-4xl mx-auto flex items-center gap-3 px-4 py-2 bg-chat-bg-secondary rounded-[28px] focus-within:ring-2 focus-within:ring-chat-accent/20 transition-all border border-transparent focus-within:border-chat-accent/30 ${
+        className={`max-w-4xl mx-auto flex items-center gap-3 px-4 py-2 bg-chat-input rounded-[28px] focus-within:ring-2 focus-within:ring-chat-accent/20 transition-all border border-transparent focus-within:border-chat-accent/30 ${
           isRecording ? "ring-2 ring-red-500/20 border-red-500/30" : ""
         }`}
         onSubmit={handleSend}
@@ -257,9 +257,9 @@ const MessageInput = ({
             />
             {newMessage.length > MAX_CHARS * 0.8 && (
                <div className={`absolute -top-6 right-8 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border ${
-                 newMessage.length >= MAX_CHARS 
-                   ? "text-red-500 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/30" 
-                   : "text-slate-500 bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800"
+                 newMessage.length >= MAX_CHARS
+                   ? "text-red-500 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/30"
+                   : "text-chat-text-tertiary bg-chat-input border-chat-border"
                }`}>
                  {newMessage.length}/{MAX_CHARS}
                </div>
@@ -285,7 +285,7 @@ const MessageInput = ({
             className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 ${
               newMessage.trim() || sending
                 ? "bg-chat-accent text-white shadow-md shadow-chat-accent/20"
-                : "bg-chat-bg-secondary text-chat-text-tertiary hover:bg-chat-hover"
+                : "bg-chat-input text-chat-text-tertiary hover:bg-chat-hover"
             }`}
           >
             {sending ? (

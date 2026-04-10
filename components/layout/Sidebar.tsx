@@ -53,15 +53,15 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
   return (
     <>
       {/* Mobile Overlay */}
-      <div 
+      <div
         className={`md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMobileDrawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onCloseMobileDrawer}
       />
 
       {/* Sidebar (Desktop & Mobile Drawer) */}
-      <aside 
+      <aside
         className={`
-          fixed md:sticky top-0 left-0 h-screen z-[101] bg-chat-sidebar border-r border-chat-border flex-col transition-all duration-300
+          fixed md:sticky top-0 left-0 h-screen z-[101] bg-chat-glass backdrop-blur-xl border-r border-chat-border flex flex-col transition-all duration-300
           w-[280px] md:w-[72px] lg:md:w-[280px]
           ${isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
@@ -78,7 +78,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
               ChatApp
             </span>
           </div>
-          <button 
+          <button
             className="md:hidden p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
             onClick={onCloseMobileDrawer}
           >
@@ -134,7 +134,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
 
             {/* Profile Popover Menu */}
             {showProfileMenu && (
-              <div className="absolute bottom-full left-0 w-full mb-2 bg-chat-bg-primary border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[110]">
+              <div className="absolute bottom-full left-0 w-full mb-2 bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[110]">
                 <button
                   onClick={() => { router.push('/settings'); setShowProfileMenu(false); onCloseMobileDrawer?.(); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-chat-text-secondary hover:bg-chat-hover transition-colors"
@@ -147,7 +147,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
                 <div className="h-px bg-chat-border mx-2" />
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors font-bold"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors font-bold"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

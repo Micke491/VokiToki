@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 import ConfirmModal from '../ui/ConfirmModal';
+import { Plus, Menu, Search, X, MoreVertical, LogOut } from 'lucide-react';
 
 interface Chat {
   _id: string;
@@ -68,7 +69,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
     });
     pusherClientRef.current = pusher;
     const channel = pusher.subscribe(`user-${currentUserId}`);
-    
+
     const onChatUpdate = (data: { chatId: string, lastMessage?: any, unreadCount?: number, name?: string, avatar?: string, participants?: Chat['participants'] }) => {
       setChats(prevChats => {
         const existingChatIndex = prevChats.findIndex(c => c._id === data.chatId);
@@ -79,7 +80,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
 
         const existingChat = prevChats[existingChatIndex];
         const isCurrentChat = data.chatId === selectedChatIdRef.current;
-        
+
         let newUnreadCount = 0;
         if (isCurrentChat) {
           newUnreadCount = 0;
@@ -107,7 +108,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
 
         const otherChats = prevChats.filter((_, index) => index !== existingChatIndex);
 
-        const shouldMoveToTop = !existingChat.lastMessage || 
+        const shouldMoveToTop = !existingChat.lastMessage ||
           (data.lastMessage && new Date(data.lastMessage.createdAt) > new Date(existingChat.lastMessage.createdAt));
 
         if (shouldMoveToTop) {
@@ -143,8 +144,8 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
       pusher.disconnect();
       pusherClientRef.current = null;
     };
-  }, [currentUserId]); 
-  
+  }, [currentUserId]);
+
   const fetchChats = async () => {
     try {
       setLoading(true);
@@ -248,7 +249,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
 
 
   const handleChatClick = (chatId: string) => {
-    setChats(prev => prev.map(c => 
+    setChats(prev => prev.map(c =>
       c._id === chatId ? { ...c, unreadCount: 0 } : c
     ));
 
@@ -291,9 +292,9 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
     return (
       <div className="flex flex-col items-center justify-center h-full text-chat-text-secondary">
         <p className="mb-3 text-red-500">{error}</p>
-        <button 
+        <button
           onClick={fetchChats}
-          className="px-5 py-2 text-white bg-chat-accent rounded-md hover:opacity-90 transition-colors"
+          className="px-5 py-2 text-white bg-chat-accent rounded-md hover:bg-chat-accent-hover transition-colors"
         >
           Retry
         </button>
@@ -309,58 +310,50 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
   });
 
   return (
-    <div className="flex flex-col h-full bg-chat-sidebar border-r border-chat-border transition-colors duration-300">
+    <div className="flex flex-col h-full bg-transparent transition-colors duration-300">
       {/* Header */}
       <div className="flex flex-col gap-3 p-5 border-b border-chat-border">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-chat-text-primary tracking-tight">Messages</h2>
           <div className="flex items-center gap-1">
-            <button 
+            <button
               onClick={onNewChat}
               className="p-2 text-chat-accent hover:bg-chat-accent/10 rounded-full transition-all"
               title="New Chat"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
+              <Plus className="w-6 h-6" />
             </button>
             <div className="md:hidden">
-              <button 
+              <button
                 onClick={onMenuClick}
                 className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
                 title="Menu"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <Menu className="w-6 h-6" />
               </button>
             </div>
           </div>
         </div>
         <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-chat-text-tertiary" />
           <input
             type="text"
             placeholder="Search chats..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-chat-bg-primary border border-chat-border rounded-lg focus:ring-2 focus:ring-chat-accent outline-none text-sm transition-all text-chat-text-primary"
+            className="w-full pl-10 pr-4 py-2 bg-chat-input border border-chat-border rounded-lg focus:ring-2 focus:ring-chat-accent/50 outline-none text-sm transition-all text-chat-text-primary placeholder-chat-text-tertiary"
           />
-          <svg className="absolute left-3 top-2.5 w-4 h-4 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-2.5 text-chat-text-tertiary hover:text-chat-text-secondary"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-chat-text-tertiary hover:text-chat-text-secondary"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
-      
+
       {/* List Items */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-safe">
         {chats.length === 0 ? (
@@ -369,15 +362,15 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
               <path d="M32 8C18.745 8 8 17.969 8 30c0 4.5 1.5 8.7 4 12.2V56l12.8-6.4c2.4.6 4.8 1 7.2 1 13.255 0 24-9.969 24-22S45.255 8 32 8z" stroke="currentColor" strokeWidth="2"/>
             </svg>
             <p className="mb-5 text-base">No conversations yet</p>
-            <button 
-              className="px-6 py-2.5 font-medium text-white bg-chat-accent rounded-lg hover:opacity-90 transition-colors"
+            <button
+              className="px-6 py-2.5 font-medium text-white bg-chat-accent rounded-lg hover:bg-chat-accent-hover transition-colors"
               onClick={onNewChat}
             >
               Start a chat
             </button>
           </div>
         ) : filteredChats.length === 0 ? (
-          <div className="p-5 text-center text-gray-500">No chats found</div>
+          <div className="p-5 text-center text-chat-text-tertiary">No chats found</div>
         ) : (
           filteredChats.map(chat => {
             const otherUser = getOtherParticipant(chat);
@@ -386,9 +379,9 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
             const isGroup = chat.isGroupChat;
             const chatName = isGroup ? chat.name : (otherUser.username || 'Unknown User');
             const chatAvatar = isGroup ? chat.avatar : otherUser.avatar;
-            
+
             return (
-              <div 
+              <div
                 key={chat._id}
                 onClick={() => handleChatClick(chat._id)}
                 className={`
@@ -414,10 +407,10 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                      )
                   )}
                   {isUnread && (
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-chat-bg-primary rounded-full"></span>
+                    <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full"></span>
                   )}
                 </div>
-                
+
                 {/* Chat Info */}
                 <div className="flex flex-col flex-1 min-w-0 gap-1">
                   <div className="flex items-center justify-between">
@@ -437,22 +430,17 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                         className="p-1 rounded-full text-chat-text-tertiary hover:text-chat-text-primary hover:bg-chat-bg-secondary opacity-0 group-hover/chat:opacity-100 transition-all"
                         title="Options"
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <circle cx="12" cy="5" r="2" />
-                          <circle cx="12" cy="12" r="2" />
-                          <circle cx="12" cy="19" r="2" />
-                        </svg>
+                        <MoreVertical className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                   <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
                     {chat.lastMessage && (
                       <span className="shrink-0">
-                        {chat.lastMessage.sender?._id === currentUserId ? 'You: ' : 
+                        {chat.lastMessage.sender?._id === currentUserId ? 'You: ' :
                          isGroup ? `${chat.lastMessage.sender?.username || 'Unknown User'}: ` : ''}
                       </span>
                     )}
-                    {/* ... Media types code stays same ... */}
                     {chat.lastMessage?.text || (!chat.lastMessage && 'No messages yet')}
                   </div>
                 </div>
@@ -469,9 +457,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                         onClick={() => handleLeaveGroup(chat._id)}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
+                        <LogOut className="w-4 h-4" />
                         Leave Group
                       </button>
                     ) : (
@@ -479,9 +465,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                         onClick={() => handleRemoveChat(chat._id)}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
                       >
-                        <svg className="w-4 h-4 text-chat-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <X className="w-4 h-4 text-chat-text-tertiary" />
                         Remove Chat
                       </button>
                     )}
@@ -497,9 +481,7 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                         }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors border-t border-chat-border"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                        </svg>
+                        <LogOut className="w-4 h-4" />
                         Block User
                       </button>
                     )}

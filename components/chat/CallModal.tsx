@@ -63,7 +63,7 @@ export default function CallModal({ onLeave, chatId, callType, username }: CallM
       exit={{ opacity: 0, scale: 0.95 }}
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
     >
-      <div className="relative w-full max-w-5xl h-[80vh] bg-gray-900 rounded-xl overflow-hidden shadow-2xl flex flex-col">
+      <div className="relative w-full max-w-5xl h-[80vh] bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-xl overflow-hidden shadow-2xl flex flex-col">
         <LiveKitRoom
           video={callType === "video"}
           audio={true}

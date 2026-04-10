@@ -18,7 +18,7 @@ const HighlightText = ({ text, highlight }: HighlightTextProps) => {
         part.toLowerCase() === highlight.toLowerCase() ? (
           <mark
             key={i}
-            className="bg-yellow-300 dark:bg-yellow-600/50 text-slate-900 dark:text-white rounded-sm px-0.5"
+            className="bg-yellow-300 dark:bg-yellow-600/50 text-chat-text-primary rounded-sm px-0.5"
           >
             {part}
           </mark>

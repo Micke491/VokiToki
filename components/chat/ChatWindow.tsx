@@ -1123,8 +1123,8 @@ export default function ChatWindow({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-500">
-        <div className="w-10 h-10 mb-4 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center h-full text-chat-text-secondary">
+        <div className="w-10 h-10 mb-4 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin" />
         <p className="text-sm font-medium">Loading messages...</p>
       </div>
     );
@@ -1137,7 +1137,7 @@ export default function ChatWindow({
 
   const isRecipientDeleted = !isGroup && (recipientUsername === "Unknown User" || !recipientUsername);
   return (
-    <div className="flex-1 flex flex-col h-full bg-chat-bg-primary overflow-hidden relative transition-colors duration-300">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative transition-colors duration-300">
       {forwardingMessage && (
         <ForwardMessageModal
           currentUserId={currentUserId}

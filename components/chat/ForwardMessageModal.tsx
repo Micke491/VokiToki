@@ -71,7 +71,7 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="w-full max-w-sm bg-chat-bg-primary rounded-2xl shadow-2xl border border-chat-border flex flex-col max-h-[80vh] overflow-hidden">
+      <div className="w-full max-w-sm bg-chat-glass backdrop-blur-2xl rounded-2xl shadow-2xl border border-chat-border flex flex-col max-h-[80vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-chat-border">
           <h2 className="text-lg font-bold text-chat-text-primary">Forward Message</h2>

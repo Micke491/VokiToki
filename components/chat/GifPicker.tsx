@@ -53,7 +53,7 @@ const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
-      className="absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-[400px] h-[450px] bg-chat-bg-primary border border-chat-border rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[100]"
+      className="absolute bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-[400px] h-[450px] bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[100]"
     >
       <div className="p-4 border-b border-chat-border flex items-center gap-3 bg-chat-bg-secondary/50 backdrop-blur-md">
         <div className="relative flex-1">

@@ -54,7 +54,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     const handleStartCall = async (e: Event) => {
       const { chatId, type } = (e as CustomEvent).detail;
       if (!currentUser) return;
-      
+
       try {
         await fetch("/api/calls/notify", {
           method: "POST",
@@ -184,7 +184,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   const getChatMetadata = () => {
     if (!selectedChat || !currentUser) return { name: '', avatar: undefined, isGroup: false };
-    
+
     if (selectedChat.isGroupChat) {
       return {
         name: selectedChat.name || 'Group Chat',
@@ -205,9 +205,13 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen-safe bg-white dark:bg-slate-950 gap-4">
-        <div className="w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
-        <p className="text-slate-500 font-medium animate-pulse">
+      <div className="flex flex-col items-center justify-center h-screen-safe bg-background text-chat-text-secondary gap-4 relative overflow-hidden">
+        {/* Ambient Glow */}
+        <div className="ambient-glow">
+          <div className="ambient-glow-inner" />
+        </div>
+        <div className="w-12 h-12 border-4 border-chat-border border-t-chat-accent rounded-full animate-spin relative z-10" />
+        <p className="text-chat-text-secondary font-medium animate-pulse relative z-10">
           Loading your messages...
         </p>
       </div>
@@ -215,9 +219,14 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   }
 
   return (
-    <div className="flex h-screen-safe bg-gradient-to-br from-indigo-700 via-purple-700 to-blue-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 overflow-hidden transition-colors duration-700">
+    <div className="flex h-screen-safe bg-background text-chat-text-primary overflow-hidden relative">
+      {/* Signature Ambient Gradient */}
+      <div className="ambient-glow">
+        <div className="ambient-glow-inner" />
+      </div>
+
       {/* 1. Global Navigation Sidebar */}
-      <div className={`${chatId ? "hidden md:block" : "block"}`}>
+      <div className={`${chatId ? "hidden md:block" : "block"} relative z-10`}>
         <SideBar
           currentUser={currentUser || undefined}
           isMobileDrawerOpen={showSidebarDrawer}
@@ -226,11 +235,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         />
       </div>
 
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex flex-1 overflow-hidden relative z-10">
         {/* 2. Conversations List Panel */}
         <div
           className={`
-          relative flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 backdrop-blur-md
+          relative flex-shrink-0 border-r border-chat-border bg-chat-glass backdrop-blur-md
           transition-all duration-300 ease-in-out
           w-full md:w-[320px] lg:w-[360px]
           ${chatId ? "hidden md:block" : "block"}
@@ -248,7 +257,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         {/* 3. Chat Window Panel */}
         <div
           className={`
-          flex-1 flex flex-col min-w-0 bg-[var(--bg-primary)]
+          flex-1 flex flex-col min-w-0 bg-transparent
           ${!chatId ? "hidden md:flex" : "flex"}
         `}
         >
@@ -267,9 +276,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             /* Empty State */
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in-95 duration-500">
               <div className="relative mb-8">
-                <div className="absolute inset-0 bg-blue-500/10 blur-3xl rounded-full" />
+                <div className="absolute inset-0 bg-chat-accent/10 blur-3xl rounded-full" />
                 <svg
-                  className="relative w-32 h-32 text-slate-200 dark:text-slate-800"
+                  className="relative w-32 h-32 text-chat-border"
                   viewBox="0 0 120 120"
                   fill="none"
                 >
@@ -298,17 +307,17 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
                 </svg>
               </div>
 
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+              <h2 className="text-2xl font-bold text-chat-text-primary mb-2">
                 Select a conversation
               </h2>
-              <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8">
+              <p className="text-chat-text-secondary max-w-sm mb-8">
                 Choose an existing chat from the list or start a fresh
                 conversation with someone new.
               </p>
 
               <button
                 onClick={() => setShowNewChatModal(true)}
-                className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-semibold hover:bg-slate-800 dark:hover:bg-slate-100 transition-all active:scale-95 shadow-xl shadow-slate-200 dark:shadow-none"
+                className="px-6 py-3 bg-chat-accent text-white rounded-xl font-semibold hover:bg-chat-accent-hover transition-all active:scale-95 shadow-lg shadow-chat-accent/20"
               >
                 Start New Chat
               </button>
@@ -324,7 +333,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       />
 
       {incomingCall && (
-        <IncomingCallModal 
+        <IncomingCallModal
           callData={incomingCall}
           onAccept={() => {
             setActiveCall({ chatId: incomingCall.chatId, type: incomingCall.callType });
@@ -335,7 +344,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       )}
 
       {activeCall && currentUser && (
-        <CallModal 
+        <CallModal
           chatId={activeCall.chatId}
           callType={activeCall.type}
           username={currentUser.username}

@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SideBar from '@/components/layout/Sidebar';
 import BlockedUsersModal from '@/components/ui/BlockedUsersModal';
-import { 
-  ArrowLeft, Camera, Trash2, Moon, Sun, AlertTriangle, Loader2, 
-  User as UserIcon, Image as ImageIcon, CheckCircle, Shield, 
+import {
+  ArrowLeft, Camera, Trash2, Moon, Sun, AlertTriangle, Loader2,
+  User as UserIcon, Image as ImageIcon, CheckCircle, Shield,
   Lock, Palette, EyeOff, UserX, Smartphone, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,15 +61,15 @@ export default function SettingsPage() {
       });
       if (!response.ok) throw new Error('Not authenticated');
       const data = await response.json();
-      
+
       setCurrentUser(data.user);
       setEditUsername(data.user.username || '');
       setBio(data.user.bio || '');
       setAvatarUrl(data.user.avatar || '');
-      
+
       setReadReceipts(data.user.readReceipts ?? true);
       setTwoFactor(data.user.twoFactorEnabled ?? false);
-      
+
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'dark';
       const userTheme = data.user.theme === 'system' ? savedTheme : (data.user.theme || savedTheme);
       setTheme(userTheme);
@@ -85,7 +85,7 @@ export default function SettingsPage() {
 
   const handleUpdatePreferences = async (updates: Partial<User>) => {
     try {
-      const response = await fetch('/api/users/preferences', { 
+      const response = await fetch('/api/users/preferences', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ export default function SettingsPage() {
       });
 
       if (!response.ok) throw new Error('Failed to update preferences');
-      
+
     } catch (error: any) {
       console.error('Update pref error:', error);
       setFeedback({ type: 'error', message: 'Failed to save preference.' });
@@ -106,7 +106,7 @@ export default function SettingsPage() {
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
-    handleUpdatePreferences({ theme: newTheme }); 
+    handleUpdatePreferences({ theme: newTheme });
   };
 
   const toggleReadReceipts = () => {
@@ -173,7 +173,7 @@ export default function SettingsPage() {
   const handlePasswordResetRequest = async () => {
     if (!currentUser?.email) return;
     setRequestingPassword(true);
-    
+
     try {
       const response = await fetch('/api/auth/password-reset-request', {
         method: 'POST',
@@ -211,6 +211,10 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+        {/* Ambient Glow */}
+        <div className="ambient-glow">
+          <div className="ambient-glow-inner" />
+        </div>
         <Loader2 className="w-10 h-10 text-chat-accent animate-spin relative z-10" />
       </div>
     );
@@ -225,6 +229,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden relative selection:bg-chat-accent/30">
+      {/* Signature Ambient Gradient */}
+      <div className="ambient-glow">
+        <div className="ambient-glow-inner" />
+      </div>
+
       <SideBar currentUser={currentUser || undefined} />
 
       {/* Toast Notification */}
@@ -246,7 +255,7 @@ export default function SettingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       <div className="flex-1 overflow-y-auto pb-20 md:pb-0 relative z-10 w-full">
         {/* Header */}
         <header className="px-6 py-8 md:px-10 max-w-6xl mx-auto border-b border-chat-border/50 mb-8">
@@ -265,7 +274,7 @@ export default function SettingsPage() {
         </header>
 
         <div className="max-w-6xl px-6 md:px-10 mx-auto flex flex-col md:flex-row gap-8 pb-12">
-          
+
           {/* Settings Sub-Sidebar Menu */}
           <aside className="w-full md:w-64 shrink-0 space-y-2">
             {TABS.map((tab) => {
@@ -276,9 +285,9 @@ export default function SettingsPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
                   className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${
-                    isActive 
-                      ? tab.danger 
-                        ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
+                    isActive
+                      ? tab.danger
+                        ? 'bg-red-500/10 text-red-500 border border-red-500/20'
                         : 'bg-chat-accent text-white shadow-lg shadow-chat-accent/20'
                       : 'text-chat-text-secondary hover:bg-chat-bg-secondary hover:text-chat-text-primary border border-transparent'
                   }`}
@@ -293,19 +302,19 @@ export default function SettingsPage() {
           {/* Main Settings Content Area */}
           <main className="flex-1 max-w-3xl">
             <AnimatePresence mode="wait">
-              
+
               {/* === PERSONAL TAB === */}
               {activeTab === 'personal' && (
-                <motion.section 
+                <motion.section
                   key="personal"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-bg-primary/50 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
                 >
                   <h2 className="text-xl font-bold text-chat-text-primary mb-8 flex items-center gap-3">
                     <UserIcon className="w-6 h-6 text-chat-accent" />
                     Personal Information
                   </h2>
-                  
+
                   {/* Avatar Section */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 pb-8 border-b border-chat-border mb-8">
                     <div className="relative w-28 h-28 rounded-3xl bg-gradient-to-tr from-chat-accent to-chat-accent-secondary flex items-center justify-center text-4xl font-black text-white shadow-xl overflow-hidden ring-4 ring-chat-bg-secondary shrink-0">
@@ -322,10 +331,10 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex flex-col gap-3 text-center sm:text-left">
                       <input type="file" id="avatar-upload" className="hidden" accept="image/*" onChange={handleAvatarChange} />
-                      <button 
+                      <button
                         onClick={() => document.getElementById('avatar-upload')?.click()}
                         disabled={uploading}
-                        className="px-6 py-3 bg-chat-bg-secondary border border-chat-border hover:bg-chat-hover rounded-xl text-sm font-bold text-chat-text-primary transition-all flex items-center justify-center gap-2"
+                        className="px-6 py-3 bg-chat-input border border-chat-border hover:bg-chat-hover rounded-xl text-sm font-bold text-chat-text-primary transition-all flex items-center justify-center gap-2"
                       >
                         <Camera className="w-4 h-4" />
                         {uploading ? 'Uploading...' : 'Change Avatar'}
@@ -339,11 +348,11 @@ export default function SettingsPage() {
                       <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1">Username</label>
                       <div className="relative group">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-chat-text-tertiary group-focus-within:text-chat-accent transition-colors" />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={editUsername}
                           onChange={(e) => setEditUsername(e.target.value)}
-                          className="w-full pl-12 pr-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
+                          className="w-full pl-12 pr-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
                         />
                       </div>
                     </div>
@@ -351,20 +360,20 @@ export default function SettingsPage() {
                     {/* Bio field */}
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1">Bio</label>
-                      <textarea 
-                        placeholder="Tell us a bit about yourself..." 
+                      <textarea
+                        placeholder="Tell us a bit about yourself..."
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
                         rows={3}
-                        className="w-full p-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-primary placeholder-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all font-medium resize-none"
+                        className="w-full p-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary placeholder-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all font-medium resize-none"
                       />
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={handleSaveProfile}
                     disabled={saving}
-                    className="mt-8 w-full sm:w-auto px-8 py-4 bg-chat-accent text-white font-black rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-xl"
+                    className="mt-8 w-full sm:w-auto px-8 py-4 bg-chat-accent text-white font-black rounded-2xl hover:bg-chat-accent-hover transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-chat-accent/20"
                   >
                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
                     {saving ? 'Saving...' : 'Save Changes'}
@@ -374,10 +383,10 @@ export default function SettingsPage() {
 
               {/* === PRIVACY & SECURITY TAB === */}
               {activeTab === 'privacy' && (
-                <motion.section 
+                <motion.section
                   key="privacy"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-bg-primary/50 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10 space-y-10"
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10 space-y-10"
                 >
                   {/* Privacy Section */}
                   <div>
@@ -385,20 +394,20 @@ export default function SettingsPage() {
                       <Shield className="w-6 h-6 text-chat-accent" />
                       Privacy Settings
                     </h2>
-                    
+
                     <div className="space-y-4">
                       {/* Read Receipts Toggle */}
-                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
+                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
-                            {readReceipts ? <Eye className="w-4 h-4 text-chat-accent"/> : <EyeOff className="w-4 h-4 text-chat-text-tertiary"/>} 
+                            {readReceipts ? <Eye className="w-4 h-4 text-chat-accent"/> : <EyeOff className="w-4 h-4 text-chat-text-tertiary"/>}
                             Read Receipts
                           </h3>
                           <p className="text-sm text-chat-text-secondary mt-1 max-w-sm">
                             If turned off, you won't send read receipts. You also won't be able to see read receipts from other people.
                           </p>
                         </div>
-                        <button 
+                        <button
                           onClick={toggleReadReceipts}
                           className={`w-14 h-8 rounded-full transition-colors relative shrink-0 ${readReceipts ? 'bg-chat-accent' : 'bg-chat-border'}`}
                         >
@@ -407,7 +416,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Blocked Users */}
-                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
+                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
                             <UserX className="w-4 h-4 text-chat-accent"/> Blocked Users
@@ -416,7 +425,7 @@ export default function SettingsPage() {
                             Manage contacts you have blocked from messaging you.
                           </p>
                         </div>
-                        <button 
+                        <button
                           onClick={() => setShowBlockedUsersModal(true)}
                           className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all text-sm whitespace-nowrap"
                         >
@@ -432,15 +441,15 @@ export default function SettingsPage() {
                       <Lock className="w-6 h-6 text-chat-accent" />
                       Security
                     </h2>
-                    
+
                     <div className="space-y-4">
                       {/* Password Reset */}
-                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base">Account Password</h3>
                           <p className="text-sm text-chat-text-secondary mt-1">Request a password change via your registered email address.</p>
                         </div>
-                        <button 
+                        <button
                           onClick={handlePasswordResetRequest}
                           disabled={requestingPassword}
                           className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap w-full sm:w-auto"
@@ -451,22 +460,22 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Two-Factor Authentication (2FA) */}
-                      <div className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
-                            <Smartphone className="w-4 h-4 text-chat-accent"/> 
+                            <Smartphone className="w-4 h-4 text-chat-accent"/>
                             Two-Step Verification (2FA)
                           </h3>
                           <p className="text-sm text-chat-text-secondary mt-1">
                             Add an extra layer of security requiring an Authenticator app code to log in.
                           </p>
                         </div>
-                        <button 
+                        <button
                           onClick={() => {/* Implement 2FA setup route */}}
                           className={`px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-full sm:w-auto ${
-                            twoFactor 
-                              ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
-                              : 'bg-chat-accent text-white hover:opacity-90 shadow-lg'
+                            twoFactor
+                              ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                              : 'bg-chat-accent text-white hover:bg-chat-accent-hover shadow-lg shadow-chat-accent/20'
                           }`}
                         >
                           {twoFactor ? 'Configured' : 'Setup 2FA'}
@@ -479,27 +488,27 @@ export default function SettingsPage() {
 
               {/* === APPEARANCE TAB === */}
               {activeTab === 'appearance' && (
-                <motion.section 
+                <motion.section
                   key="appearance"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-bg-primary/50 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
                 >
                   <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
                     <Palette className="w-6 h-6 text-chat-accent" />
                     Appearance Preference
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button 
+                    <button
                       onClick={() => handleThemeChange('light')}
-                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'light' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-bg-secondary hover:bg-chat-hover'}`}
+                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'light' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-input hover:bg-chat-hover'}`}
                     >
                       <Sun className={`w-8 h-8 ${theme === 'light' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`} />
                       <span className={`text-sm font-bold uppercase tracking-widest ${theme === 'light' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`}>Light Mode</span>
                     </button>
 
-                    <button 
+                    <button
                       onClick={() => handleThemeChange('dark')}
-                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'dark' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-bg-secondary hover:bg-chat-hover'}`}
+                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'dark' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-input hover:bg-chat-hover'}`}
                     >
                       <Moon className={`w-8 h-8 ${theme === 'dark' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`} />
                       <span className={`text-sm font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-chat-accent' : 'text-chat-text-tertiary'}`}>Dark Mode</span>
@@ -510,7 +519,7 @@ export default function SettingsPage() {
 
               {/* === DANGER ZONE TAB === */}
               {activeTab === 'danger' && (
-                <motion.section 
+                <motion.section
                   key="danger"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
                   className="bg-red-500/5 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-red-500/20 p-8 md:p-10"
@@ -524,7 +533,7 @@ export default function SettingsPage() {
                       <p className="font-bold text-red-600 text-lg">Delete Account</p>
                       <p className="text-sm text-red-600/80 font-medium mt-1">Permanently remove all your data, messages, and chats</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setShowDeleteConfirm(true)}
                       className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 shrink-0"
                     >
@@ -543,13 +552,13 @@ export default function SettingsPage() {
       <AnimatePresence>
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => !deleting && setShowDeleteConfirm(false)}
             />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 space-y-6"
             >
               <div className="flex items-center gap-5">
@@ -561,7 +570,7 @@ export default function SettingsPage() {
                   <p className="text-sm font-bold text-red-500 mt-1 uppercase tracking-widest">This cannot be undone</p>
                 </div>
               </div>
-              
+
               <p className="text-chat-text-secondary font-medium leading-relaxed">
                 You are about to permanently delete your account. All of your data, messages, and personalized settings will be completely removed.
               </p>

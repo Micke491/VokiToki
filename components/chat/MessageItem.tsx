@@ -287,7 +287,7 @@ const MessageItem = ({
                     {message.replyTo.mediaUrl && (
                       <div className="flex-shrink-0 w-12 h-12 rounded overflow-hidden border border-white/20 ml-2">
                         {message.replyTo.mediaType === "video" ? (
-                          <div className="w-full h-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                          <div className="w-full h-full bg-chat-border bg-chat-bg-secondary flex items-center justify-center">
                             <svg
                               className="w-6 h-6 text-chat-text-tertiary"
                               fill="currentColor"
@@ -302,7 +302,7 @@ const MessageItem = ({
                             </svg>
                           </div>
                         ) : message.replyTo.mediaType === "audio" ? (
-                          <div className="w-full h-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                          <div className="w-full h-full bg-chat-border bg-chat-bg-secondary flex items-center justify-center">
                             <Mic className="w-6 h-6 text-chat-text-tertiary" />
                           </div>
                         ) : (

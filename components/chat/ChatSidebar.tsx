@@ -305,7 +305,7 @@ const ChatSidebar = ({
           animate={{ width: 320, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.3, type: "spring", bounce: 0, stiffness: 300, damping: 30 }}
-          className="border-l border-chat-border bg-chat-bg-primary flex flex-col h-full overflow-hidden z-20 flex-shrink-0"
+          className="border-l border-chat-border bg-chat-glass backdrop-blur-md flex flex-col h-full overflow-hidden z-20 flex-shrink-0"
         >
           <div className="w-80 flex flex-col h-full min-w-[320px]">
             {/* Header */}
@@ -474,7 +474,7 @@ const ChatSidebar = ({
 
         {/* Shared Media Section */}
         <div className="p-4">
-          <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-2">
             <ImageIcon className="w-3.5 h-3.5" />
             Shared Media & Links
           </h4>
@@ -517,7 +517,7 @@ const ChatSidebar = ({
                     onClick={() => window.open(media.mediaUrl, "_blank")}
                   >
                     {media.mediaType === "video" ? (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-950">
+                      <div className="w-full h-full flex items-center justify-center bg-chat-bg-secondary">
                         <Video className="w-5 h-5 text-white/30" />
                       </div>
                     ) : (
