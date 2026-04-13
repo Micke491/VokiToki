@@ -22,12 +22,12 @@ interface User {
   theme: 'light' | 'dark' | 'system';
 }
 
-type TabType = 'personal' | 'privacy' | 'appearance' | 'danger';
+type TabType = 'privacy' | 'appearance' | 'danger';
 
 export default function SettingsPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('personal');
+  const [activeTab, setActiveTab] = useState<TabType>('privacy');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -222,7 +222,6 @@ export default function SettingsPage() {
   }
 
   const TABS = [
-    { id: 'personal', label: 'Personal Info', icon: UserIcon, danger: false },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
@@ -314,85 +313,26 @@ export default function SettingsPage() {
 
           {/* Main Settings Content Area */}
           <main className="flex-1 max-w-3xl">
+            {/* Profile Settings Banner */}
+            <div className="mb-6 p-5 bg-chat-glass backdrop-blur-xl rounded-2xl border border-chat-accent/20 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-chat-accent/20 flex items-center justify-center">
+                  <UserIcon className="w-5 h-5 text-chat-accent" />
+                </div>
+                <div>
+                  <p className="font-bold text-chat-text-primary">Looking for profile settings?</p>
+                  <p className="text-sm text-chat-text-tertiary">Manage your profile, avatar, and stories in the dedicated Profile page</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/profile')}
+                className="px-5 py-2.5 bg-chat-accent text-white rounded-xl font-bold text-sm hover:bg-chat-accent-hover transition-all whitespace-nowrap"
+              >
+                Go to Profile
+              </button>
+            </div>
+
             <AnimatePresence mode="wait">
-
-              {/* === PERSONAL TAB === */}
-              {activeTab === 'personal' && (
-                <motion.section
-                  key="personal"
-                  initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
-                >
-                  <h2 className="text-xl font-bold text-chat-text-primary mb-8 flex items-center gap-3">
-                    <UserIcon className="w-6 h-6 text-chat-accent" />
-                    Personal Information
-                  </h2>
-
-                  {/* Avatar Section */}
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 pb-8 border-b border-chat-border mb-8">
-                    <div className="relative w-28 h-28 rounded-3xl bg-gradient-to-tr from-chat-accent to-chat-accent-secondary flex items-center justify-center text-4xl font-black text-white shadow-xl overflow-hidden ring-4 ring-chat-bg-secondary shrink-0">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        currentUser?.username?.charAt(0).toUpperCase() || 'U'
-                      )}
-                      {uploading && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                          <Loader2 className="w-8 h-8 text-white animate-spin" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-3 text-center sm:text-left">
-                      <input type="file" id="avatar-upload" className="hidden" accept="image/*" onChange={handleAvatarChange} />
-                      <button
-                        onClick={() => document.getElementById('avatar-upload')?.click()}
-                        disabled={uploading}
-                        className="px-6 py-3 bg-chat-input border border-chat-border hover:bg-chat-hover rounded-xl text-sm font-bold text-chat-text-primary transition-all flex items-center justify-center gap-2"
-                      >
-                        <Camera className="w-4 h-4" />
-                        {uploading ? 'Uploading...' : 'Change Avatar'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6">
-                    {/* Editable Username */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1">Username</label>
-                      <div className="relative group">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-chat-text-tertiary group-focus-within:text-chat-accent transition-colors" />
-                        <input
-                          type="text"
-                          value={editUsername}
-                          onChange={(e) => setEditUsername(e.target.value)}
-                          className="w-full pl-12 pr-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Bio field */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1">Bio</label>
-                      <textarea
-                        placeholder="Tell us a bit about yourself..."
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        rows={3}
-                        className="w-full p-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary placeholder-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all font-medium resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                    className="mt-8 w-full sm:w-auto px-8 py-4 bg-chat-accent text-white font-black rounded-2xl hover:bg-chat-accent-hover transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-chat-accent/20"
-                  >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </motion.section>
-              )}
 
               {/* === PRIVACY & SECURITY TAB === */}
               {activeTab === 'privacy' && (

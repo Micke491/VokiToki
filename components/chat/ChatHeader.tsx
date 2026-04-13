@@ -1,10 +1,11 @@
-import React from "react";
-import { Search, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Search, X, MoreVertical, User as UserIcon } from "lucide-react";
 import CallButton from "./CallButton";
 
 interface ChatHeaderProps {
   recipientUsername?: string;
   recipientAvatar?: string;
+  recipientId?: string;
   onClose?: () => void;
   showSearch: boolean;
   setShowSearch: (show: boolean) => void;
@@ -18,11 +19,15 @@ interface ChatHeaderProps {
   currentUserAvatar?: string;
   onCallStart: (callType: "voice" | "video") => void;
   onMenuClick?: () => void;
+  onViewProfile?: (userId: string) => void;
+  recipientOnline?: boolean;
+  recipientLastSeen?: string;
 }
 
 const ChatHeader = ({
   recipientUsername,
   recipientAvatar,
+  recipientId,
   onClose,
   showSearch,
   setShowSearch,
@@ -36,7 +41,41 @@ const ChatHeader = ({
   currentUserAvatar,
   onCallStart,
   onMenuClick,
+  onViewProfile,
+  recipientOnline,
+  recipientLastSeen,
 }: ChatHeaderProps) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+
+  const formatLastSeen = (lastSeen?: string) => {
+    if (!lastSeen) return '';
+    const date = new Date(lastSeen);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'last seen just now';
+    if (diffMins < 60) return `last seen ${diffMins}m ago`;
+    if (diffHours < 24) return `last seen ${diffHours}h ago`;
+    if (diffDays < 7) return `last seen ${diffDays}d ago`;
+    return `last seen ${date.toLocaleDateString()}`;
+  };
+
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-transparent shrink-0 z-10">
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -82,6 +121,12 @@ const ChatHeader = ({
               <h3 className="text-base font-semibold text-chat-text-primary leading-tight truncate">
                 {recipientUsername || "Chat"}
               </h3>
+              {/* Online status for 1v1 chats */}
+              {!isGroup && (
+                <p className={`text-xs truncate mt-0.5 ${recipientOnline ? 'text-green-500 font-medium' : 'text-chat-text-tertiary'}`}>
+                  {recipientOnline ? 'Online' : formatLastSeen(recipientLastSeen)}
+                </p>
+              )}
             </div>
           </>
         ) : (
@@ -131,6 +176,34 @@ const ChatHeader = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
+
+          {/* Three-dot menu for View Profile (1v1 chats) */}
+          {!isGroup && recipientId && onViewProfile && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
+                title="More options"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              {showDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    onClick={() => {
+                      onViewProfile(recipientId);
+                      setShowDropdown(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                  >
+                    <UserIcon className="w-4 h-4 text-chat-accent" />
+                    View Profile
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </header>

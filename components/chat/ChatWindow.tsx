@@ -24,6 +24,7 @@ import GifPicker from "./GifPicker";
 import StickerPicker from "./StickerPicker";
 import EmojiPicker from "emoji-picker-react";
 import ImagePreviewModal from "../ui/ImagePreviewModal";
+import UserProfileModal from "../ui/UserProfileModal";
 
 export default function ChatWindow({
   chatId,
@@ -80,6 +81,9 @@ export default function ChatWindow({
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isBlockedChat, setIsBlockedChat] = useState(false);
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null);
+  const [recipientOnline, setRecipientOnline] = useState(false);
+  const [recipientLastSeen, setRecipientLastSeen] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -103,6 +107,33 @@ export default function ChatWindow({
     };
     checkBlockStatus();
   }, [chatId, isGroup]);
+
+  // Fetch recipient online status for 1v1 chats
+  useEffect(() => {
+    if (isGroup || !participants) return;
+    const otherUser = participants.find(p => p._id !== currentUserId);
+    if (!otherUser) return;
+
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`/api/profile/${otherUser._id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setRecipientOnline(data.user?.isOnline || false);
+          setRecipientLastSeen(data.user?.lastSeen);
+        }
+      } catch (err) {
+        console.error('Error fetching recipient status:', err);
+      }
+    };
+
+    fetchStatus();
+    // Refresh every 30s
+    const interval = setInterval(fetchStatus, 30000);
+    return () => clearInterval(interval);
+  }, [chatId, isGroup, participants, currentUserId]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -1159,6 +1190,7 @@ export default function ChatWindow({
       <ChatHeader
         recipientUsername={recipientUsername}
         recipientAvatar={recipientAvatar}
+        recipientId={!isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined}
         isGroup={isGroup}
         onClose={() => (onClose ? onClose() : router.push("/chat"))}
         showSearch={showSearch}
@@ -1170,6 +1202,9 @@ export default function ChatWindow({
         chatId={chatId}
         currentUserId={currentUserId}
         currentUserUsername={currentUserUsername || "User"}
+        onViewProfile={(userId) => setViewingProfileUserId(userId)}
+        recipientOnline={recipientOnline}
+        recipientLastSeen={recipientLastSeen}
         onCallStart={(callType) => {
           if (isRecipientDeleted) {
             alert("You cannot call a deleted account.");
@@ -1481,9 +1516,17 @@ export default function ChatWindow({
             messages={messages}
             groupAdminId={groupAdminId}
             currentUserId={currentUserId}
+            onViewProfile={(userId) => setViewingProfileUserId(userId)}
           />
         )}
       </div>
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={!!viewingProfileUserId}
+        onClose={() => setViewingProfileUserId(null)}
+        userId={viewingProfileUserId || ''}
+      />
 
       <ConfirmModal 
         isOpen={!!messageToDelete}

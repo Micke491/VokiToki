@@ -24,6 +24,7 @@ interface ChatSidebarProps {
   messages: Message[];
   groupAdminId?: string;
   currentUserId?: string;
+  onViewProfile?: (userId: string) => void;
 }
 
 const ChatSidebar = ({
@@ -39,6 +40,7 @@ const ChatSidebar = ({
   messages,
   groupAdminId,
   currentUserId,
+  onViewProfile,
 }: ChatSidebarProps) => {
   const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -422,7 +424,15 @@ const ChatSidebar = ({
             </div>
             <div className="space-y-3">
               {participants.map((user) => (
-                <div key={user._id} className="flex items-center gap-3 group">
+                <div
+                  key={user._id}
+                  className={`flex items-center gap-3 group ${user._id !== currentUserId && onViewProfile ? 'cursor-pointer hover:bg-chat-hover rounded-xl p-2 -m-2 transition-colors' : ''}`}
+                  onClick={() => {
+                    if (user._id !== currentUserId && onViewProfile) {
+                      onViewProfile(user._id);
+                    }
+                  }}
+                >
                   <div className="relative w-9 h-9 flex-shrink-0">
                     <div className="w-full h-full rounded-full bg-chat-bg-secondary flex items-center justify-center text-sm font-bold text-chat-text-tertiary overflow-hidden">
                       {user.avatar ? (
@@ -435,6 +445,9 @@ const ChatSidebar = ({
                   <div className="flex-1 min-w-0 flex items-center justify-between">
                     <p className="text-sm font-semibold text-chat-text-secondary truncate flex items-center gap-1.5">
                       {user.username}
+                      {user._id === currentUserId && (
+                        <span className="text-xs text-chat-text-tertiary font-normal">(you)</span>
+                      )}
                       {groupAdminId === user._id && (
                         <span title="Admin">
                           <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />

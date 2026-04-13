@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
 import { useRouter } from "next/navigation";
 import ChatList from "@/components/chat/ChatList";
@@ -9,6 +9,9 @@ import NewChatModal from "@/components/chat/NewChatModal";
 import SideBar from "@/components/layout/Sidebar";
 import CallModal from "@/components/chat/CallModal";
 import IncomingCallModal from "@/components/chat/IncomingCallModal";
+import StoryBar from "@/components/chat/StoryBar";
+import StoryViewer from "@/components/chat/StoryViewer";
+import UserProfileModal from "@/components/ui/UserProfileModal";
 
 interface User {
   _id: string;
@@ -26,6 +29,16 @@ interface Chat {
   groupAdmin?: string;
 }
 
+interface Story {
+  _id: string;
+  mediaUrl: string;
+  mediaType: 'image' | 'video';
+  caption?: string;
+  createdAt: string;
+  expiresAt: string;
+  viewed: boolean;
+}
+
 interface ChatPageContentProps {
   chatId?: string;
 }
@@ -39,6 +52,61 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [loading, setLoading] = useState(true);
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
+
+  // Stories state
+  const [viewingStory, setViewingStory] = useState<{
+    isOpen: boolean;
+    userId: string;
+    username: string;
+    userAvatar?: string;
+    stories: Story[];
+    currentIndex: number;
+  } | null>(null);
+
+  // Profile modal state
+  const [viewingProfile, setViewingProfile] = useState<{ isOpen: boolean; userId: string } | null>(null);
+
+  // Story refresh key - increment to trigger StoryBar re-fetch
+  const [storyRefreshKey, setStoryRefreshKey] = useState(0);
+
+  // Heartbeat ref for cleanup
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Heartbeat - update isOnline status every 30 seconds
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const updateStatus = async (online: boolean) => {
+      try {
+        await fetch('/api/users/status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ isOnline: online }),
+        });
+      } catch (error) {
+        console.error('Status update failed:', error);
+      }
+    };
+
+    // Set online on mount
+    updateStatus(true);
+
+    // Heartbeat every 30 seconds
+    heartbeatIntervalRef.current = setInterval(() => {
+      updateStatus(true);
+    }, 30000);
+
+    // Set offline on unmount
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+      updateStatus(false);
+    };
+  }, [currentUser]);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -127,6 +195,29 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       });
     });
 
+    // Listen for new stories from contacts
+    channel.bind("story-new", () => {
+      setStoryRefreshKey(prev => prev + 1);
+    });
+
+    // Listen for profile updates from contacts
+    channel.bind("profile-updated", (data: { userId: string, username: string, avatar?: string }) => {
+      setSelectedChat(prev => {
+        if (!prev || prev.isGroupChat) return prev;
+        const isParticipant = prev.participants.some(p => p._id === data.userId);
+        if (!isParticipant) return prev;
+
+        return {
+          ...prev,
+          participants: prev.participants.map(p => 
+            p._id === data.userId 
+              ? { ...p, username: data.username, avatar: data.avatar }
+              : p
+          )
+        };
+      });
+    });
+
     return () => {
       pusher.unsubscribe(`user-${currentUser._id}`);
       pusher.disconnect();
@@ -201,6 +292,33 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     };
   };
 
+  // Story handlers
+  const handleStoryClick = (userId: string, stories: Story[], username: string, avatar?: string) => {
+    const unviewedIndex = stories.findIndex((s) => !s.viewed);
+    setViewingStory({
+      isOpen: true,
+      userId,
+      username,
+      userAvatar: avatar,
+      stories,
+      currentIndex: unviewedIndex >= 0 ? unviewedIndex : 0,
+    });
+  };
+
+  const handleMyStoryClick = () => {
+    // Just refresh - user is adding a story
+  };
+
+  const handleStoryViewerClose = () => {
+    setViewingStory(null);
+  };
+
+  const handleStoryIndexChange = (index: number) => {
+    if (viewingStory) {
+      setViewingStory((prev) => (prev ? { ...prev, currentIndex: index } : null));
+    }
+  };
+
   const chatMetadata = getChatMetadata();
 
   if (loading) {
@@ -245,12 +363,24 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           ${chatId ? "hidden md:block" : "block"}
         `}
         >
+          {/* StoryBar - horizontal scroll row at top of ChatList */}
+          {currentUser && (
+            <StoryBar
+              currentUserId={currentUser._id}
+              currentUserAvatar={currentUser.avatar}
+              currentUserUsername={currentUser.username}
+              onStoryClick={handleStoryClick}
+              onMyStoryClick={handleMyStoryClick}
+              refreshKey={storyRefreshKey}
+            />
+          )}
           <ChatList
             currentUserId={currentUser?._id}
             selectedChatId={chatId}
             onChatSelect={(id) => router.push(`/chat/${id}`)}
             onNewChat={() => setShowNewChatModal(true)}
             onMenuClick={() => setShowSidebarDrawer(true)}
+            onViewProfile={(userId) => setViewingProfile({ isOpen: true, userId })}
           />
         </div>
 
@@ -350,6 +480,28 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           callType={activeCall.type}
           username={currentUser.username}
           onLeave={() => setActiveCall(null)}
+        />
+      )}
+
+      {/* Story Viewer Modal */}
+      {viewingStory && viewingStory.isOpen && (
+        <StoryViewer
+          stories={viewingStory.stories}
+          initialIndex={viewingStory.currentIndex}
+          username={viewingStory.username}
+          userId={viewingStory.userId}
+          userAvatar={viewingStory.userAvatar}
+          onClose={handleStoryViewerClose}
+          onIndexChange={handleStoryIndexChange}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {viewingProfile && (
+        <UserProfileModal
+          isOpen={viewingProfile.isOpen}
+          onClose={() => setViewingProfile(null)}
+          userId={viewingProfile.userId}
         />
       )}
     </div>

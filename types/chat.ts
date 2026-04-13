@@ -60,3 +60,37 @@ export interface IncomingCallData {
   callerAvatar?: string;
   callerId: string;
 }
+
+export interface Story {
+  _id: string;
+  mediaUrl: string;
+  mediaType: 'image' | 'video';
+  caption?: string;
+  createdAt: string;
+  expiresAt: string;
+  viewed: boolean;
+}
+
+export interface StoryUser {
+  user: {
+    _id: string;
+    username: string;
+    avatar?: string;
+  };
+  stories: Story[];
+}
+
+export interface UserProfile {
+  _id: string;
+  username: string;
+  name?: string;
+  bio?: string;
+  avatar?: string;
+  location?: string;
+  website?: string;
+  status?: string;
+  lastSeen?: string;
+  isOnline: boolean;
+  createdAt: string;
+  activeStoriesCount: number;
+}

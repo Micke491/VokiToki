@@ -1,0 +1,214 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/lib/db';
+import User from '@/models/User';
+import Story from '@/models/Story';
+import { verifyToken } from '@/lib/auth';
+import mongoose from 'mongoose';
+import Chat from '@/models/Chat';
+import { pusherServer } from '@/lib/pusher';
+
+export async function GET(req: Request) {
+  try {
+    await connectDB();
+
+    const auth = verifyToken(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await User.findById(auth.id).select('-password');
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const now = new Date();
+    const stories = await Story.find({
+      userId: new mongoose.Types.ObjectId(auth.id),
+      expiresAt: { $gt: now },
+    }).sort({ createdAt: -1 });
+
+    return NextResponse.json({
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        bio: user.bio,
+        avatar: user.avatar,
+        phone: user.phone,
+        location: user.location,
+        website: user.website,
+        status: user.status,
+        lastSeen: user.lastSeen,
+        isOnline: user.isOnline,
+        readReceipts: user.readReceipts,
+        theme: user.theme,
+        twoFactorEnabled: user.twoFactorEnabled,
+        createdAt: user.createdAt,
+      },
+      stories: stories.map((s) => ({
+        _id: s._id,
+        mediaUrl: s.mediaUrl,
+        mediaType: s.mediaType,
+        caption: s.caption,
+        createdAt: s.createdAt,
+        expiresAt: s.expiresAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching current user profile:', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    await connectDB();
+
+    const auth = verifyToken(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const {
+      username,
+      name,
+      bio,
+      avatar,
+      phone,
+      location,
+      website,
+      status,
+    } = body;
+
+    const currentUser = await User.findById(auth.id);
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (username && username !== currentUser.username) {
+      const existingUser = await User.findOne({
+        username: { $regex: new RegExp(`^${username}$`, 'i') },
+        _id: { $ne: auth.id },
+      });
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Username is already taken' },
+          { status: 400 }
+        );
+      }
+      currentUser.username = username;
+    }
+
+    if (name !== undefined) currentUser.name = name;
+    if (bio !== undefined) currentUser.bio = bio;
+    if (avatar !== undefined) currentUser.avatar = avatar;
+    if (phone !== undefined) currentUser.phone = phone;
+    if (location !== undefined) currentUser.location = location;
+    if (website !== undefined) currentUser.website = website;
+    if (status !== undefined) currentUser.status = status;
+
+    await currentUser.save();
+
+    try {
+      const userChats = await Chat.find({
+        participants: new mongoose.Types.ObjectId(auth.id),
+      });
+
+      const contactIds = new Set<string>();
+      for (const chat of userChats) {
+        for (const participant of chat.participants) {
+          if (participant.toString() !== auth.id) {
+            contactIds.add(participant.toString());
+          }
+        }
+      }
+
+      const updatePayload = {
+        userId: auth.id,
+        username: currentUser.username,
+        name: currentUser.name,
+        avatar: currentUser.avatar,
+        status: currentUser.status,
+      };
+
+      const contactArray = [...contactIds];
+      for (let i = 0; i < contactArray.length; i += 10) {
+        const batch = contactArray.slice(i, i + 10);
+        await Promise.all(
+          batch.map(contactId =>
+            pusherServer.trigger(`user-${contactId}`, 'profile-updated', updatePayload)
+          )
+        );
+      }
+    } catch (pusherError) {
+      console.error('Profile Pusher trigger failed:', pusherError);
+    }
+
+    return NextResponse.json({
+      message: 'Profile updated successfully',
+      user: {
+        _id: currentUser._id,
+        username: currentUser.username,
+        email: currentUser.email,
+        name: currentUser.name,
+        bio: currentUser.bio,
+        avatar: currentUser.avatar,
+        phone: currentUser.phone,
+        location: currentUser.location,
+        website: currentUser.website,
+        status: currentUser.status,
+        readReceipts: currentUser.readReceipts,
+        theme: currentUser.theme,
+        twoFactorEnabled: currentUser.twoFactorEnabled,
+      },
+    });
+  } catch (error: any) {
+    console.error('Update Profile Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    await connectDB();
+
+    const auth = verifyToken(req);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const storyId = url.searchParams.get('storyId');
+
+    if (!storyId) {
+      return NextResponse.json(
+        { error: 'Story ID required' },
+        { status: 400 }
+      );
+    }
+
+    const story = await Story.findOneAndDelete({
+      _id: storyId,
+      userId: new mongoose.Types.ObjectId(auth.id),
+    });
+
+    if (!story) {
+      return NextResponse.json(
+        { error: 'Story not found or not yours to delete' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ message: 'Story deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting story:', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}

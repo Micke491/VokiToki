@@ -37,9 +37,10 @@ interface ChatListProps {
   selectedChatId?: string;
   onNewChat?: () => void;
   onMenuClick?: () => void;
+  onViewProfile?: (userId: string) => void;
 }
 
-export default function ChatList({ currentUserId, onChatSelect, selectedChatId, onNewChat, onMenuClick }: ChatListProps) {
+export default function ChatList({ currentUserId, onChatSelect, selectedChatId, onNewChat, onMenuClick, onViewProfile }: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,9 +136,27 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
       });
     };
 
+    const onProfileUpdate = (data: { userId: string, username: string, avatar?: string }) => {
+      setChats(prevChats => prevChats.map(chat => {
+        if (chat.isGroupChat) return chat;
+        const isParticipant = chat.participants.some(p => p._id === data.userId);
+        if (!isParticipant) return chat;
+
+        return {
+          ...chat,
+          participants: chat.participants.map(p => 
+            p._id === data.userId 
+              ? { ...p, username: data.username, avatar: data.avatar }
+              : p
+          )
+        };
+      }));
+    };
+
     channel.bind('chat-update', onChatUpdate);
     channel.bind('chat-removed', onChatRemoved);
     channel.bind('chat-new', onChatNew);
+    channel.bind('profile-updated', onProfileUpdate);
 
     return () => {
       pusher.unsubscribe(`user-${currentUserId}`);
@@ -461,13 +480,28 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                         Leave Group
                       </button>
                     ) : (
-                      <button
-                        onClick={() => handleRemoveChat(chat._id)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
-                      >
-                        <X className="w-4 h-4 text-chat-text-tertiary" />
-                        Remove Chat
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            if (onViewProfile) onViewProfile(otherUser._id);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                        >
+                          <svg className="w-4 h-4 text-chat-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          View Profile
+                        </button>
+                        <div className="h-px bg-chat-border mx-2" />
+                        <button
+                          onClick={() => handleRemoveChat(chat._id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                        >
+                          <X className="w-4 h-4 text-chat-text-tertiary" />
+                          Remove Chat
+                        </button>
+                      </>
                     )}
                     {!isGroup && (
                       <button
