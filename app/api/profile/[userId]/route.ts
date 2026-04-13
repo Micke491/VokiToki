@@ -13,9 +13,10 @@ interface DecodedToken {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId: targetUserId } = await params;
     await connectDB();
 
     const authHeader = request.headers.get('Authorization');
@@ -36,7 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const targetUserId = params.userId;
+
 
     const user = await User.findById(targetUserId).select(
       '-password -email -resetPasswordToken -resetPasswordExpires -twoFactorSecret'

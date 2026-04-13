@@ -15,9 +15,10 @@ interface DecodedToken {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId: targetUserId } = await params;
     await connectDB();
 
     const authHeader = request.headers.get('Authorization');
@@ -38,7 +39,7 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const targetUserId = params.userId;
+
 
     const sharedChats = await Chat.find({
       participants: {
@@ -93,9 +94,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId: targetUserId } = await params;
     await connectDB();
 
     const authHeader = request.headers.get('Authorization');
@@ -123,7 +125,7 @@ export async function POST(
       return NextResponse.json({ error: 'Story ID required' }, { status: 400 });
     }
 
-    const targetUserId = params.userId;
+
 
     const story = await Story.findOne({
       _id: new mongoose.Types.ObjectId(storyId),
