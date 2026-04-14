@@ -52,6 +52,8 @@ export interface ChatWindowProps {
     avatar?: string;
   }>;
   onMenuClick?: () => void;
+  recipientStoriesUser?: StoryUser;
+  onStoryClick?: (userId: string, stories: Story[], username: string, avatar?: string) => void;
 }
 
 export interface IncomingCallData {
@@ -68,7 +70,10 @@ export interface Story {
   caption?: string;
   createdAt: string;
   expiresAt: string;
-  viewed: boolean;
+  viewedBy: {
+    userId: string;
+    viewedAt: string;
+  }[];
 }
 
 export interface StoryUser {
@@ -86,8 +91,8 @@ export interface UserProfile {
   name?: string;
   bio?: string;
   avatar?: string;
+  links: { label: string; url: string }[];
   location?: string;
-  website?: string;
   status?: string;
   lastSeen?: string;
   isOnline: boolean;

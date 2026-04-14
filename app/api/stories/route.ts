@@ -40,6 +40,7 @@ async function GET(request: NextRequest) {
       participants: new mongoose.Types.ObjectId(currentUserId),
     });
     const chatUserIds = new Set<string>();
+    chatUserIds.add(currentUserId); 
     for (const chat of userChats) {
       for (const participant of chat.participants) {
         if (participant.toString() !== currentUserId) {

@@ -37,6 +37,8 @@ export default function ChatWindow({
   participants,
   onClose,
   onMenuClick,
+  recipientStoriesUser,
+  onStoryClick,
 }: ChatWindowProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1205,6 +1207,8 @@ export default function ChatWindow({
         onViewProfile={(userId) => setViewingProfileUserId(userId)}
         recipientOnline={recipientOnline}
         recipientLastSeen={recipientLastSeen}
+        recipientStoriesUser={recipientStoriesUser}
+        onStoryClick={onStoryClick}
         onCallStart={(callType) => {
           if (isRecipientDeleted) {
             alert("You cannot call a deleted account.");

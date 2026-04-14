@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, X, MoreVertical, User as UserIcon } from "lucide-react";
 import CallButton from "./CallButton";
+import StoryRing from "./StoryRing";
 
 interface ChatHeaderProps {
   recipientUsername?: string;
@@ -22,6 +23,8 @@ interface ChatHeaderProps {
   onViewProfile?: (userId: string) => void;
   recipientOnline?: boolean;
   recipientLastSeen?: string;
+  recipientStoriesUser?: any;
+  onStoryClick?: (userId: string, stories: any[], username: string, avatar?: string) => void;
 }
 
 const ChatHeader = ({
@@ -44,9 +47,14 @@ const ChatHeader = ({
   onViewProfile,
   recipientOnline,
   recipientLastSeen,
+  recipientStoriesUser,
+  onStoryClick,
 }: ChatHeaderProps) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const hasStories = (recipientStoriesUser?.stories?.length || 0) > 0;
+  const hasUnviewedStories = hasStories && recipientStoriesUser.stories.some((s: any) => !(s.viewedBy || []).some((v: any) => v.userId === currentUserId));
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -103,28 +111,53 @@ const ChatHeader = ({
         </div>
         {!showSearch ? (
           <>
-            <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'} shadow-sm overflow-hidden shrink-0`}>
-              {recipientAvatar ? (
-                <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
-              ) : isGroup ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
+            <div className="shrink-0">
+              {isGroup ? (
+                <div className={`flex items-center justify-center w-11 h-11 text-lg font-bold text-white rounded-full bg-gradient-to-br from-purple-500 to-pink-600 shadow-sm overflow-hidden`}>
+                  {recipientAvatar ? (
+                    <img src={recipientAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                  )}
+                </div>
               ) : (
-                recipientUsername?.charAt(0).toUpperCase() || "?"
+                <StoryRing
+                  size="sm"
+                  avatarUrl={recipientAvatar}
+                  username={recipientUsername || "?"}
+                  showLabel={false}
+                  hasUnviewedStory={hasUnviewedStories}
+                  onClick={() => {
+                    if (hasStories && onStoryClick) {
+                      onStoryClick(recipientStoriesUser.user._id, recipientStoriesUser.stories, recipientStoriesUser.user.username, recipientStoriesUser.user.avatar);
+                    }
+                  }}
+                />
               )}
             </div>
             <div className="min-w-0">
-              <h3 className="text-base font-semibold text-chat-text-primary leading-tight truncate">
-                {recipientUsername || "Chat"}
-              </h3>
-              {/* Online status for 1v1 chats */}
-              {!isGroup && (
-                <p className={`text-xs truncate mt-0.5 ${recipientOnline ? 'text-green-500 font-medium' : 'text-chat-text-tertiary'}`}>
-                  {recipientOnline ? 'Online' : formatLastSeen(recipientLastSeen)}
+               <div className="flex items-center gap-1.5 min-w-0">
+                  <h3 className="text-base font-semibold text-chat-text-primary leading-tight truncate">
+                    {recipientUsername || "Chat"}
+                  </h3>
+                  {recipientOnline && !isGroup && (
+                    <span className="w-2 h-2 bg-green-500 rounded-full shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                  )}
+               </div>
+               {/* Last seen text */}
+              {!isGroup && !recipientOnline && (
+                <p className="text-[11px] text-chat-text-tertiary truncate leading-none mt-1">
+                  {formatLastSeen(recipientLastSeen)}
+                </p>
+              )}
+               {!isGroup && recipientOnline && (
+                <p className="text-[11px] text-green-500/80 font-medium truncate leading-none mt-1">
+                  Online
                 </p>
               )}
             </div>

@@ -28,6 +28,19 @@ export async function GET(req: Request) {
       expiresAt: { $gt: now },
     }).sort({ createdAt: -1 });
 
+    const storiesWithViewedBy = stories.map((s) => ({
+      _id: s._id,
+      mediaUrl: s.mediaUrl,
+      mediaType: s.mediaType,
+      caption: s.caption,
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt,
+      viewedBy: s.viewedBy?.map((v) => ({
+        userId: v.userId.toString(),
+        viewedAt: v.viewedAt,
+      })) || [],
+    }));
+
     return NextResponse.json({
       user: {
         _id: user._id,
@@ -36,9 +49,8 @@ export async function GET(req: Request) {
         name: user.name,
         bio: user.bio,
         avatar: user.avatar,
-        phone: user.phone,
+        links: user.links || [],
         location: user.location,
-        website: user.website,
         status: user.status,
         lastSeen: user.lastSeen,
         isOnline: user.isOnline,
@@ -47,14 +59,7 @@ export async function GET(req: Request) {
         twoFactorEnabled: user.twoFactorEnabled,
         createdAt: user.createdAt,
       },
-      stories: stories.map((s) => ({
-        _id: s._id,
-        mediaUrl: s.mediaUrl,
-        mediaType: s.mediaType,
-        caption: s.caption,
-        createdAt: s.createdAt,
-        expiresAt: s.expiresAt,
-      })),
+      stories: storiesWithViewedBy,
     });
   } catch (error) {
     console.error('Error fetching current user profile:', error);
@@ -77,9 +82,8 @@ export async function PATCH(req: NextRequest) {
       name,
       bio,
       avatar,
-      phone,
+      links,
       location,
-      website,
       status,
     } = body;
 
@@ -106,9 +110,8 @@ export async function PATCH(req: NextRequest) {
     if (name !== undefined) currentUser.name = name;
     if (bio !== undefined) currentUser.bio = bio;
     if (avatar !== undefined) currentUser.avatar = avatar;
-    if (phone !== undefined) currentUser.phone = phone;
+    if (links !== undefined) currentUser.links = links;
     if (location !== undefined) currentUser.location = location;
-    if (website !== undefined) currentUser.website = website;
     if (status !== undefined) currentUser.status = status;
 
     await currentUser.save();
@@ -157,9 +160,8 @@ export async function PATCH(req: NextRequest) {
         name: currentUser.name,
         bio: currentUser.bio,
         avatar: currentUser.avatar,
-        phone: currentUser.phone,
+        links: currentUser.links || [],
         location: currentUser.location,
-        website: currentUser.website,
         status: currentUser.status,
         readReceipts: currentUser.readReceipts,
         theme: currentUser.theme,

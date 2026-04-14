@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { X, MoreVertical, Volume2, VolumeX } from 'lucide-react';
+import { X, MoreVertical, Volume2, VolumeX, Plus, Eye, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Story } from '../../types/chat';
 
@@ -13,6 +13,8 @@ interface StoryViewerProps {
   userAvatar?: string;
   onClose: () => void;
   onIndexChange: (index: number) => void;
+  currentUserId?: string;
+  onAddStory?: () => void;
 }
 
 const PROGRESS_INTERVAL = 50;
@@ -27,6 +29,8 @@ export default function StoryViewer({
   userAvatar,
   onClose,
   onIndexChange,
+  currentUserId,
+  onAddStory,
 }: StoryViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
@@ -45,6 +49,7 @@ export default function StoryViewer({
 
   const currentStory = stories[currentIndex];
   const isVideo = currentStory?.mediaType === 'video';
+  const isOwner = currentUserId === userId;
 
   const handleNext = useCallback(() => {
     if (currentIndex < stories.length - 1) {
@@ -80,7 +85,8 @@ export default function StoryViewer({
   };
 
   useEffect(() => {
-    if (currentStory && !currentStory.viewed) {
+    const isViewed = (currentStory?.viewedBy || []).some(v => v.userId === currentUserId);
+    if (currentStory && !isViewed && currentUserId && userId !== currentUserId) {
       fetch(`/api/stories/${userId}`, {
         method: 'POST',
         headers: {
@@ -90,7 +96,7 @@ export default function StoryViewer({
         body: JSON.stringify({ storyId: currentStory._id }),
       }).catch(console.error);
     }
-  }, [currentIndex, userId, stories]);
+  }, [currentIndex, userId, stories, currentUserId]);
 
   useEffect(() => {
     setProgress(0);
@@ -235,150 +241,187 @@ export default function StoryViewer({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black z-[100] flex items-center justify-center"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center overflow-hidden"
         onClick={handleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
       >
-        {/* Progress bars */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 px-2 pt-3">
-          {stories.map((_, index) => (
-            <div
-              key={stories[index]._id}
-              className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"
-            >
-              <motion.div
-                className="h-full bg-white"
-                initial={{ width: index < currentIndex ? '100%' : '0%' }}
-                animate={{
-                  width:
-                    index < currentIndex
-                      ? '100%'
-                      : index === currentIndex
-                      ? `${progress}%`
-                      : '0%',
-                }}
-                transition={{ duration: 0.1, ease: 'linear' }}
-              />
-            </div>
-          ))}
-        </div>
+        {/* Subtle background glow based on story content (optional, but premium) */}
+        {!isLoading && (
+           <div 
+             className="absolute inset-0 opacity-20 blur-[100px] pointer-events-none"
+             style={{
+               background: `radial-gradient(circle at center, rgba(236, 72, 153, 0.4) 0%, transparent 70%)`
+             }}
+           />
+        )}
 
-        {/* Header */}
-        <div className="absolute top-8 left-0 right-0 z-20 flex items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-chat-accent to-chat-accent-secondary overflow-hidden">
-              {userAvatar ? (
-                <img
-                  src={userAvatar}
-                  alt={username}
-                  className="w-full h-full object-cover"
+        {/* Story Container (Phone aspect ratio look on desktop) */}
+        <div className="relative w-full max-w-lg h-full max-h-screen md:h-[90vh] md:rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center bg-black">
+          
+          {/* Progress bars */}
+          <div className="absolute top-0 left-0 right-0 z-30 flex gap-1.5 px-4 pt-4">
+            {stories.map((_, index) => (
+              <div
+                key={stories[index]._id}
+                className="flex-1 h-[2px] bg-white/20 rounded-full overflow-hidden"
+              >
+                <div
+                  className="h-full bg-white transition-all duration-[50ms] ease-linear"
+                  style={{
+                    width:
+                      index < currentIndex
+                        ? '100%'
+                        : index === currentIndex
+                        ? `${progress}%`
+                        : '0%',
+                  }}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white font-bold">
-                  {username.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <span className="text-white font-semibold text-sm">{username}</span>
-            <span className="text-white/60 text-xs">
-              {new Date(currentStory.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            {isVideo && (
+
+          {/* Header */}
+          <div className="absolute top-0 left-0 right-0 z-30 pt-10 pb-20 px-4 bg-gradient-to-b from-black/60 to-transparent flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
+                <div className="w-full h-full rounded-full bg-chat-bg-primary p-[1.5px]">
+                  <div className="w-full h-full rounded-full overflow-hidden">
+                    {userAvatar ? (
+                      <img
+                        src={userAvatar}
+                        alt={username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-chat-accent text-[10px] text-white font-bold uppercase">
+                        {username.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-sm leading-none drop-shadow-md">{username}</span>
+                <span className="text-white/70 text-[10px] drop-shadow-md mt-0.5">
+                  {new Date(currentStory.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {isVideo && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMuted((prev) => !prev);
+                  }}
+                  className="p-2 text-white/90 hover:text-white transition-colors"
+                >
+                  {isMuted ? <VolumeX className="w-5 h-5 shadow-sm" /> : <Volume2 className="w-5 h-5 shadow-sm" />}
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsMuted((prev) => !prev);
+                  onClose();
                 }}
-                className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                className="p-2 text-white/90 hover:text-white transition-colors"
               >
-                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                <X className="w-6 h-6 shadow-sm" />
               </button>
+            </div>
+          </div>
+
+          {/* Story content */}
+          <div className="w-full h-full flex items-center justify-center">
+            {isVideo ? (
+              <video
+                key={currentStory._id}
+                ref={(el) => {
+                  videoRefs.current[currentIndex] = el;
+                }}
+                src={currentStory.mediaUrl}
+                className="w-full h-full object-cover md:object-contain"
+                onLoadedData={() => setIsLoading(false)}
+                onTimeUpdate={handleVideoTimeUpdate}
+                onPlay={() => setIsLoading(false)}
+                muted={isMuted}
+                playsInline
+              />
+            ) : (
+              <img
+                src={currentStory.mediaUrl}
+                alt={currentStory.caption || 'Story'}
+                className="w-full h-full object-cover md:object-contain"
+                onLoad={() => setIsLoading(false)}
+              />
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // TODO: Add more options menu
-              }}
-              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
-            >
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
+                <div className="w-10 h-10 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* Video indication */}
+            {isVideo && showVideoIndicator && !isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 transition-opacity duration-300">
+                <div className="p-4 rounded-full bg-black/40 backdrop-blur-md">
+                   {isMuted ? <VolumeX className="w-8 h-8 text-white" /> : <Volume2 className="w-8 h-8 text-white" />}
+                </div>
+              </div>
+            )}
+
+            {/* Caption & View Count */}
+            {(currentStory.caption || isOwner) && (
+              <div className="absolute bottom-0 left-0 right-0 px-6 py-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30">
+                <div className="flex flex-col items-center gap-4">
+                  {currentStory.caption && (
+                    <p className="text-white text-center text-[15px] font-medium leading-relaxed drop-shadow-md max-w-[90%]">
+                      {currentStory.caption}
+                    </p>
+                  )}
+                  
+                  {isOwner && (
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20 hover:bg-white/20 transition-all cursor-pointer">
+                      <Eye className="w-4 h-4 text-white" />
+                      <span className="text-white text-[13px] font-bold tracking-tight">
+                         {currentStory.viewedBy?.length || 0} views
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Story content */}
-        <div className="relative w-full h-full flex items-center justify-center">
-          {isVideo ? (
-            <video
-              key={currentStory._id}
-              ref={(el) => {
-                videoRefs.current[currentIndex] = el;
-              }}
-              src={currentStory.mediaUrl}
-              className="max-w-full max-h-full object-contain"
-              onLoadedData={() => setIsLoading(false)}
-              onTimeUpdate={handleVideoTimeUpdate}
-              onPlay={() => setIsLoading(false)}
-              muted={isMuted}
-              playsInline
-            />
-          ) : (
-            <img
-              src={currentStory.mediaUrl}
-              alt={currentStory.caption || 'Story'}
-              className="max-w-full max-h-full object-contain"
-              onLoad={() => setIsLoading(false)}
-            />
-          )}
-
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
-          )}
-
-          {/* Video indicator */}
-          {isVideo && showVideoIndicator && (
-            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full flex items-center gap-2">
-              <Volume2 className="w-4 h-4 text-white" />
-              <span className="text-white text-sm">Tap to unmute</span>
-            </div>
-          )}
-
-          {/* Caption */}
-          {currentStory.caption && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-              <p className="text-white text-center text-sm max-w-md mx-auto">
-                {currentStory.caption}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation hints */}
-        <div className="absolute inset-y-0 left-0 w-1/3 z-10" />
-        <div className="absolute inset-y-0 right-0 w-1/3 z-10" />
+        {/* Side Controls (Desktop Only) */}
+        {!isPaused && (
+          <div className="hidden md:flex absolute inset-y-0 left-0 right-0 pointer-events-none items-center justify-between px-10">
+            <button 
+              onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all"
+            >
+              <ArrowLeft className="w-6 h-6 text-white" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleNext(); }}
+              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all rotate-180"
+            >
+              <ArrowLeft className="w-6 h-6 text-white" />
+            </button>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );

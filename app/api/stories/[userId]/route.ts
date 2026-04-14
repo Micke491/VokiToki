@@ -125,8 +125,6 @@ export async function POST(
       return NextResponse.json({ error: 'Story ID required' }, { status: 400 });
     }
 
-
-
     const story = await Story.findOne({
       _id: new mongoose.Types.ObjectId(storyId),
       userId: new mongoose.Types.ObjectId(targetUserId),

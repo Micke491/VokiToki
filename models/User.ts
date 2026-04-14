@@ -20,9 +20,11 @@ export interface IUser extends Document {
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   // Profile fields
-  phone?: string;
+  links: {
+    label: string;
+    url: string;
+  }[];
   location?: string;
-  website?: string;
   status?: string;
   lastSeen?: Date;
   isOnline: boolean;
@@ -106,15 +108,16 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: undefined,
     },
-    phone: {
-      type: String,
-      default: "",
+    links: {
+      type: [
+        {
+          label: String,
+          url: String,
+        },
+      ],
+      default: [],
     },
     location: {
-      type: String,
-      default: "",
-    },
-    website: {
       type: String,
       default: "",
     },

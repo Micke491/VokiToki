@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import StoryRing from "./StoryRing";
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 import ConfirmModal from '../ui/ConfirmModal';
@@ -38,9 +39,20 @@ interface ChatListProps {
   onNewChat?: () => void;
   onMenuClick?: () => void;
   onViewProfile?: (userId: string) => void;
+  storiesUsers?: any[];
+  onStoryClick?: (userId: string, stories: any[], username: string, avatar?: string) => void;
 }
 
-export default function ChatList({ currentUserId, onChatSelect, selectedChatId, onNewChat, onMenuClick, onViewProfile }: ChatListProps) {
+export default function ChatList({ 
+  currentUserId, 
+  onChatSelect, 
+  selectedChatId, 
+  onNewChat, 
+  onMenuClick, 
+  onViewProfile,
+  storiesUsers = [],
+  onStoryClick
+}: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -409,24 +421,50 @@ export default function ChatList({ currentUserId, onChatSelect, selectedChatId, 
                   ${isSelected ? 'bg-chat-selected border-l-[3px] border-l-chat-accent' : 'border-l-[3px] border-l-transparent'}
                 `}
               >
-                {/* Avatar */}
-                <div className={`relative flex items-center justify-center flex-shrink-0 w-12 h-12 text-lg font-semibold text-white rounded-full ${isGroup ? 'bg-gradient-to-br from-purple-500 to-pink-600' : 'bg-gradient-to-br from-chat-accent to-chat-accent-secondary'} overflow-hidden`}>
-                  {chatAvatar ? (
-                    <img src={chatAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                     isGroup ? (
+                {/* Avatar with Story support */}
+                <div className="flex-shrink-0">
+                  {isGroup ? (
+                    <div className={`relative flex items-center justify-center w-12 h-12 text-lg font-semibold text-white rounded-full bg-gradient-to-br from-purple-500 to-pink-600 overflow-hidden`}>
+                      {chatAvatar ? (
+                        <img src={chatAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                           <circle cx="9" cy="7" r="4"></circle>
-                           <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="9" cy="7" r="4"></circle>
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                         </svg>
-                     ) : (
-                        chatName?.charAt(0).toUpperCase() || '?'
-                     )
-                  )}
-                  {isUnread && (
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full"></span>
+                      )}
+                      {isUnread && (
+                        <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full"></span>
+                      )}
+                    </div>
+                  ) : (
+                    (() => {
+                      const su = storiesUsers.find(u => u.user._id === otherUser._id);
+                      const hasStories = (su?.stories.length || 0) > 0;
+                      const hasUnviewed = hasStories && su.stories.some((s: any) => !(s.viewedBy || []).some((v: any) => v.userId === currentUserId));
+
+                      return (
+                        <div className="relative">
+                           <StoryRing
+                             size="sm"
+                             avatarUrl={otherUser.avatar}
+                             username={otherUser.username}
+                             showLabel={false}
+                             hasUnviewedStory={hasUnviewed}
+                             onClick={() => {
+                               if (hasStories && onStoryClick) {
+                                 onStoryClick(su.user._id, su.stories, su.user.username, su.user.avatar);
+                               }
+                             }}
+                           />
+                           {isUnread && (
+                             <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full z-[60]"></span>
+                           )}
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
 

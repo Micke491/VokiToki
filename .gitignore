@@ -34,9 +34,11 @@ yarn-error.log*
 .env*
 !.env.example
 
-# Claude Code / AI context files
+# Claude Code, Gemini Code / AI context files
 CLAUDE.md
 .claude/
+GEMINI.md
+.gemini/
 
 # vercel
 .vercel

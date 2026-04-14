@@ -12,6 +12,7 @@ import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import StoryBar from "@/components/chat/StoryBar";
 import StoryViewer from "@/components/chat/StoryViewer";
 import UserProfileModal from "@/components/ui/UserProfileModal";
+import { useStories } from "@/hooks/useStories";
 
 interface User {
   _id: string;
@@ -29,15 +30,7 @@ interface Chat {
   groupAdmin?: string;
 }
 
-interface Story {
-  _id: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
-  caption?: string;
-  createdAt: string;
-  expiresAt: string;
-  viewed: boolean;
-}
+import { Story, UserProfile } from '../../types/chat';
 
 interface ChatPageContentProps {
   chatId?: string;
@@ -53,7 +46,13 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
 
-  // Stories state
+  const { 
+    stories: allStoriesUsers, 
+    loading: storiesLoading, 
+    markStoryAsViewed, 
+    hasUnviewedStories 
+  } = useStories(currentUser?._id || '');
+
   const [viewingStory, setViewingStory] = useState<{
     isOpen: boolean;
     userId: string;
@@ -63,16 +62,10 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     currentIndex: number;
   } | null>(null);
 
-  // Profile modal state
   const [viewingProfile, setViewingProfile] = useState<{ isOpen: boolean; userId: string } | null>(null);
 
-  // Story refresh key - increment to trigger StoryBar re-fetch
-  const [storyRefreshKey, setStoryRefreshKey] = useState(0);
-
-  // Heartbeat ref for cleanup
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Heartbeat - update isOnline status every 30 seconds
   useEffect(() => {
     if (!currentUser) return;
 
@@ -91,15 +84,12 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       }
     };
 
-    // Set online on mount
     updateStatus(true);
 
-    // Heartbeat every 30 seconds
     heartbeatIntervalRef.current = setInterval(() => {
       updateStatus(true);
     }, 30000);
 
-    // Set offline on unmount
     return () => {
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
@@ -195,12 +185,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       });
     });
 
-    // Listen for new stories from contacts
-    channel.bind("story-new", () => {
-      setStoryRefreshKey(prev => prev + 1);
-    });
-
-    // Listen for profile updates from contacts
     channel.bind("profile-updated", (data: { userId: string, username: string, avatar?: string }) => {
       setSelectedChat(prev => {
         if (!prev || prev.isGroupChat) return prev;
@@ -209,8 +193,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
         return {
           ...prev,
-          participants: prev.participants.map(p => 
-            p._id === data.userId 
+          participants: prev.participants.map(p =>
+            p._id === data.userId
               ? { ...p, username: data.username, avatar: data.avatar }
               : p
           )
@@ -292,9 +276,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     };
   };
 
-  // Story handlers
   const handleStoryClick = (userId: string, stories: Story[], username: string, avatar?: string) => {
-    const unviewedIndex = stories.findIndex((s) => !s.viewed);
+    const unviewedIndex = stories.findIndex((s) => {
+      const viewedBy = s.viewedBy || [];
+      return !viewedBy.some(v => v.userId === currentUser?._id);
+    });
     setViewingStory({
       isOpen: true,
       userId,
@@ -371,7 +357,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               currentUserUsername={currentUser.username}
               onStoryClick={handleStoryClick}
               onMyStoryClick={handleMyStoryClick}
-              refreshKey={storyRefreshKey}
+              // Explicitly pass data if we want StoryBar to be leaner, 
+              // but StoryBar already uses useStories internally or via props.
+              // Let's ensure StoryBar is consistent.
             />
           )}
           <ChatList
@@ -381,6 +369,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             onNewChat={() => setShowNewChatModal(true)}
             onMenuClick={() => setShowSidebarDrawer(true)}
             onViewProfile={(userId) => setViewingProfile({ isOpen: true, userId })}
+            storiesUsers={allStoriesUsers}
+            onStoryClick={handleStoryClick}
           />
         </div>
 
@@ -402,6 +392,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               groupAdminId={selectedChat?.groupAdmin}
               participants={selectedChat?.participants}
               onMenuClick={() => setShowSidebarDrawer(true)}
+              recipientStoriesUser={allStoriesUsers.find(u => u.user._id === selectedChat?.participants.find(p => p._id !== currentUser?._id)?._id)}
+              onStoryClick={handleStoryClick}
             />
           ) : (
             /* Empty State */
@@ -493,6 +485,13 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           userAvatar={viewingStory.userAvatar}
           onClose={handleStoryViewerClose}
           onIndexChange={handleStoryIndexChange}
+          currentUserId={currentUser?._id}
+          onAddStory={() => {
+            // Close viewer and let user add story from Sidebar or StoryBar
+            handleStoryViewerClose();
+            // In a real app, this might open a file picker directly, 
+            // but for now, closing it and letting them use the StoryBar/Profile is safer.
+          }}
         />
       )}
 

@@ -5,10 +5,15 @@ import { useRouter } from 'next/navigation';
 import SideBar from '@/components/layout/Sidebar';
 import {
   ArrowLeft, Camera, Save, Loader2, CheckCircle, AlertTriangle,
-  User as UserIcon, MapPin, Link as LinkIcon, Globe, Edit2, X,
+  User as UserIcon, MapPin, Link as LinkIcon, Edit2, X,
   Trash2, Image as ImageIcon, Menu, Plus, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { pusherClient } from '@/lib/pusher-client';
+import StoryManagementModal from '@/components/chat/StoryManagementModal';
+import StoryRing from '@/components/chat/StoryRing';
+import StoryViewer from '@/components/chat/StoryViewer';
+import { useStories } from '@/hooks/useStories';
 
 interface User {
   _id: string;
@@ -17,9 +22,8 @@ interface User {
   name?: string;
   bio?: string;
   avatar?: string;
-  phone?: string;
+  links?: { label: string; url: string }[];
   location?: string;
-  website?: string;
   status?: string;
   readReceipts: boolean;
   theme: 'light' | 'dark' | 'system';
@@ -30,7 +34,7 @@ interface Story {
   mediaUrl: string;
   mediaType: 'image' | 'video';
   caption?: string;
-  viewedBy?: any[];
+  viewedBy?: { userId: string; viewedAt: string }[];
   createdAt: string;
   expiresAt: string;
 }
@@ -50,13 +54,24 @@ export default function ProfilePage() {
     name: '',
     bio: '',
     avatar: '',
-    phone: '',
     location: '',
-    website: '',
     status: '',
+    links: [] as { label: string; url: string }[],
   });
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { 
+    stories: allStories, 
+    loading: storiesLoading, 
+    markStoryAsViewed, 
+    hasUnviewedStories 
+  } = useStories(currentUser?._id || '');
+
+  const myStoryUser = allStories.find(su => su.user._id === currentUser?._id);
+  const userHasStories = (myStoryUser?.stories.length || 0) > 0;
 
   useEffect(() => {
     if (feedback) {
@@ -68,6 +83,9 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+  }, [currentUser?._id]);
 
   const fetchProfile = async () => {
     try {
@@ -86,10 +104,9 @@ export default function ProfilePage() {
         name: data.user.name || '',
         bio: data.user.bio || '',
         avatar: data.user.avatar || '',
-        phone: data.user.phone || '',
         location: data.user.location || '',
-        website: data.user.website || '',
         status: data.user.status || 'Hey there!',
+        links: data.user.links || [],
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -154,7 +171,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDeleteStory = async (storyId: string) => {
+  const handleDeleteStoryFromModal = async (storyId: string) => {
     try {
       const response = await fetch(`/api/profile?storyId=${storyId}`, {
         method: 'DELETE',
@@ -326,18 +343,20 @@ export default function ProfilePage() {
           >
             {/* Avatar Section */}
             <div className="flex flex-col items-center mb-8">
-              <div className="relative group">
-                <div className="w-32 h-32 rounded-3xl bg-gradient-to-tr from-chat-accent to-chat-accent-secondary flex items-center justify-center text-5xl font-black text-white shadow-xl overflow-hidden ring-4 ring-chat-bg-secondary">
-                  {formData.avatar ? (
-                    <img
-                      src={formData.avatar}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    formData.username.charAt(0).toUpperCase()
-                  )}
-                </div>
+              <div className="relative">
+                <StoryRing
+                  avatarUrl={formData.avatar}
+                  username={formData.username}
+                  hasUnviewedStory={myStoryUser ? hasUnviewedStories(myStoryUser) : false}
+                  size="lg"
+                  onClick={() => {
+                    if (userHasStories) {
+                      setIsViewerOpen(true);
+                    } else if (isEditing) {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                />
                 {isEditing && (
                   <>
                     <input
@@ -350,12 +369,12 @@ export default function ProfilePage() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
-                      className="absolute bottom-0 right-0 p-3 bg-chat-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50"
+                      className="absolute bottom-6 right-0 p-2.5 bg-chat-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 z-10 border-2 border-chat-bg-primary"
                     >
                       {uploading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <Camera className="w-5 h-5" />
+                        <Camera className="w-4 h-4" />
                       )}
                     </button>
                   </>
@@ -387,10 +406,9 @@ export default function ProfilePage() {
                         name: currentUser?.name || '',
                         bio: currentUser?.bio || '',
                         avatar: currentUser?.avatar || '',
-                        phone: currentUser?.phone || '',
                         location: currentUser?.location || '',
-                        website: currentUser?.website || '',
                         status: currentUser?.status || 'Hey there!',
+                        links: currentUser?.links || [],
                       });
                     }}
                     className="px-6 py-3 bg-chat-bg-secondary border border-chat-border hover:bg-chat-hover rounded-xl text-sm font-bold text-chat-text-primary transition-all flex items-center gap-2"
@@ -496,91 +514,112 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Phone & Location Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    Phone
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, phone: e.target.value }))
-                      }
-                      placeholder="+1 (555) 123-4567"
-                      className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
-                    />
-                  ) : (
-                    <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                      {formData.phone || 'Not set'}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                    <MapPin className="w-3 h-3" />
-                    Location
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, location: e.target.value }))
-                      }
-                      placeholder="City, Country"
-                      className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
-                    />
-                  ) : (
-                    <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                      {formData.location || 'Not set'}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Website */}
+              {/* Location */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                  <Globe className="w-3 h-3" />
-                  Website
+                  <MapPin className="w-3 h-3" />
+                  Location
                 </label>
                 {isEditing ? (
                   <input
-                    type="url"
-                    value={formData.website}
+                    type="text"
+                    value={formData.location}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, website: e.target.value }))
+                      setFormData((prev) => ({ ...prev, location: e.target.value }))
                     }
-                    placeholder="https://yourwebsite.com"
+                    placeholder="City, Country"
                     className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
                   />
                 ) : (
-                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary flex items-center gap-2">
-                    {formData.website ? (
-                      <>
-                        <LinkIcon className="w-4 h-4 text-chat-accent" />
-                        <a
-                          href={
-                            formData.website.startsWith('http')
-                              ? formData.website
-                              : `https://${formData.website}`
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-chat-accent hover:underline"
+                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
+                    {formData.location || 'Not set'}
+                  </div>
+                )}
+              </div>
+
+              {/* Links Section */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
+                  <LinkIcon className="w-3 h-3" />
+                  Links
+                </label>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    {formData.links.map((link, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={link.label}
+                          onChange={(e) => {
+                            const newLinks = [...formData.links];
+                            newLinks[index].label = e.target.value;
+                            setFormData((prev) => ({ ...prev, links: newLinks }));
+                          }}
+                          placeholder="Label (e.g., Twitter)"
+                          className="flex-1 px-4 py-3 bg-chat-input border border-chat-border rounded-xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium text-sm"
+                        />
+                        <input
+                          type="url"
+                          value={link.url}
+                          onChange={(e) => {
+                            const newLinks = [...formData.links];
+                            newLinks[index].url = e.target.value;
+                            setFormData((prev) => ({ ...prev, links: newLinks }));
+                          }}
+                          placeholder="https://..."
+                          className="flex-1 px-4 py-3 bg-chat-input border border-chat-border rounded-xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium text-sm"
+                        />
+                        <button
+                          onClick={() => {
+                            const newLinks = formData.links.filter((_, i) => i !== index);
+                            setFormData((prev) => ({ ...prev, links: newLinks }));
+                          }}
+                          className="p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-red-500 transition-all"
                         >
-                          {formData.website}
-                        </a>
-                      </>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          links: [...prev.links, { label: '', url: '' }],
+                        }));
+                      }}
+                      className="w-full py-3 border-2 border-dashed border-chat-border rounded-xl text-chat-text-secondary hover:border-chat-accent hover:text-chat-accent transition-all flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Link
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {formData.links && formData.links.length > 0 ? (
+                      formData.links.map((link, index) => (
+                        <div
+                          key={index}
+                          className="px-4 py-3 bg-chat-bg-secondary border border-chat-border rounded-xl flex items-center gap-3"
+                        >
+                          <LinkIcon className="w-4 h-4 text-chat-accent" />
+                          <a
+                            href={
+                              link.url.startsWith('http')
+                                ? link.url
+                                : `https://${link.url}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-chat-accent hover:underline font-medium"
+                          >
+                            {link.label || link.url}
+                          </a>
+                        </div>
+                      ))
                     ) : (
-                      'Not set'
+                      <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
+                        No links added yet
+                      </div>
                     )}
                   </div>
                 )}
@@ -596,10 +635,13 @@ export default function ProfilePage() {
             className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-chat-text-primary flex items-center gap-3">
+              <button
+                onClick={() => setShowStoryModal(true)}
+                className="text-xl font-bold text-chat-text-primary flex items-center gap-3 hover:opacity-80 transition-opacity"
+              >
                 <ImageIcon className="w-6 h-6 text-chat-accent" />
                 My Stories
-              </h2>
+              </button>
               <button
                 onClick={handleAddStory}
                 disabled={uploading}
@@ -636,7 +678,8 @@ export default function ProfilePage() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className="relative group aspect-square rounded-2xl overflow-hidden bg-chat-bg-secondary border border-chat-border"
+                    className="relative group aspect-square rounded-2xl overflow-hidden bg-chat-bg-secondary border border-chat-border cursor-pointer hover:shadow-xl transition-all"
+                    onClick={() => setShowStoryModal(true)}
                   >
                     {story.mediaType === 'video' ? (
                       <div className="w-full h-full flex items-center justify-center bg-chat-bg-primary">
@@ -675,7 +718,7 @@ export default function ProfilePage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteStory(story._id);
+                            handleDeleteStoryFromModal(story._id);
                           }}
                           className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-all hover:scale-110 active:scale-95 shadow-lg"
                         >
@@ -702,6 +745,30 @@ export default function ProfilePage() {
           </motion.section>
         </div>
       </div>
+
+      {/* Story Viewer Overlay */}
+      {isViewerOpen && myStoryUser && (
+        <StoryViewer
+          stories={myStoryUser.stories}
+          initialIndex={0}
+          username={formData.username}
+          userId={currentUser?._id || ''}
+          userAvatar={formData.avatar}
+          onClose={() => setIsViewerOpen(false)}
+          onIndexChange={() => {}}
+          currentUserId={currentUser?._id}
+        />
+      )}
+
+      {/* Story Management Modal */}
+      <StoryManagementModal
+        isOpen={showStoryModal}
+        onClose={() => setShowStoryModal(false)}
+        stories={stories}
+        onDeleteStory={handleDeleteStoryFromModal}
+        onAddStory={handleAddStory}
+        uploading={uploading}
+      />
     </div>
   );
 }

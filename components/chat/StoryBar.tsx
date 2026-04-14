@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import StoryRing from './StoryRing';
-import { Camera } from 'lucide-react';
+import { Camera, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Story, StoryUser } from '../../types/chat';
+import { pusherClient } from '@/lib/pusher-client';
+import StoryManagementModal from './StoryManagementModal';
+import { useStories } from '@/hooks/useStories';
 
 interface StoryBarProps {
   currentUserId: string;
@@ -12,7 +15,6 @@ interface StoryBarProps {
   currentUserUsername: string;
   onStoryClick: (userId: string, stories: Story[], username: string, avatar?: string) => void;
   onMyStoryClick: () => void;
-  refreshKey?: number;
 }
 
 export default function StoryBar({
@@ -21,36 +23,15 @@ export default function StoryBar({
   currentUserUsername,
   onStoryClick,
   onMyStoryClick,
-  refreshKey = 0,
 }: StoryBarProps) {
-  const [stories, setStories] = useState<StoryUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [showManagementModal, setShowManagementModal] = useState(false);
 
-  useEffect(() => {
-    fetchStories();
-  }, [refreshKey]);
+  const { stories, loading, fetchStories, markStoryAsViewed, hasUnviewedStories, setStories } = useStories(currentUserId);
 
-  const fetchStories = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/stories', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStories(data.stories || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch stories:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const myStories = stories.find(su => su.user._id === currentUserId)?.stories || [];
+  const otherStories = stories.filter(su => su.user._id !== currentUserId);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,8 +65,8 @@ export default function StoryBar({
 
       if (uploadRes.ok) {
         toast.success('Story posted!');
-        fetchStories();
-        onMyStoryClick();
+        fetchStories(); 
+        onMyStoryClick(); 
       } else {
         const error = await uploadRes.json();
         toast.error(error.error || 'Failed to upload story');
@@ -101,8 +82,29 @@ export default function StoryBar({
     }
   };
 
-  const hasUnviewedStories = (storyUser: StoryUser) => {
-    return storyUser.stories.some((s) => !s.viewed);
+  const handleDeleteStory = async (storyId: string) => {
+    try {
+      const response = await fetch(`/api/profile?storyId=${storyId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        setStories((prev: StoryUser[]) => prev.map(storyUser => (
+          storyUser.user._id === currentUserId
+            ? { ...storyUser, stories: storyUser.stories.filter((s: Story) => s._id !== storyId) }
+            : storyUser
+        )));
+        toast.success('Story deleted');
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete story');
+      }
+    } catch (error) {
+      toast.error('Failed to delete story');
+    }
   };
 
   if (loading) {
@@ -116,39 +118,68 @@ export default function StoryBar({
 
   return (
     <div className="h-auto min-h-[100px] border-b border-chat-border px-4 py-3 flex items-center gap-3 overflow-x-auto custom-scrollbar">
-      {/* My Story - Add Story Button */}
-      <div className="flex flex-col items-center gap-1.5 group cursor-pointer">
-        <div className="relative">
+      {/* My Story Circle */}
+      <div className="flex flex-col items-center gap-1.5 scroll-ml-6">
+        <div className="relative group">
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (myStories.length > 0) {
+                setShowManagementModal(true);
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
             disabled={uploading}
-            className={`relative rounded-full p-[2px] bg-chat-border transition-transform group-hover:scale-105 disabled:opacity-50`}
+            className={`relative rounded-full transition-all duration-300 active:scale-95 ${
+              myStories.length > 0 ? 'hover:scale-105' : 'hover:opacity-80'
+            }`}
             type="button"
           >
-            <div className="w-[52px] h-[52px] rounded-full bg-chat-bg-primary p-[2px]">
-              {uploading ? (
-                <div className="w-full h-full rounded-full bg-chat-accent/20 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-chat-accent border-t-transparent rounded-full animate-spin" />
+            {/* The Ring for My Story */}
+            <div className={`rounded-full shadow-sm ${
+              myStories.length > 0 
+                ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[2px]' 
+                : 'bg-chat-border p-[1.5px]'
+            } w-16 h-16`}>
+              <div className="w-full h-full rounded-full bg-chat-bg-primary p-[2px]">
+                <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-chat-bg-secondary relative">
+                  {uploading ? (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : null}
+                  
+                  {currentUserAvatar ? (
+                    <img
+                      src={currentUserAvatar}
+                      alt={currentUserUsername}
+                      className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${uploading ? 'blur-[1px]' : ''}`}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-chat-accent/20 to-chat-accent-secondary/20 text-chat-accent font-bold uppercase">
+                      {currentUserUsername.charAt(0)}
+                    </div>
+                  )}
                 </div>
-              ) : currentUserAvatar ? (
-                <img
-                  src={currentUserAvatar}
-                  alt={currentUserUsername}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center text-white font-bold">
-                  {currentUserUsername.charAt(0).toUpperCase()}
-                </div>
-              )}
+              </div>
             </div>
+
+            {/* Plus indicator */}
+            {!uploading && (
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+                className="absolute bottom-0 right-0 w-5 h-5 bg-chat-accent rounded-full flex items-center justify-center border-2 border-chat-bg-primary hover:scale-110 transition-transform shadow-lg z-20 cursor-pointer"
+              >
+                <Plus className="w-3 h-3 text-white" strokeWidth={3} />
+              </div>
+            )}
           </button>
-          <div className="absolute bottom-0 right-0 w-5 h-5 bg-chat-accent rounded-full flex items-center justify-center border-2 border-chat-bg-primary">
-            <Camera className="w-3 h-3 text-white" />
-          </div>
         </div>
         <span className="text-xs font-medium text-chat-text-secondary">
-          {uploading ? 'Uploading...' : 'Add'}
+          {uploading ? 'Uploading...' : 'My Story'}
         </span>
         <input
           ref={fileInputRef}
@@ -160,7 +191,7 @@ export default function StoryBar({
       </div>
 
       {/* Other Users' Stories */}
-      {stories.map((storyUser) => (
+      {otherStories.map((storyUser) => (
         <StoryRing
           key={storyUser.user._id}
           username={storyUser.user.username}
@@ -169,6 +200,16 @@ export default function StoryBar({
           onClick={() => onStoryClick(storyUser.user._id, storyUser.stories, storyUser.user.username, storyUser.user.avatar)}
         />
       ))}
+
+      {/* Story Management Modal */}
+      <StoryManagementModal
+        isOpen={showManagementModal}
+        onClose={() => setShowManagementModal(false)}
+        stories={myStories}
+        onDeleteStory={handleDeleteStory}
+        onAddStory={() => fileInputRef.current?.click()}
+        uploading={uploading}
+      />
     </div>
   );
 }

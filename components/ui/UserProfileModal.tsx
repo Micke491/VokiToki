@@ -173,18 +173,19 @@ export default function UserProfileModal({
                         <span className="truncate">{profile.location}</span>
                       </div>
                     )}
-                    {profile.website && (
+                    {profile.links && profile.links.length > 0 && profile.links.map((link, index) => (
                       <a
-                        href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                        key={index}
+                        href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-chat-accent text-sm hover:underline"
+                        className="flex items-center gap-2 text-chat-accent text-sm hover:underline col-span-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Globe className="w-4 h-4" />
-                        <span className="truncate">Website</span>
+                        <LinkIcon className="w-4 h-4" />
+                        <span className="truncate">{link.label || link.url}</span>
                       </a>
-                    )}
+                    ))}
                     <div className="flex items-center gap-2 text-chat-text-tertiary text-sm">
                       <Calendar className="w-4 h-4" />
                       <span>Joined {formatJoinDate(profile.createdAt)}</span>

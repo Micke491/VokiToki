@@ -61,7 +61,7 @@ export async function GET(
         bio: user.bio,
         avatar: user.avatar,
         location: user.location,
-        website: user.website,
+        links: user.links,
         status: user.status,
         lastSeen: user.lastSeen,
         isOnline: user.isOnline,
