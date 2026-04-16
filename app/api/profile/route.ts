@@ -26,7 +26,9 @@ export async function GET(req: Request) {
     const stories = await Story.find({
       userId: new mongoose.Types.ObjectId(auth.id),
       expiresAt: { $gt: now },
-    }).sort({ createdAt: -1 });
+    })
+    .populate('viewedBy.userId', 'username avatar')
+    .sort({ createdAt: -1 });
 
     const storiesWithViewedBy = stories.map((s) => ({
       _id: s._id,
@@ -35,9 +37,13 @@ export async function GET(req: Request) {
       caption: s.caption,
       createdAt: s.createdAt,
       expiresAt: s.expiresAt,
-      viewedBy: s.viewedBy?.map((v) => ({
-        userId: v.userId.toString(),
+      viewedBy: s.viewedBy?.map((v: any) => ({
+        userId: v.userId?._id?.toString() || v.userId?.toString(),
         viewedAt: v.viewedAt,
+        user: v.userId && typeof v.userId === 'object' ? {
+          username: v.userId.username,
+          avatar: v.userId.avatar
+        } : undefined
       })) || [],
     }));
 

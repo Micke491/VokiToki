@@ -709,7 +709,7 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-2">
                            <div className="flex items-center gap-1 text-[10px] font-bold text-white bg-white/20 px-1.5 py-0.5 rounded backdrop-blur-sm">
                               <Eye className="w-3 h-3" />
-                              {story.viewedBy?.length || 0}
+                              {new Set(story.viewedBy?.map(v => v.userId)).size || 0}
                            </div>
                            <span className="text-[10px] font-medium text-white/90 drop-shadow-md">
                               {formatTimeRemaining(story.expiresAt)}

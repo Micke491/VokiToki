@@ -11,8 +11,10 @@ import CallModal from "@/components/chat/CallModal";
 import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import StoryBar from "@/components/chat/StoryBar";
 import StoryViewer from "@/components/chat/StoryViewer";
+import StoryManagementModal from "@/components/chat/StoryManagementModal";
 import UserProfileModal from "@/components/ui/UserProfileModal";
 import { useStories } from "@/hooks/useStories";
+import toast from "react-hot-toast";
 
 interface User {
   _id: string;
@@ -50,8 +52,12 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     stories: allStoriesUsers, 
     loading: storiesLoading, 
     markStoryAsViewed, 
-    hasUnviewedStories 
+    hasUnviewedStories,
+    setStories,
+    fetchStories
   } = useStories(currentUser?._id || '');
+
+  const [showStoryManagement, setShowStoryManagement] = useState(false);
 
   const [viewingStory, setViewingStory] = useState<{
     isOpen: boolean;
@@ -292,7 +298,32 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   };
 
   const handleMyStoryClick = () => {
-    // Just refresh - user is adding a story
+    setShowStoryManagement(true);
+  };
+
+  const handleDeleteStory = async (storyId: string) => {
+    try {
+      const response = await fetch(`/api/profile?storyId=${storyId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        setStories((prev) => prev.map(storyUser => (
+          storyUser.user._id === currentUser?._id
+            ? { ...storyUser, stories: storyUser.stories.filter((s: Story) => s._id !== storyId) }
+            : storyUser
+        )));
+        toast.success('Story deleted');
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete story');
+      }
+    } catch (error) {
+      toast.error('Failed to delete story');
+    }
   };
 
   const handleStoryViewerClose = () => {
@@ -492,6 +523,24 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             // In a real app, this might open a file picker directly, 
             // but for now, closing it and letting them use the StoryBar/Profile is safer.
           }}
+        />
+      )}
+
+      {/* Story Management Modal */}
+      {currentUser && (
+        <StoryManagementModal
+          isOpen={showStoryManagement}
+          onClose={() => setShowStoryManagement(false)}
+          stories={allStoriesUsers.find(su => su.user._id === currentUser._id)?.stories || []}
+          onDeleteStory={handleDeleteStory}
+          onAddStory={() => {
+            // This might trigger a file input in a child component normally,
+            // but for simplicity we can close this and point them back to StoryBar
+            // or we could implement a global upload trigger.
+            setShowStoryManagement(false);
+            toast.success("Use the + icon in the story bar to add more!");
+          }}
+          uploading={false} 
         />
       )}
 

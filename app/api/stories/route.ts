@@ -69,6 +69,14 @@ async function GET(request: NextRequest) {
         $unwind: '$user',
       },
       {
+        $lookup: {
+          from: 'users',
+          localField: 'viewedBy.userId',
+          foreignField: '_id',
+          as: 'viewersInfo'
+        }
+      },
+      {
         $project: {
           _id: 1,
           mediaUrl: 1,
@@ -79,8 +87,46 @@ async function GET(request: NextRequest) {
           'user._id': 1,
           'user.username': 1,
           'user.avatar': 1,
-          viewedBy: 1,
+          viewedBy: {
+            $map: {
+              input: '$viewedBy',
+              as: 'v',
+              in: {
+                userId: '$$v.userId',
+                viewedAt: '$$v.viewedAt',
+                user: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: '$viewersInfo',
+                        as: 'u',
+                        cond: { $eq: ['$$u._id', '$$v.userId'] }
+                      }
+                    },
+                    0
+                  ]
+                }
+              }
+            }
+          },
         },
+      },
+      {
+        $project: {
+          _id: 1,
+          mediaUrl: 1,
+          mediaType: 1,
+          caption: 1,
+          createdAt: 1,
+          expiresAt: 1,
+          'user._id': 1,
+          'user.username': 1,
+          'user.avatar': 1,
+          'viewedBy.userId': 1,
+          'viewedBy.viewedAt': 1,
+          'viewedBy.user.username': 1,
+          'viewedBy.user.avatar': 1,
+        }
       },
       {
         $sort: { createdAt: -1 },
@@ -107,6 +153,7 @@ async function GET(request: NextRequest) {
         caption: story.caption,
         createdAt: story.createdAt,
         expiresAt: story.expiresAt,
+        viewedBy: story.viewedBy,
         viewed: story.viewedBy?.some((v: any) => v.userId.toString() === currentUserId) || false,
       });
     }

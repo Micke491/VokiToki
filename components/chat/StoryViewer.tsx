@@ -406,22 +406,30 @@ export default function StoryViewer({
         </div>
 
         {/* Side Controls (Desktop Only) */}
-        {!isPaused && (
-          <div className="hidden md:flex absolute inset-y-0 left-0 right-0 pointer-events-none items-center justify-between px-10">
-            <button 
-              onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all"
-            >
-              <ArrowLeft className="w-6 h-6 text-white" />
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleNext(); }}
-              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all rotate-180"
-            >
-              <ArrowLeft className="w-6 h-6 text-white" />
-            </button>
-          </div>
-        )}
+        <div className="hidden md:flex absolute inset-y-0 left-0 right-0 pointer-events-none items-center justify-between px-10 z-40">
+          <button 
+            type="button"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              handlePrev(); 
+            }}
+            className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all group border border-white/10 shadow-xl cursor-pointer"
+            title="Previous Story"
+          >
+            <ArrowLeft className="w-8 h-8 text-white group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              handleNext(); 
+            }}
+            className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all group border border-white/10 shadow-xl cursor-pointer"
+            title="Next Story"
+          >
+            <ArrowLeft className="w-8 h-8 text-white group-hover:translate-x-0.5 transition-transform rotate-180" />
+          </button>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

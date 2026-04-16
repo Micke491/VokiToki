@@ -26,7 +26,6 @@ export default function StoryBar({
 }: StoryBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [showManagementModal, setShowManagementModal] = useState(false);
 
   const { stories, loading, fetchStories, markStoryAsViewed, hasUnviewedStories, setStories } = useStories(currentUserId);
 
@@ -34,6 +33,7 @@ export default function StoryBar({
   const otherStories = stories.filter(su => su.user._id !== currentUserId);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ... same as before
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -66,7 +66,6 @@ export default function StoryBar({
       if (uploadRes.ok) {
         toast.success('Story posted!');
         fetchStories(); 
-        onMyStoryClick(); 
       } else {
         const error = await uploadRes.json();
         toast.error(error.error || 'Failed to upload story');
@@ -79,31 +78,6 @@ export default function StoryBar({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }
-  };
-
-  const handleDeleteStory = async (storyId: string) => {
-    try {
-      const response = await fetch(`/api/profile?storyId=${storyId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        setStories((prev: StoryUser[]) => prev.map(storyUser => (
-          storyUser.user._id === currentUserId
-            ? { ...storyUser, stories: storyUser.stories.filter((s: Story) => s._id !== storyId) }
-            : storyUser
-        )));
-        toast.success('Story deleted');
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to delete story');
-      }
-    } catch (error) {
-      toast.error('Failed to delete story');
     }
   };
 
@@ -124,7 +98,7 @@ export default function StoryBar({
           <button
             onClick={() => {
               if (myStories.length > 0) {
-                setShowManagementModal(true);
+                onMyStoryClick();
               } else {
                 fileInputRef.current?.click();
               }
@@ -200,16 +174,7 @@ export default function StoryBar({
           onClick={() => onStoryClick(storyUser.user._id, storyUser.stories, storyUser.user.username, storyUser.user.avatar)}
         />
       ))}
-
-      {/* Story Management Modal */}
-      <StoryManagementModal
-        isOpen={showManagementModal}
-        onClose={() => setShowManagementModal(false)}
-        stories={myStories}
-        onDeleteStory={handleDeleteStory}
-        onAddStory={() => fileInputRef.current?.click()}
-        uploading={uploading}
-      />
     </div>
   );
 }
+
