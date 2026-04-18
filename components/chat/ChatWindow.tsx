@@ -746,6 +746,7 @@ export default function ChatWindow({
       alert("Failed to send voice message.");
     } finally {
       setUploading(false);
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
@@ -818,7 +819,7 @@ export default function ChatWindow({
       setNewMessage(messageText);
     } finally {
       setSending(false);
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
@@ -875,6 +876,7 @@ export default function ChatWindow({
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
@@ -911,6 +913,7 @@ export default function ChatWindow({
       console.error("Gif upload error:", error);
     } finally {
       setSending(false);
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
@@ -947,6 +950,7 @@ export default function ChatWindow({
       console.error("Sticker upload error:", error);
     } finally {
       setSending(false);
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
