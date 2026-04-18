@@ -3,10 +3,26 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { authLimiter, getIP } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
   try {
     await connectDB();
+
+    const ip = getIP(req);
+    const { success, reset } = await authLimiter.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        { message: "Too many attempts. Please try again soon." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
+    }
 
     const body = await req.json();
 

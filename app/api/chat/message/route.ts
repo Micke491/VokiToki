@@ -5,12 +5,26 @@ import Chat from '@/models/Chat';
 import User from '@/models/User';   
 import { verifyToken } from '@/lib/auth';
 import { pusherServer } from '@/lib/pusher';
+import { messageLimiter } from '@/lib/ratelimit';
 
 export async function POST(req: Request) {
     try {
         await connectDB();
         const auth = verifyToken(req);
         if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { success, reset } = await messageLimiter.limit(auth.id);
+        if (!success) {
+            return NextResponse.json(
+                { error: "Too many messages. Slow down!" },
+                { 
+                    status: 429,
+                    headers: {
+                        "X-RateLimit-Reset": reset.toString(),
+                    }
+                }
+            );
+        }
 
         const body = await req.json();
         const { chatId, senderId, text, replyTo, mediaUrl, mediaType, mediaPublicId, isForwarded } = body;

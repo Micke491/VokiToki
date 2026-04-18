@@ -3,10 +3,26 @@ import crypto from 'crypto';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import { emailService } from '@/lib/emailService';
+import { authLimiter, getIP } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
+
+    const ip = getIP(req);
+    const { success, reset } = await authLimiter.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
+    }
 
     const body = await req.json();
     const email = String(body.email); 

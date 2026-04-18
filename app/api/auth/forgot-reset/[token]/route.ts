@@ -4,12 +4,28 @@ import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import { emailService } from '@/lib/emailService';
+import { authLimiter, getIP } from '@/lib/ratelimit';
 
 export async function GET(
   req: NextRequest,
   props: { params: Promise<{ token: string }> }
 ) {
   try {
+    const ip = getIP(req);
+    const { success, reset } = await authLimiter.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
+    }
+
     await connectDB();
     const { token } = await props.params;
 
@@ -39,6 +55,21 @@ export async function POST(
   props: { params: Promise<{ token: string }> }
 ) {
   try {
+    const ip = getIP(req);
+    const { success, reset } = await authLimiter.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
+    }
+
     await connectDB();
     const { token } = await props.params;
     

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { headers } from "next/headers";
 import { AccessToken } from "livekit-server-sdk";
+import { generalLimiter } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
   try {
@@ -17,6 +18,19 @@ export async function POST(req: Request) {
 
     if (!decoded.userId) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const { success, reset } = await generalLimiter.limit(decoded.userId);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many call attempts. Please wait." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
     }
 
     const body = await req.json();

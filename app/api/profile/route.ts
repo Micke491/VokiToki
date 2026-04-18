@@ -6,6 +6,7 @@ import { verifyToken } from '@/lib/auth';
 import mongoose from 'mongoose';
 import Chat from '@/models/Chat';
 import { pusherServer } from '@/lib/pusher';
+import { generalLimiter } from '@/lib/ratelimit';
 
 export async function GET(req: Request) {
   try {
@@ -80,6 +81,19 @@ export async function PATCH(req: NextRequest) {
     const auth = verifyToken(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { success, reset } = await generalLimiter.limit(auth.id);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many profile updates. Please wait." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
     }
 
     const body = await req.json();
@@ -190,6 +204,19 @@ export async function DELETE(req: Request) {
     const auth = verifyToken(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { success, reset } = await generalLimiter.limit(auth.id);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
     }
 
     const url = new URL(req.url);

@@ -5,6 +5,7 @@ import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
 import Message from '@/models/Message';
 import mongoose from 'mongoose';
+import { generalLimiter } from '@/lib/ratelimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +69,19 @@ export async function POST(request: Request) {
         await connectDB();
         const auth = verifyToken(request);
         if (!auth) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+        const { success, reset } = await generalLimiter.limit(auth.id);
+        if (!success) {
+            return NextResponse.json(
+                { message: "Too many chat creations. Please wait." },
+                { 
+                    status: 429,
+                    headers: {
+                        "X-RateLimit-Reset": reset.toString(),
+                    }
+                }
+            );
+        }
 
         const { recipientId } = await request.json();
         const currentUserId = auth.id;

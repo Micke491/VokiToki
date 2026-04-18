@@ -1,11 +1,26 @@
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
+import { generalLimiter, getIP } from '@/lib/ratelimit';
 
 export async function GET(req: Request) {
     try {
         const auth = verifyToken(req);
         if (!auth) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const ip = getIP(req);
+        const { success, reset } = await generalLimiter.limit(ip);
+        if (!success) {
+            return NextResponse.json(
+                { error: "Too many requests. Please wait." },
+                { 
+                    status: 429,
+                    headers: {
+                        "X-RateLimit-Reset": reset.toString(),
+                    }
+                }
+            );
         }
 
         const { searchParams } = new URL(req.url);

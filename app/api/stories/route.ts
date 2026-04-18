@@ -7,6 +7,7 @@ import Chat from '@/models/Chat';
 import jwt from 'jsonwebtoken';
 import cloudinary from '@/lib/cloudinary';
 import { pusherServer } from '@/lib/pusher';
+import { generalLimiter } from '@/lib/ratelimit';
 
 interface DecodedToken {
   userId?: string;
@@ -188,6 +189,19 @@ async function POST(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const { success, reset } = await generalLimiter.limit(userId);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many stories uploaded. Please wait." },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Reset": reset.toString(),
+          }
+        }
+      );
     }
 
     const formData = await request.formData();
