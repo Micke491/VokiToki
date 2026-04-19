@@ -388,9 +388,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               currentUserUsername={currentUser.username}
               onStoryClick={handleStoryClick}
               onMyStoryClick={handleMyStoryClick}
-              // Explicitly pass data if we want StoryBar to be leaner, 
-              // but StoryBar already uses useStories internally or via props.
-              // Let's ensure StoryBar is consistent.
             />
           )}
           <ChatList
@@ -518,10 +515,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           onIndexChange={handleStoryIndexChange}
           currentUserId={currentUser?._id}
           onAddStory={() => {
-            // Close viewer and let user add story from Sidebar or StoryBar
             handleStoryViewerClose();
-            // In a real app, this might open a file picker directly, 
-            // but for now, closing it and letting them use the StoryBar/Profile is safer.
+          }}
+          onShowViewers={() => {
+            handleStoryViewerClose();
+            setShowStoryManagement(true);
           }}
         />
       )}
@@ -534,13 +532,28 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           stories={allStoriesUsers.find(su => su.user._id === currentUser._id)?.stories || []}
           onDeleteStory={handleDeleteStory}
           onAddStory={() => {
-            // This might trigger a file input in a child component normally,
-            // but for simplicity we can close this and point them back to StoryBar
-            // or we could implement a global upload trigger.
-            setShowStoryManagement(false);
-            toast.success("Use the + icon in the story bar to add more!");
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            if (fileInput) {
+              fileInput.click();
+            } else {
+              toast.success("Use the + icon in the story bar to add more!");
+            }
           }}
           uploading={false} 
+          onViewStory={(storyId) => {
+            const myStoriesUser = allStoriesUsers.find(su => su.user._id === currentUser._id);
+            if (myStoriesUser) {
+              const selectedStory = myStoriesUser.stories.find(s => s._id === storyId);
+              if (selectedStory) {
+                handleStoryClick(
+                  currentUser._id, 
+                  [selectedStory], 
+                  currentUser.username, 
+                  currentUser.avatar
+                );
+              }
+            }
+          }}
         />
       )}
 

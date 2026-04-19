@@ -60,6 +60,7 @@ export default function ProfilePage() {
   });
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -750,13 +751,17 @@ export default function ProfilePage() {
       {isViewerOpen && myStoryUser && (
         <StoryViewer
           stories={myStoryUser.stories}
-          initialIndex={0}
+          initialIndex={viewerInitialIndex}
           username={formData.username}
           userId={currentUser?._id || ''}
           userAvatar={formData.avatar}
           onClose={() => setIsViewerOpen(false)}
-          onIndexChange={() => {}}
+          onIndexChange={(index) => setViewerInitialIndex(index)}
           currentUserId={currentUser?._id}
+          onShowViewers={() => {
+            setIsViewerOpen(false);
+            setShowStoryModal(true);
+          }}
         />
       )}
 
@@ -768,6 +773,13 @@ export default function ProfilePage() {
         onDeleteStory={handleDeleteStoryFromModal}
         onAddStory={handleAddStory}
         uploading={uploading}
+        onViewStory={(storyId) => {
+          const index = stories.findIndex(s => s._id === storyId);
+          if (index !== -1) {
+            setViewerInitialIndex(index);
+            setIsViewerOpen(true);
+          }
+        }}
       />
     </div>
   );

@@ -91,9 +91,9 @@ export default function StoryBar({
   }
 
   return (
-    <div className="h-auto min-h-[100px] border-b border-chat-border px-4 py-3 flex items-center gap-3 overflow-x-auto custom-scrollbar">
+    <div className="h-auto min-h-[90px] border-b border-chat-border px-4 py-3 flex items-center gap-3 overflow-x-auto custom-scrollbar">
       {/* My Story Circle */}
-      <div className="flex flex-col items-center gap-1.5 scroll-ml-6">
+      <div className="flex flex-col items-center gap-1.5 shrink-0">
         <div className="relative group">
           <button
             onClick={() => {
@@ -114,12 +114,12 @@ export default function StoryBar({
               myStories.length > 0 
                 ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[2px]' 
                 : 'bg-chat-border p-[1.5px]'
-            } w-16 h-16`}>
+            } w-14 h-14 md:w-16 md:h-16`}>
               <div className="w-full h-full rounded-full bg-chat-bg-primary p-[2px]">
                 <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-chat-bg-secondary relative">
                   {uploading ? (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     </div>
                   ) : null}
                   
@@ -130,7 +130,7 @@ export default function StoryBar({
                       className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${uploading ? 'blur-[1px]' : ''}`}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-chat-accent/20 to-chat-accent-secondary/20 text-chat-accent font-bold uppercase">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-chat-accent/20 to-chat-accent-secondary/20 text-chat-accent font-bold uppercase text-[10px]">
                       {currentUserUsername.charAt(0)}
                     </div>
                   )}
@@ -145,14 +145,14 @@ export default function StoryBar({
                   e.stopPropagation();
                   fileInputRef.current?.click();
                 }}
-                className="absolute bottom-0 right-0 w-5 h-5 bg-chat-accent rounded-full flex items-center justify-center border-2 border-chat-bg-primary hover:scale-110 transition-transform shadow-lg z-20 cursor-pointer"
+                className="absolute bottom-0 right-0 w-4.5 h-4.5 md:w-5 md:h-5 bg-chat-accent rounded-full flex items-center justify-center border-2 border-chat-bg-primary hover:scale-110 transition-transform shadow-lg z-20 cursor-pointer"
               >
-                <Plus className="w-3 h-3 text-white" strokeWidth={3} />
+                <Plus className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" strokeWidth={3} />
               </div>
             )}
           </button>
         </div>
-        <span className="text-xs font-medium text-chat-text-secondary">
+        <span className="text-[10px] md:text-xs font-medium text-chat-text-secondary">
           {uploading ? 'Uploading...' : 'My Story'}
         </span>
         <input

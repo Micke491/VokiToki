@@ -118,7 +118,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
         </nav>
 
         {/* Profile Section */}
-        <div className="p-4 border-t border-chat-border">
+        <div className="p-4 border-t border-chat-border pb-safe mb-2 md:mb-0">
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -143,7 +143,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
 
             {/* Profile Popover Menu */}
             {showProfileMenu && (
-              <div className="absolute bottom-full left-0 w-full mb-2 bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[110]">
+              <div className="absolute bottom-full left-0 w-full mb-3 bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[110]">
                 <button
                   onClick={() => { router.push('/profile'); setShowProfileMenu(false); onCloseMobileDrawer?.(); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-chat-text-secondary hover:bg-chat-hover transition-colors"
