@@ -7,7 +7,7 @@ interface StoryRingProps {
   username: string;
   hasUnviewedStory: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
   showLabel?: boolean;
 }
 

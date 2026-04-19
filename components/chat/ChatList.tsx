@@ -453,8 +453,9 @@ export default function ChatList({
                              username={otherUser.username}
                              showLabel={false}
                              hasUnviewedStory={hasUnviewed}
-                             onClick={() => {
+                             onClick={(e) => {
                                if (hasStories && onStoryClick) {
+                                 e.stopPropagation();
                                  onStoryClick(su.user._id, su.stories, su.user.username, su.user.avatar);
                                }
                              }}
