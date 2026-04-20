@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { useRouter } from "next/navigation";
+import { getAuthToken } from "@/lib/storage";
 import Pusher from "pusher-js";
 import { EmojiClickData } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -97,7 +98,7 @@ export default function ChatWindow({
     const checkBlockStatus = async () => {
       try {
         const response = await fetch(`/api/users/block/check?chatId=${chatId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         });
         if (response.ok) {
           const data = await response.json();
@@ -119,7 +120,7 @@ export default function ChatWindow({
     const fetchStatus = async () => {
       try {
         const res = await fetch(`/api/profile/${otherUser._id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -160,7 +161,7 @@ export default function ChatWindow({
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAuthToken();
     if (!token) return;
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
@@ -181,7 +182,7 @@ export default function ChatWindow({
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${getAuthToken()}`,
             },
             body: JSON.stringify({ status: "seen" }),
           });
@@ -413,7 +414,7 @@ export default function ChatWindow({
 
       const response = await fetch(url.toString(), {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         cache: "no-store",
       });
@@ -442,7 +443,7 @@ export default function ChatWindow({
 
         // Also fetch pinned messages
         fetch(`/api/chat/${chatId}/pinned`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         })
           .then((res) => res.json())
           .then((data) => {
@@ -518,7 +519,7 @@ export default function ChatWindow({
         if (beforeDate) url.searchParams.append("before", beforeDate);
 
         const response = await fetch(url.toString(), {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
           signal,
         });
 
@@ -595,7 +596,7 @@ export default function ChatWindow({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${getAuthToken()}`,
             },
             body: JSON.stringify({
               messageIds: unreadMessageIds,
@@ -714,7 +715,7 @@ export default function ChatWindow({
       const response = await fetch("/api/chat/media/upload", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: formData,
       });
@@ -727,7 +728,7 @@ export default function ChatWindow({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({
             chatId,
@@ -769,7 +770,7 @@ export default function ChatWindow({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           chatId,
@@ -786,7 +787,7 @@ export default function ChatWindow({
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ text: messageText }),
         });
@@ -796,7 +797,7 @@ export default function ChatWindow({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({
             chatId,
@@ -840,7 +841,7 @@ export default function ChatWindow({
       const response = await fetch("/api/chat/media/upload", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: formData,
       });
@@ -856,7 +857,7 @@ export default function ChatWindow({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({
             chatId,
@@ -889,7 +890,7 @@ export default function ChatWindow({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           chatId,
@@ -926,7 +927,7 @@ export default function ChatWindow({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           chatId,
@@ -979,7 +980,7 @@ export default function ChatWindow({
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         },
       );
@@ -1007,14 +1008,14 @@ export default function ChatWindow({
     if (message.isPinned) {
       await fetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
     } else {
       await fetch(`/api/chat/${chatId}/pinned`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ messageId: message._id }),
       });
@@ -1045,7 +1046,7 @@ export default function ChatWindow({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           chatId,
@@ -1066,7 +1067,7 @@ export default function ChatWindow({
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         },
       );
@@ -1086,7 +1087,7 @@ export default function ChatWindow({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({
             chatId,
@@ -1103,7 +1104,7 @@ export default function ChatWindow({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${getAuthToken()}`,
             },
             body: JSON.stringify({
               chatId,
@@ -1143,7 +1144,7 @@ export default function ChatWindow({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           chatId: targetChatId,

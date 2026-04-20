@@ -10,7 +10,7 @@ export async function GET(
     try {
         await connectDB();
         const { chatId } = await params;
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -41,7 +41,7 @@ export async function DELETE(
     try {
         await connectDB();
         const { chatId } = await params;
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

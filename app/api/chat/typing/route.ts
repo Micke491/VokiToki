@@ -4,7 +4,7 @@ import { pusherServer } from '@/lib/pusher';
 
 export async function POST(req: Request) {
   try {
-    const auth = verifyToken(req);
+    const auth = await verifyToken(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { chatId, username, isTyping } = await req.json();

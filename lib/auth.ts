@@ -10,9 +10,14 @@ interface DecodedToken extends JwtPayload {
 export interface AuthUser {
   id: string;
   email?: string;
+  role: 'user' | 'admin';
+  isBanned: boolean;
 }
 
-export function verifyToken(req: Request) {
+import { connectDB } from "./db";
+import User from "@/models/User";
+
+export async function verifyToken(req: Request): Promise<AuthUser | null> {
   try {
     // 1. Get Token from Header or Cookie
     const authHeader = req.headers.get("authorization") || "";
@@ -42,7 +47,19 @@ export function verifyToken(req: Request) {
 
     if (!id) return null;
 
-    return { id, email: decoded.email };
+    await connectDB();
+    const user = await User.findById(id).lean();
+
+    if (!user || user.isBanned) {
+      return null;
+    }
+
+    return { 
+      id, 
+      email: decoded.email,
+      role: user.role || 'user',
+      isBanned: user.isBanned || false
+    };
     
   } catch (err) {
     // Token is invalid or expired

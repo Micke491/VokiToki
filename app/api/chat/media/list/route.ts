@@ -7,7 +7,7 @@ import { verifyToken } from '@/lib/auth';
 export async function GET(req: Request) {
     try {
         await connectDB();
-        const auth = verifyToken(req);
+        const auth = await verifyToken(req);
         if (!auth) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

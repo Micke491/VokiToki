@@ -48,6 +48,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
+    if (user.isBanned) {
+      return NextResponse.json({ message: "This account has been banned" }, { status: 403 });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });

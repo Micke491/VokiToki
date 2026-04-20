@@ -4,7 +4,7 @@ import { generalLimiter, getIP } from '@/lib/ratelimit';
 
 export async function GET(req: Request) {
     try {
-        const auth = verifyToken(req);
+        const auth = await verifyToken(req);
         if (!auth) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

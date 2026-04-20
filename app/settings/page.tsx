@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAuthToken } from '@/lib/storage';
 import SideBar from '@/components/layout/Sidebar';
 import BlockedUsersModal from '@/components/ui/BlockedUsersModal';
 import {
@@ -58,7 +59,7 @@ export default function SettingsPage() {
   const fetchCurrentUser = async () => {
     try {
       const response = await fetch('/api/users/current_user', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
       });
       if (!response.ok) throw new Error('Not authenticated');
       const data = await response.json();
@@ -90,7 +91,7 @@ export default function SettingsPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify(updates),
       });
@@ -123,7 +124,7 @@ export default function SettingsPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           username: editUsername,
@@ -156,7 +157,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/users/profile/upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
         body: formData,
       });
 
@@ -196,7 +197,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/users/current_user', {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
       });
 
       if (!response.ok) throw new Error('Failed to delete account');

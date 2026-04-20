@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getAuthToken } from '@/lib/storage';
 import { pusherClient } from '@/lib/pusher-client';
 import { Story, StoryUser } from '@/types/chat';
 
@@ -13,7 +14,7 @@ export function useStories(currentUserId: string) {
       setLoading(true);
       const response = await fetch('/api/stories', {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -34,7 +35,7 @@ export function useStories(currentUserId: string) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ storyId }),
       });

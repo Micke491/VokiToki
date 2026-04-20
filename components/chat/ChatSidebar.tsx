@@ -3,6 +3,7 @@ import { Users, Image as ImageIcon, X, Mic, Video, ShieldCheck, Link as LinkIcon
 import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 import toast from "react-hot-toast";
+import { getAuthToken } from "@/lib/storage";
 import AddParticipantModal from "./AddParticipantModal";
 import ConfirmModal from "../ui/ConfirmModal";
 
@@ -99,7 +100,7 @@ const ChatSidebar = ({
       setLoadingMedia(true);
       const response = await fetch(`/api/chat/media/list?chatId=${chatId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
       if (response.ok) {
@@ -121,7 +122,7 @@ const ChatSidebar = ({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ name: editGroupName }),
       });
@@ -154,7 +155,7 @@ const ChatSidebar = ({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${getAuthToken()}`,
             },
             body: JSON.stringify({ userId }),
           });
@@ -189,7 +190,7 @@ const ChatSidebar = ({
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${getAuthToken()}`,
             },
             body: JSON.stringify({ groupAdmin: userId }),
           });
@@ -229,7 +230,7 @@ const ChatSidebar = ({
           const res = await fetch(endpoint, {
             method,
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${getAuthToken()}`,
             },
           });
           
@@ -268,7 +269,7 @@ const ChatSidebar = ({
       const uploadRes = await fetch("/api/chat/media/upload", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: formData,
       });
@@ -280,7 +281,7 @@ const ChatSidebar = ({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ avatar: uploadData.url }),
       });

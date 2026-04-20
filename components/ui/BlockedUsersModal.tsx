@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAuthToken } from "@/lib/storage";
 import { X, UserX, Loader2, ShieldOff } from 'lucide-react';
 
 interface BlockedUser {
@@ -31,7 +32,7 @@ export default function BlockedUsersModal({ isOpen, onClose }: BlockedUsersModal
       setLoading(true);
       const response = await fetch('/api/users/blocked', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -53,7 +54,7 @@ export default function BlockedUsersModal({ isOpen, onClose }: BlockedUsersModal
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ targetUserId: userId }),
       });

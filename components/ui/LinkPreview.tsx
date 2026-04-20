@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAuthToken } from "@/lib/storage";
 import { ExternalLink } from "lucide-react";
 
 interface LinkPreviewData {
@@ -25,10 +26,9 @@ export default function LinkPreview({ url }: LinkPreviewProps) {
     const fetchMetadata = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
         const response = await fetch(`/api/url-metadata?url=${encodeURIComponent(url)}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         });
 

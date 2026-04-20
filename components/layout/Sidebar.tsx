@@ -15,6 +15,8 @@ interface SideBarProps {
   isHidden?: boolean;
 }
 
+import { removeAuthToken } from '@/lib/storage';
+
 export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobileDrawer, isHidden }: SideBarProps) {
   if (isHidden) return null;
   const pathname = usePathname();
@@ -22,7 +24,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    removeAuthToken();
     router.push('/auth-pages/login');
   };
 

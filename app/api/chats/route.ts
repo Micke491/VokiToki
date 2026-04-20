@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         await connectDB();
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         await connectDB();
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
         const { success, reset } = await generalLimiter.limit(auth.id);

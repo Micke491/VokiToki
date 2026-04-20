@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
+import { getAuthToken } from "@/lib/storage";
 
 interface User {
   _id: string;
@@ -61,7 +62,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
       const response = await fetch(`/api/users/search?username=${encodeURIComponent(query)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -91,7 +92,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ 
           userIds: selectedUsers.map(u => u._id) 

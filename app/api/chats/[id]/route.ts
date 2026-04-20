@@ -12,7 +12,7 @@ export async function DELETE(
     try {
         await connectDB();
         const { id: chatId } = await params;
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
         const userId = auth.id;

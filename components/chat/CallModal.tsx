@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { getAuthToken } from "@/lib/storage";
 import { 
   LiveKitRoom, 
   VideoConference, 
@@ -24,7 +25,7 @@ export default function CallModal({ onLeave, chatId, callType, username }: CallM
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ chatId, username }),
         });
@@ -42,7 +43,7 @@ export default function CallModal({ onLeave, chatId, callType, username }: CallM
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${getAuthToken()}`,
       },
       body: JSON.stringify({ chatId, callType }),
     }).catch(console.error);

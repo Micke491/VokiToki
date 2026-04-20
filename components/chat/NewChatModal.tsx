@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Users, MessageCircle } from 'lucide-react';
+import { getAuthToken } from "@/lib/storage";
 
 interface User {
   _id: string;
@@ -64,7 +65,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
       const response = await fetch(`/api/users/search?username=${encodeURIComponent(query)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -95,7 +96,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ recipientId }),
       });
@@ -125,7 +126,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({
           name: groupName,

@@ -14,6 +14,7 @@ import StoryViewer from "@/components/chat/StoryViewer";
 import StoryManagementModal from "@/components/chat/StoryManagementModal";
 import UserProfileModal from "@/components/ui/UserProfileModal";
 import { useStories } from "@/hooks/useStories";
+import { getAuthToken } from "@/lib/storage";
 import toast from "react-hot-toast";
 
 interface User {
@@ -81,7 +82,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ isOnline: online }),
         });
@@ -124,7 +125,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({
             chatId,
@@ -144,7 +145,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   useEffect(() => {
     if (!chatId) return;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token) return;
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
@@ -165,7 +166,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   useEffect(() => {
     if (!currentUser) return;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token) return;
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
@@ -216,7 +217,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   const fetchCurrentUser = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       if (!token) {
         router.push("/auth-pages/login");
         return;
@@ -244,7 +245,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     try {
       const response = await fetch(`/api/chat/${id}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -306,7 +307,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       const response = await fetch(`/api/profile?storyId=${storyId}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 

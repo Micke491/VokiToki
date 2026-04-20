@@ -11,7 +11,7 @@ export async function POST(
 ) {
   try {
     await connectDB();
-    const auth = verifyToken(req);
+    const auth = await verifyToken(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { messageId } = await params;
@@ -68,7 +68,7 @@ export async function DELETE(
 ) {
   try {
     await connectDB();
-    const auth = verifyToken(req);
+    const auth = await verifyToken(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { messageId } = await params;

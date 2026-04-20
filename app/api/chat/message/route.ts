@@ -10,7 +10,7 @@ import { messageLimiter } from '@/lib/ratelimit';
 export async function POST(req: Request) {
     try {
         await connectDB();
-        const auth = verifyToken(req);
+        const auth = await verifyToken(req);
         if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { success, reset } = await messageLimiter.limit(auth.id);
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
     try {
         await connectDB();
-        const auth = verifyToken(req);
+        const auth = await verifyToken(req);
         if (!auth) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

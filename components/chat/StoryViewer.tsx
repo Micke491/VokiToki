@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { X, MoreVertical, Volume2, VolumeX, Plus, Eye, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Story } from '../../types/chat';
+import { getAuthToken } from '@/lib/storage';
 
 interface StoryViewerProps {
   stories: Story[];
@@ -93,7 +94,7 @@ export default function StoryViewer({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ storyId: currentStory._id }),
       }).catch(console.error);

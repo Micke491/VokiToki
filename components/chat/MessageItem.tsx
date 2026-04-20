@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { getAuthToken } from "@/lib/storage";
 import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Phone, Zap, Download, Image as ImageIcon } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
@@ -488,7 +489,7 @@ const MessageItem = ({
                                       method: "POST",
                                       headers: {
                                           "Content-Type": "application/json",
-                                          Authorization: `Bearer ${localStorage.getItem("token")}`,
+                                          Authorization: `Bearer ${getAuthToken()}`,
                                       },
                                       body: JSON.stringify({ chatId, emoji }),
                                   });

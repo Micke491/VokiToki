@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getAuthToken } from "@/lib/storage";
 import { X, Check } from "lucide-react";
 
 interface Chat {
@@ -31,7 +32,7 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
       try {
         const response = await fetch("/api/chats", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         });
         if (response.ok) {

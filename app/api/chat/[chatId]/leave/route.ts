@@ -13,7 +13,7 @@ export async function POST(
     try {
         await connectDB();
         const { chatId } = await params;
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

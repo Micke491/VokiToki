@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 export async function POST(request: Request) {
     try {
         await connectDB();
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

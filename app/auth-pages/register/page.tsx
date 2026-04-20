@@ -1,36 +1,20 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { MessageCircle, Mail, Lock, User, AlertCircle, Loader2, CheckCircle, EyeOff, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { setAuthToken } from '@/lib/storage';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const isExpired = payload.exp * 1000 < Date.now();
-        
-        if (!isExpired) {
-          window.location.href = '/chat';
-        } else {
-          localStorage.removeItem('token');
-        }
-      } catch (err) {
-        localStorage.removeItem('token');
-      }
-    }
-  }, []);
 
   const validateForm = () => {
     if (!username || !email || !password || !confirmPassword) {
@@ -72,7 +56,7 @@ export default function RegisterPage() {
         return;
       }
 
-      localStorage.setItem('token', data.token);
+      setAuthToken(data.token, rememberMe);
       window.location.href = '/chat';
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -165,6 +149,22 @@ export default function RegisterPage() {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-1 py-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="w-5 h-5 border-2 border-zinc-800 rounded-lg group-hover:border-blue-500/50 transition-colors peer-checked:border-blue-500 peer-checked:bg-blue-500"></div>
+                  <CheckCircle size={14} className="absolute text-white scale-0 peer-checked:scale-100 transition-transform" />
+                </div>
+                <span className="text-sm font-medium text-zinc-400 group-hover:text-zinc-300 transition-colors">Remember me across sessions</span>
+              </label>
             </div>
 
             <button

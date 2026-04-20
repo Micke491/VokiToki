@@ -1,34 +1,18 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { MessageCircle, Mail, Lock, AlertCircle, Loader2, EyeOff, Eye, ArrowRight, Github } from 'lucide-react';
+import { useState } from 'react';
+import { MessageCircle, Mail, Lock, AlertCircle, Loader2, EyeOff, Eye, Github, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { setAuthToken } from '@/lib/storage';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const isExpired = payload.exp * 1000 < Date.now();
-        
-        if (!isExpired) {
-          window.location.href = '/chat';
-        } else {
-          localStorage.removeItem('token');
-        }
-      } catch (err) {
-        localStorage.removeItem('token');
-      }
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +33,7 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem('token', data.token);
+      setAuthToken(data.token, rememberMe);
       window.location.href = '/chat'; 
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -109,7 +93,6 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              {/* Removed the flex container and Forgot link from here */}
               <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-1">Password</label>
               
               <div className="relative group">
@@ -130,6 +113,25 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between px-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="w-5 h-5 border-2 border-zinc-800 rounded-lg group-hover:border-blue-500/50 transition-colors peer-checked:border-blue-500 peer-checked:bg-blue-500"></div>
+                  <CheckCircle size={14} className="absolute text-white scale-0 peer-checked:scale-100 transition-transform" />
+                </div>
+                <span className="text-sm font-medium text-zinc-400 group-hover:text-zinc-300 transition-colors">Remember Me</span>
+              </label>
+              <Link href="/auth-pages/forgot-password" className="text-sm font-medium text-blue-500 hover:text-blue-400 transition-colors">
+                Forgot password?
+              </Link>
             </div>
 
             <button
@@ -159,11 +161,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Grouped links at the bottom */}
           <div className="mt-10 flex flex-col gap-3 text-center text-zinc-400 font-medium">
-            <p>
-              Forgot your password? <Link href="/auth-pages/forgot-password" className="text-zinc-100 font-bold hover:text-blue-400 transition-colors">Reset it</Link>
-            </p>
             <p>
               New here? <Link href="/auth-pages/register" className="text-zinc-100 font-bold hover:text-blue-400 transition-colors">Create an account</Link>
             </p>

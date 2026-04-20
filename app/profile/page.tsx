@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAuthToken } from "@/lib/storage";
 import SideBar from '@/components/layout/Sidebar';
 import {
   ArrowLeft, Camera, Save, Loader2, CheckCircle, AlertTriangle,
@@ -92,7 +93,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch('/api/profile', {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
       if (!response.ok) throw new Error('Not authenticated');
@@ -124,7 +125,7 @@ export default function ProfilePage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify(formData),
       });
@@ -155,7 +156,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/users/profile/upload', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: formDataUpload,
       });
@@ -177,7 +178,7 @@ export default function ProfilePage() {
       const response = await fetch(`/api/profile?storyId=${storyId}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -216,7 +217,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/stories', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
         body: formDataStory,
       });

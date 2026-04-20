@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import StoryRing from "./StoryRing";
 import { useRouter } from 'next/navigation';
+import { getAuthToken } from '@/lib/storage';
 import Pusher from 'pusher-js';
 import ConfirmModal from '../ui/ConfirmModal';
 import { Plus, Menu, Search, X, MoreVertical, LogOut } from 'lucide-react';
@@ -74,7 +75,7 @@ export default function ChatList({
   }, [selectedChatId]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token || !currentUserId) return;
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
@@ -182,7 +183,7 @@ export default function ChatList({
       setLoading(true);
       const response = await fetch('/api/chats', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Cache-Control': 'no-cache',
         },
         cache: 'no-store'
@@ -219,7 +220,7 @@ export default function ChatList({
       const response = await fetch(`/api/chats/${chatId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
       });
       if (response.ok) {
@@ -239,7 +240,7 @@ export default function ChatList({
       const response = await fetch(`/api/chat/${chatId}/leave`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
       });
       if (response.ok) {
@@ -260,7 +261,7 @@ export default function ChatList({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
         body: JSON.stringify({ targetUserId }),
       });

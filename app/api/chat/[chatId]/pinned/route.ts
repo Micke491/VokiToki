@@ -12,7 +12,7 @@ export async function GET(
     try {
         await connectDB();
         const { chatId } = await params;
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -51,7 +51,7 @@ export async function POST(
         await connectDB();
         const { chatId } = await params;
         const { messageId } = await request.json();
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const message = await Message.findById(messageId);
@@ -82,7 +82,7 @@ export async function DELETE(
         const { chatId } = await params;
         const { searchParams } = new URL(request.url);
         const messageId = searchParams.get('messageId');
-        const auth = verifyToken(request);
+        const auth = await verifyToken(request);
         if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         if (!messageId) return NextResponse.json({ error: 'Message ID required' }, { status: 400 });
