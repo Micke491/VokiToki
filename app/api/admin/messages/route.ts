@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
+import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,22 @@ export async function GET(request: Request) {
         const limit = parseInt(url.searchParams.get('limit') || '50');
 
         const query: any = {};
-        if (search) {
+        if (search.startsWith('@') && search.length > 1) {
+            const term = search.slice(1);
+            const matchingUsers = await User.find({
+                $or: [
+                    { username: { $regex: term, $options: 'i' } },
+                    { email: { $regex: term, $options: 'i' } },
+                ],
+            }).select('_id').lean();
+
+            const userIds = matchingUsers.map(u => u._id);
+
+            query.$or = [
+                ...(userIds.length > 0 ? [{ sender: { $in: userIds } }] : []),
+                { senderUsername: { $regex: term, $options: 'i' } },
+            ];
+        } else if (search) {
             query.text = { $regex: search, $options: 'i' };
         }
 
@@ -32,7 +48,6 @@ export async function GET(request: Request) {
             .limit(limit)
             .lean();
 
-        // Admin stats
         const totalMessages = await Message.countDocuments();
         const totalDeletedMessages = await Message.countDocuments({ isDeletedForEveryone: true });
 

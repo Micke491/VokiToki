@@ -8,6 +8,7 @@
   export interface IMessage extends Document {
     chatId: mongoose.Types.ObjectId;
     sender: mongoose.Types.ObjectId;
+    senderUsername?: string;
     text: string;
     iv?: string;
     read: boolean;
@@ -72,6 +73,10 @@
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
+      },
+      senderUsername: {
+        type: String,
+        default: '',
       },
       text: {
         type: String,

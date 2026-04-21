@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAuthToken } from "@/lib/storage";
-import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 interface UserRow {
   _id: string;
@@ -16,6 +16,9 @@ interface UserRow {
   lastSeen?: string;
   isOnline: boolean;
 }
+
+type SortField = 'username' | 'createdAt' | 'isBanned';
+type SortOrder = 'asc' | 'desc';
 
 function Avatar({ user }: { user: UserRow }) {
   const initials = (user.name || user.username).slice(0, 2).toUpperCase();
@@ -35,6 +38,13 @@ function Avatar({ user }: { user: UserRow }) {
   );
 }
 
+function SortIcon({ field, sortBy, sortOrder }: { field: SortField; sortBy: SortField; sortOrder: SortOrder }) {
+  if (sortBy !== field) return <ArrowUpDown size={10} style={{ color: '#3f3f46', marginLeft: '3px' }} />;
+  return sortOrder === 'asc'
+    ? <ArrowUp size={10} style={{ color: '#3b82f6', marginLeft: '3px' }} />
+    : <ArrowDown size={10} style={{ color: '#3b82f6', marginLeft: '3px' }} />;
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,24 +52,41 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   function getToken() {
     return document.cookie.match(/(?:^|; )token=([^;]+)/)?.[1] || getAuthToken() || '';
   }
 
+  function handleSort(field: SortField) {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder(field === 'username' ? 'asc' : 'desc');
+    }
+    setPage(1);
+  }
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20', search, ...(roleFilter ? { role: roleFilter } : {}) });
+      const params = new URLSearchParams({
+        page: String(page), limit: '20', search, sortBy, sortOrder,
+        ...(roleFilter ? { role: roleFilter } : {}),
+      });
       const res = await fetch(`/api/admin/users?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
       const data = await res.json();
       setUsers(data.users || []);
       setTotalPages(data.pagination?.pages || 1);
+      setTotalCount(data.pagination?.total || 0);
     } catch { } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter]);
+  }, [page, search, roleFilter, sortBy, sortOrder]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -95,6 +122,14 @@ export default function AdminUsersPage() {
       setActionLoading(null);
     }
   }
+
+  const sortableHeaderStyle = (field: SortField): React.CSSProperties => ({
+    color: sortBy === field ? '#a1a1aa' : '#52525b',
+    fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px',
+    userSelect: 'none', transition: 'color 0.15s',
+    background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -144,14 +179,23 @@ export default function AdminUsersPage() {
           </select>
         </div>
 
-        {/* Table header */}
+        {/* Table header — sortable */}
         <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr 100px 90px 160px',
+          display: 'grid', gridTemplateColumns: '1fr 1fr 110px 100px 90px 160px',
           padding: '0 16px 10px', borderBottom: '1px solid #1a1a1e',
         }}>
-          {['User', 'Email', 'Role', 'Status', 'Actions'].map(h => (
-            <p key={h} style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>{h}</p>
-          ))}
+          <button onClick={() => handleSort('username')} style={sortableHeaderStyle('username')}>
+            User <SortIcon field="username" sortBy={sortBy} sortOrder={sortOrder} />
+          </button>
+          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Email</p>
+          <button onClick={() => handleSort('createdAt')} style={sortableHeaderStyle('createdAt')}>
+            Registered <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
+          </button>
+          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Role</p>
+          <button onClick={() => handleSort('isBanned')} style={sortableHeaderStyle('isBanned')}>
+            Status <SortIcon field="isBanned" sortBy={sortBy} sortOrder={sortOrder} />
+          </button>
+          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Actions</p>
         </div>
       </div>
 
@@ -172,7 +216,7 @@ export default function AdminUsersPage() {
           </div>
         ) : users.map((user, idx) => (
           <div key={user._id} style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 100px 90px 160px',
+            display: 'grid', gridTemplateColumns: '1fr 1fr 110px 100px 90px 160px',
             padding: '14px 16px', borderBottom: '1px solid #0d0d0f',
             alignItems: 'center', animation: 'slideIn 0.15s ease-out',
             animationDelay: `${idx * 0.02}s`, animationFillMode: 'both',
@@ -193,6 +237,11 @@ export default function AdminUsersPage() {
             {/* Email */}
             <p style={{ color: '#71717a', fontSize: '13px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '12px' }}>
               {user.email}
+            </p>
+
+            {/* Registration Date */}
+            <p style={{ color: '#52525b', fontSize: '12px', margin: 0 }}>
+              {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
             </p>
 
             {/* Role Badge */}
@@ -259,11 +308,14 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={{
-          flexShrink: 0, padding: '14px 36px', borderTop: '1px solid #18181b',
-          display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end',
-        }}>
+      <div style={{
+        flexShrink: 0, padding: '14px 36px', borderTop: '1px solid #18181b',
+        display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between',
+      }}>
+        <span style={{ color: '#3f3f46', fontSize: '12px' }}>
+          {totalCount} user{totalCount !== 1 ? 's' : ''} · 20 per page
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ color: '#52525b', fontSize: '13px' }}>Page {page} / {totalPages}</span>
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{
             padding: '6px 10px', background: '#18181b', border: '1px solid #27272a',
@@ -280,7 +332,7 @@ export default function AdminUsersPage() {
             <ChevronRight size={14} />
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

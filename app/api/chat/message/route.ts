@@ -41,6 +41,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Not a member of this chat" }, { status: 403 });
         }
 
+        const senderUser = await User.findById(senderId).select('username blockedUsers');
+
         if (!chat.isGroupChat) {
             const otherParticipantId = chat.participants.find(p => p.toString() !== senderId);
             if (otherParticipantId) {
@@ -49,7 +51,6 @@ export async function POST(req: Request) {
                     return NextResponse.json({ error: "Cannot send messages. The other user has deleted their account." }, { status: 403 });
                 }
 
-                const senderUser = await User.findById(senderId).select('blockedUsers');
                 const iBlockedThem = senderUser?.blockedUsers?.some((id: any) => id.toString() === otherParticipantId.toString());
                 const theyBlockedMe = otherUser.blockedUsers?.some((id: any) => id.toString() === senderId);
 
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
         const newMessage = await Message.create({
             chatId,
             sender: senderId,
+            senderUsername: senderUser?.username || '',
             text: text?.trim() || "",
             replyTo: replyTo || undefined,
             mediaUrl,

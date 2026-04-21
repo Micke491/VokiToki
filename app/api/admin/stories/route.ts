@@ -25,7 +25,6 @@ export async function GET(request: Request) {
             .limit(limit)
             .lean();
 
-        // Admin stats
         const totalStories = await Story.countDocuments();
         const activeStories = await Story.countDocuments({ expiresAt: { $gt: new Date() } });
 
