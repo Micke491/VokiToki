@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAuthToken } from "@/lib/storage";
-import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserRow {
   _id: string;
@@ -20,29 +21,26 @@ interface UserRow {
 type SortField = 'username' | 'createdAt' | 'isBanned';
 type SortOrder = 'asc' | 'desc';
 
-function Avatar({ user }: { user: UserRow }) {
+function Avatar({ user, className = "w-8 h-8" }: { user: UserRow; className?: string }) {
   const initials = (user.name || user.username).slice(0, 2).toUpperCase();
   if (user.avatar) {
-    return <img src={user.avatar} alt={user.username} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }} />;
+    return <img src={user.avatar} alt={user.username} className={`${className} rounded-full object-cover border border-chat-border`} />;
   }
-  const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'];
-  const color = colors[user.username.charCodeAt(0) % colors.length];
+  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500', 'bg-pink-500'];
+  const colorClass = colors[user.username.charCodeAt(0) % colors.length];
+  
   return (
-    <div style={{
-      width: '34px', height: '34px', borderRadius: '50%', background: color + '25',
-      border: `1px solid ${color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '12px', fontWeight: 600, color, flexShrink: 0,
-    }}>
+    <div className={`${className} rounded-full ${colorClass}/20 border border-${colorClass}/40 flex items-center justify-center text-[10px] font-bold text-chat-text-primary shrink-0`}>
       {initials}
     </div>
   );
 }
 
 function SortIcon({ field, sortBy, sortOrder }: { field: SortField; sortBy: SortField; sortOrder: SortOrder }) {
-  if (sortBy !== field) return <ArrowUpDown size={10} style={{ color: '#3f3f46', marginLeft: '3px' }} />;
+  if (sortBy !== field) return <ArrowUpDown size={12} className="text-chat-text-tertiary ml-1" />;
   return sortOrder === 'asc'
-    ? <ArrowUp size={10} style={{ color: '#3b82f6', marginLeft: '3px' }} />
-    : <ArrowDown size={10} style={{ color: '#3b82f6', marginLeft: '3px' }} />;
+    ? <ArrowUp size={12} className="text-chat-accent ml-1" />
+    : <ArrowDown size={12} className="text-chat-accent ml-1" />;
 }
 
 export default function AdminUsersPage() {
@@ -123,216 +121,250 @@ export default function AdminUsersPage() {
     }
   }
 
-  const sortableHeaderStyle = (field: SortField): React.CSSProperties => ({
-    color: sortBy === field ? '#a1a1aa' : '#52525b',
-    fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0,
-    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px',
-    userSelect: 'none', transition: 'color 0.15s',
-    background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
-  });
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '28px 36px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+    <div className="flex flex-col h-full overflow-hidden bg-chat-bg-primary">
+      {/* Header & Controls */}
+      <div className="p-4 sm:p-6 lg:p-8 pb-4 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 style={{ color: '#f4f4f5', fontSize: '22px', fontWeight: 700, margin: '0 0 4px 0' }}>Users</h1>
-            <p style={{ color: '#52525b', fontSize: '14px', margin: 0 }}>Manage accounts, roles, and bans</p>
+            <h1 className="text-chat-text-primary text-2xl font-bold tracking-tight">Users</h1>
+            <p className="text-chat-text-secondary text-sm mt-1">Manage accounts, roles, and security status</p>
           </div>
-          <button onClick={fetchUsers} style={{
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
-            background: '#18181b', border: '1px solid #27272a', borderRadius: '8px',
-            color: '#a1a1aa', fontSize: '13px', cursor: 'pointer',
-          }}>
-            <RefreshCw size={13} />
+          <button 
+            onClick={fetchUsers}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-chat-bg-secondary border border-chat-border rounded-lg text-chat-text-secondary text-sm hover:text-chat-text-primary hover:bg-chat-bg-hover transition-all self-start sm:self-auto"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
         </div>
 
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          <div style={{ position: 'relative', flex: 1, maxWidth: '360px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1 group">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-chat-text-tertiary group-focus-within:text-chat-accent transition-colors" />
             <input
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by username or email…"
-              style={{
-                width: '100%', padding: '9px 12px 9px 34px', background: '#0f0f11',
-                border: '1px solid #1a1a1e', borderRadius: '8px', color: '#a1a1aa',
-                fontSize: '13px', outline: 'none', boxSizing: 'border-box',
-              }}
+              className="w-full bg-chat-bg-secondary border border-chat-border rounded-xl py-2.5 pl-10 pr-4 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/20 focus:border-chat-accent transition-all"
             />
           </div>
-          <select
-            value={roleFilter}
-            onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
-            style={{
-              padding: '9px 14px', background: '#0f0f11', border: '1px solid #1a1a1e',
-              borderRadius: '8px', color: '#a1a1aa', fontSize: '13px', outline: 'none', cursor: 'pointer',
-            }}
-          >
-            <option value="">All roles</option>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
-        {/* Table header — sortable */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr 110px 100px 90px 160px',
-          padding: '0 16px 10px', borderBottom: '1px solid #1a1a1e',
-        }}>
-          <button onClick={() => handleSort('username')} style={sortableHeaderStyle('username')}>
-            User <SortIcon field="username" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Email</p>
-          <button onClick={() => handleSort('createdAt')} style={sortableHeaderStyle('createdAt')}>
-            Registered <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Role</p>
-          <button onClick={() => handleSort('isBanned')} style={sortableHeaderStyle('isBanned')}>
-            Status <SortIcon field="isBanned" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Actions</p>
+          <div className="flex gap-2">
+            <select
+              value={roleFilter}
+              onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
+              className="bg-chat-bg-secondary border border-chat-border rounded-xl px-4 py-2.5 text-sm text-chat-text-primary focus:outline-none focus:border-chat-accent cursor-pointer min-w-[120px]"
+            >
+              <option value="">All Roles</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+            <div className="flex items-center gap-1 bg-chat-bg-secondary border border-chat-border rounded-xl px-2 text-[10px] font-bold text-chat-text-tertiary uppercase tracking-wider">
+              {totalCount} Total
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Table Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 36px 24px' }} className="custom-scrollbar">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 custom-scrollbar pb-8">
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '60px' }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '50%',
-              border: '2px solid #27272a', borderTopColor: '#2563eb',
-              animation: 'spin 0.8s linear infinite'
-            }} />
+          <div className="flex flex-col items-center justify-center pt-20 gap-4">
+            <div className="w-10 h-10 rounded-full border-2 border-chat-border border-t-chat-accent animate-spin" />
+            <p className="text-sm text-chat-text-tertiary font-medium">Loading platform users...</p>
           </div>
         ) : users.length === 0 ? (
-          <div style={{ textAlign: 'center', paddingTop: '60px' }}>
-            <User size={32} color="#27272a" />
-            <p style={{ color: '#52525b', fontSize: '13px', marginTop: '12px' }}>No users found</p>
+          <div className="flex flex-col items-center justify-center pt-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-chat-bg-secondary flex items-center justify-center mb-4 border border-chat-border">
+              <User size={32} className="text-chat-text-tertiary" />
+            </div>
+            <h3 className="text-chat-text-primary font-semibold">No users found</h3>
+            <p className="text-chat-text-tertiary text-sm mt-1 max-w-[240px]">Try adjusting your search query or role filter.</p>
           </div>
-        ) : users.map((user, idx) => (
-          <div key={user._id} style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 110px 100px 90px 160px',
-            padding: '14px 16px', borderBottom: '1px solid #0d0d0f',
-            alignItems: 'center', animation: 'slideIn 0.15s ease-out',
-            animationDelay: `${idx * 0.02}s`, animationFillMode: 'both',
-            transition: 'background 0.1s',
-          }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#0d0d0f'}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-          >
-            {/* User */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Avatar user={user} />
-              <div>
-                <p style={{ color: '#f4f4f5', fontSize: '13px', fontWeight: 500, margin: '0 0 1px 0' }}>{user.name || user.username}</p>
-                <p style={{ color: '#52525b', fontSize: '11px', margin: 0 }}>@{user.username}</p>
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden lg:block w-full">
+              <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 border-b border-chat-border bg-chat-bg-secondary/30 rounded-t-xl sticky top-0 z-10 backdrop-blur-md">
+                <button onClick={() => handleSort('username')} className="flex items-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
+                  User <SortIcon field="username" sortBy={sortBy} sortOrder={sortOrder} />
+                </button>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider">Email Address</div>
+                <button onClick={() => handleSort('createdAt')} className="flex items-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
+                  Joined <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
+                </button>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider text-center">Role</div>
+                <button onClick={() => handleSort('isBanned')} className="flex items-center justify-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
+                  Status <SortIcon field="isBanned" sortBy={sortBy} sortOrder={sortOrder} />
+                </button>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider text-right pr-4">Actions</div>
+              </div>
+
+              <div className="divide-y divide-chat-border/50 bg-chat-bg-secondary/10 border-x border-b border-chat-border rounded-b-xl">
+                {users.map((user) => (
+                  <div key={user._id} className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-4 py-4 items-center hover:bg-chat-bg-hover/20 transition-colors group">
+                    {/* User Profile */}
+                    <div className="flex items-center gap-3">
+                      <Avatar user={user} className="w-9 h-9" />
+                      <div className="min-w-0">
+                        <p className="text-chat-text-primary text-sm font-semibold truncate">{user.name || user.username}</p>
+                        <p className="text-chat-text-tertiary text-xs">@{user.username}</p>
+                      </div>
+                    </div>
+
+                    {/* Email */}
+                    <p className="text-chat-text-secondary text-[13px] truncate pr-4">{user.email}</p>
+
+                    {/* Date */}
+                    <p className="text-chat-text-tertiary text-[12px]">
+                      {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+
+                    {/* Role Badge */}
+                    <div className="flex justify-center">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                        user.role === 'admin' 
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                          : 'bg-chat-accent/10 text-chat-accent border-chat-accent/20'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex justify-center">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                        user.isBanned 
+                          ? 'bg-red-500/10 text-red-500 border-red-500/20' 
+                          : 'bg-chat-text-tertiary/10 text-chat-text-secondary border-chat-text-tertiary/20'
+                      }`}>
+                        {user.isBanned ? 'Banned' : 'Active'}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => toggleBan(user._id, user.isBanned)}
+                        disabled={actionLoading === user._id + '_ban'}
+                        className={`p-2 rounded-lg transition-all ${
+                          user.isBanned 
+                            ? 'text-emerald-500 hover:bg-emerald-500/10' 
+                            : 'text-red-500 hover:bg-red-500/10'
+                        }`}
+                        title={user.isBanned ? 'Unban User' : 'Ban User'}
+                      >
+                        <Ban size={16} />
+                      </button>
+                      <button
+                        onClick={() => toggleRole(user._id, user.role)}
+                        disabled={actionLoading === user._id + '_role'}
+                        className="p-2 text-purple-500 hover:bg-purple-500/10 rounded-lg transition-all"
+                        title={user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                      >
+                        <ShieldCheck size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Email */}
-            <p style={{ color: '#71717a', fontSize: '13px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '12px' }}>
-              {user.email}
-            </p>
+            {/* Mobile/Tablet Card View */}
+            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+              {users.map((user) => (
+                <div key={user._id} className="bg-chat-bg-secondary border border-chat-border rounded-2xl p-5 flex flex-col gap-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar user={user} className="w-11 h-11" />
+                      <div>
+                        <p className="text-chat-text-primary font-bold">{user.name || user.username}</p>
+                        <p className="text-chat-text-tertiary text-xs">@{user.username}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                        user.role === 'admin' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-chat-accent/10 text-chat-accent border-chat-accent/20'
+                      }`}>
+                        {user.role}
+                      </span>
+                      {user.isBanned && (
+                        <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20">
+                          Banned
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 py-3 border-y border-chat-border/50">
+                    <div>
+                      <p className="text-[10px] font-bold text-chat-text-tertiary uppercase mb-0.5">Email</p>
+                      <p className="text-xs text-chat-text-secondary truncate">{user.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-chat-text-tertiary uppercase mb-0.5">Joined</p>
+                      <p className="text-xs text-chat-text-secondary">
+                        {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Registration Date */}
-            <p style={{ color: '#52525b', fontSize: '12px', margin: 0 }}>
-              {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-            </p>
-
-            {/* Role Badge */}
-            <div>
-              <span style={{
-                padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
-                background: user.role === 'admin' ? 'rgba(16,185,129,0.12)' : 'rgba(59,130,246,0.1)',
-                color: user.role === 'admin' ? '#10b981' : '#3b82f6',
-                border: `1px solid ${user.role === 'admin' ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)'}`,
-              }}>
-                {user.role}
-              </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleBan(user._id, user.isBanned)}
+                      disabled={actionLoading === user._id + '_ban'}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                        user.isBanned 
+                          ? 'bg-emerald-500/5 text-emerald-500 border-emerald-500/10 active:scale-95' 
+                          : 'bg-red-500/5 text-red-500 border-red-500/10 active:scale-95'
+                      }`}
+                    >
+                      <Ban size={14} />
+                      {user.isBanned ? 'Unban User' : 'Ban User'}
+                    </button>
+                    <button
+                      onClick={() => toggleRole(user._id, user.role)}
+                      disabled={actionLoading === user._id + '_role'}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-purple-500/5 text-purple-500 border border-purple-500/10 transition-all active:scale-95"
+                    >
+                      <ShieldCheck size={14} />
+                      {user.role === 'admin' ? 'Demote' : 'Make Admin'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {/* Banned Badge */}
-            <div>
-              <span style={{
-                padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
-                background: user.isBanned ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.08)',
-                color: user.isBanned ? '#ef4444' : '#52525b',
-                border: `1px solid ${user.isBanned ? 'rgba(239,68,68,0.2)' : 'transparent'}`,
-              }}>
-                {user.isBanned ? 'Banned' : 'Active'}
-              </span>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                onClick={() => toggleBan(user._id, user.isBanned)}
-                disabled={actionLoading === user._id + '_ban'}
-                title={user.isBanned ? 'Unban user' : 'Ban user'}
-                style={{
-                  padding: '6px 10px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer',
-                  border: '1px solid', display: 'flex', alignItems: 'center', gap: '4px',
-                  background: user.isBanned ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)',
-                  color: user.isBanned ? '#10b981' : '#ef4444',
-                  borderColor: user.isBanned ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.15)',
-                  opacity: actionLoading === user._id + '_ban' ? 0.5 : 1,
-                  transition: 'opacity 0.15s',
-                }}
-              >
-                <Ban size={11} />
-                {user.isBanned ? 'Unban' : 'Ban'}
-              </button>
-              <button
-                onClick={() => toggleRole(user._id, user.role)}
-                disabled={actionLoading === user._id + '_role'}
-                title={user.role === 'admin' ? 'Remove admin' : 'Make admin'}
-                style={{
-                  padding: '6px 10px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer',
-                  border: '1px solid rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', gap: '4px',
-                  background: 'rgba(139,92,246,0.08)', color: '#8b5cf6',
-                  opacity: actionLoading === user._id + '_role' ? 0.5 : 1,
-                  transition: 'opacity 0.15s',
-                }}
-              >
-                <ShieldCheck size={11} />
-                {user.role === 'admin' ? 'Demote' : 'Admin'}
-              </button>
-            </div>
-          </div>
-        ))}
+          </>
+        )}
       </div>
 
-      {/* Pagination */}
-      <div style={{
-        flexShrink: 0, padding: '14px 36px', borderTop: '1px solid #18181b',
-        display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between',
-      }}>
-        <span style={{ color: '#3f3f46', fontSize: '12px' }}>
-          {totalCount} user{totalCount !== 1 ? 's' : ''} · 20 per page
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: '#52525b', fontSize: '13px' }}>Page {page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{
-            padding: '6px 10px', background: '#18181b', border: '1px solid #27272a',
-            borderRadius: '7px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center',
-            opacity: page === 1 ? 0.4 : 1,
-          }}>
-            <ChevronLeft size={14} />
-          </button>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{
-            padding: '6px 10px', background: '#18181b', border: '1px solid #27272a',
-            borderRadius: '7px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center',
-            opacity: page === totalPages ? 0.4 : 1,
-          }}>
-            <ChevronRight size={14} />
-          </button>
+      {/* Pagination Footer */}
+      <div className="shrink-0 px-4 sm:px-6 lg:px-8 py-4 bg-chat-bg-secondary/50 border-t border-chat-border flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p className="text-chat-text-tertiary text-xs font-medium">
+          Showing <span className="text-chat-text-secondary">{Math.min(totalCount, (page - 1) * 20 + 1)}-{Math.min(totalCount, page * 20)}</span> of <span className="text-chat-text-secondary">{totalCount}</span> platform users
+        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-widest hidden sm:block">Page {page} of {totalPages}</p>
+          <div className="flex gap-1.5">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))} 
+              disabled={page === 1}
+              className="p-2 bg-chat-bg-primary border border-chat-border rounded-lg text-chat-text-secondary disabled:opacity-30 disabled:cursor-not-not-allowed hover:text-chat-text-primary transition-all"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+              disabled={page === totalPages}
+              className="p-2 bg-chat-bg-primary border border-chat-border rounded-lg text-chat-text-secondary disabled:opacity-30 disabled:cursor-not-not-allowed hover:text-chat-text-primary transition-all"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

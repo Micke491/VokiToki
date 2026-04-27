@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAuthToken } from "@/lib/storage";
-import { Search, Trash2, Image, Video, Mic, MessageSquare, ChevronLeft, ChevronRight, RefreshCw, X, UserX } from 'lucide-react';
+import { Search, Trash2, Image, Video, Mic, MessageSquare, ChevronLeft, ChevronRight, RefreshCw, X, UserX, Clock, Hash } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface MsgRow {
   _id: string;
@@ -29,32 +30,28 @@ interface ContextMsg {
 
 const mediaIcons: Record<string, any> = { image: Image, video: Video, audio: Mic };
 
-function MediaIcon({ type }: { type?: string }) {
+function MediaIndicator({ type, className = "w-3 h-3" }: { type?: string; className?: string }) {
   if (!type || type === 'call' || type === 'sticker') return null;
   const Icon = mediaIcons[type] || MessageSquare;
-  return <Icon size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle', color: '#71717a' }} />;
+  return <Icon className={`${className} text-chat-text-tertiary inline-block mr-1.5`} />;
 }
 
-function SenderDisplay({ msg }: { msg: MsgRow }) {
+function SenderBadge({ msg }: { msg: MsgRow }) {
   const senderDeleted = !msg.sender;
   const displayName = msg.sender?.username || msg.senderUsername || 'Unknown';
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-      <span style={{ color: senderDeleted ? '#52525b' : '#71717a', fontSize: '12px' }}>
+    <div className="flex items-center gap-2 overflow-hidden">
+      <span className={`text-[13px] truncate ${senderDeleted ? 'text-chat-text-tertiary italic' : 'text-chat-text-secondary font-medium'}`}>
         {displayName}
       </span>
       {senderDeleted && msg.senderUsername && (
-        <span style={{
-          fontSize: '9px', color: '#3f3f46', background: '#1a1a1e',
-          padding: '1px 5px', borderRadius: '3px', fontWeight: 500,
-          display: 'inline-flex', alignItems: 'center', gap: '3px',
-        }}>
+        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-[9px] font-bold text-red-500 uppercase tracking-tighter">
           <UserX size={8} />
-          deleted
+          Deleted
         </span>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -85,119 +82,89 @@ function ContextModal({ messageId, onClose }: { messageId: string; onClose: () =
     fetchContext();
   }, [messageId]);
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose]);
-
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        animation: 'fadeIn 0.15s ease-out',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#0c0c0e', border: '1px solid #1a1a1e', borderRadius: '16px',
-          width: '100%', maxWidth: '560px', maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-          animation: 'modalSlideIn 0.2s ease-out',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
-        }}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+      />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative w-full max-w-xl bg-chat-bg-secondary border border-chat-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
       >
-        {/* Modal Header */}
-        <div style={{
-          padding: '18px 22px', borderBottom: '1px solid #18181b',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '7px',
-              background: 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <MessageSquare size={13} color="#3b82f6" />
+        {/* Header */}
+        <div className="p-5 border-b border-chat-border flex items-center justify-between bg-chat-bg-secondary/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-chat-accent/10 flex items-center justify-center">
+              <MessageSquare size={16} className="text-chat-accent" />
             </div>
-            <p style={{ color: '#f4f4f5', fontSize: '14px', fontWeight: 600, margin: 0 }}>Conversation Context</p>
+            <div>
+              <h3 className="text-chat-text-primary font-bold">Conversation Context</h3>
+              <p className="text-chat-text-tertiary text-[11px] uppercase font-bold tracking-wider">Historical Log</p>
+            </div>
           </div>
-          <button
+          <button 
             onClick={onClose}
-            style={{
-              width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #27272a',
-              background: '#18181b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#71717a', transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#3f3f46'; (e.currentTarget as HTMLElement).style.color = '#a1a1aa'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#27272a'; (e.currentTarget as HTMLElement).style.color = '#71717a'; }}
+            className="p-2 text-chat-text-tertiary hover:text-chat-text-primary hover:bg-chat-bg-hover rounded-lg transition-all"
           >
-            <X size={13} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 22px' }} className="custom-scrollbar">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-              <div style={{
-                width: '24px', height: '24px', borderRadius: '50%',
-                border: '2px solid #27272a', borderTopColor: '#2563eb',
-                animation: 'spin 0.8s linear infinite',
-              }} />
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="w-8 h-8 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
+              <p className="text-sm text-chat-text-tertiary font-medium">Retrieving chat log...</p>
             </div>
           ) : error ? (
-            <p style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>{error}</p>
-          ) : messages.length === 0 ? (
-            <p style={{ color: '#52525b', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No messages found</p>
+            <div className="py-20 text-center px-6">
+              <p className="text-red-500 text-sm font-medium">{error}</p>
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="flex flex-col gap-1">
               {messages.map((msg) => {
                 const isPivot = !!(msg as any)._isPivot;
                 const senderName = msg.sender?.username || msg.senderUsername || 'Unknown';
-                const senderDeleted = !msg.sender && !!msg.senderUsername;
-
+                
                 return (
-                  <div key={msg._id} style={{
-                    padding: '10px 14px', borderRadius: '10px',
-                    background: isPivot ? 'rgba(59,130,246,0.08)' : 'transparent',
-                    border: isPivot ? '1px solid rgba(59,130,246,0.2)' : '1px solid transparent',
-                    transition: 'background 0.1s',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <span style={{ color: isPivot ? '#3b82f6' : '#71717a', fontSize: '11px', fontWeight: 600 }}>
-                        {senderName}
-                      </span>
-                      {senderDeleted && (
-                        <span style={{
-                          fontSize: '8px', color: '#3f3f46', background: '#1a1a1e',
-                          padding: '1px 4px', borderRadius: '3px',
-                        }}>deleted</span>
-                      )}
-                      <span style={{ color: '#27272a', fontSize: '10px' }}>·</span>
-                      <span style={{ color: '#3f3f46', fontSize: '10px' }}>
-                        {new Date(msg.createdAt).toLocaleString('en-GB', {
-                          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                        })}
-                      </span>
+                  <div 
+                    key={msg._id} 
+                    className={`p-4 rounded-2xl transition-all border ${
+                      isPivot 
+                        ? 'bg-chat-accent/5 border-chat-accent/20 ring-1 ring-chat-accent/10' 
+                        : 'border-transparent hover:bg-chat-bg-hover/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[12px] font-bold ${isPivot ? 'text-chat-accent' : 'text-chat-text-secondary'}`}>
+                          {senderName}
+                        </span>
+                        <span className="text-chat-text-tertiary text-[10px]">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
                       {isPivot && (
-                        <span style={{
-                          marginLeft: 'auto', fontSize: '9px', fontWeight: 600, color: '#3b82f6',
-                          background: 'rgba(59,130,246,0.12)', padding: '1px 6px', borderRadius: '4px',
-                        }}>SELECTED</span>
+                        <span className="text-[9px] font-black uppercase bg-chat-accent text-white px-1.5 py-0.5 rounded tracking-widest">
+                          Target
+                        </span>
                       )}
                     </div>
-                    <p style={{
-                      color: msg.isDeletedForEveryone ? '#3f3f46' : (isPivot ? '#e4e4e7' : '#a1a1aa'),
-                      fontSize: '13px', margin: 0, lineHeight: '1.5',
-                      textDecoration: msg.isDeletedForEveryone ? 'line-through' : 'none',
-                      fontStyle: msg.isDeletedForEveryone ? 'italic' : 'normal',
-                    }}>
-                      {msg.mediaType && <MediaIcon type={msg.mediaType} />}
-                      {msg.text || `[${msg.mediaType || 'media'}]`}
+                    <p className={`text-[13px] leading-relaxed ${
+                      msg.isDeletedForEveryone 
+                        ? 'text-chat-text-tertiary italic line-through' 
+                        : (isPivot ? 'text-chat-text-primary' : 'text-chat-text-secondary')
+                    }`}>
+                      <MediaIndicator type={msg.mediaType} />
+                      {msg.text || `[${msg.mediaType || 'Media Content'}]`}
                     </p>
                   </div>
                 );
@@ -205,7 +172,7 @@ function ContextModal({ messageId, onClose }: { messageId: string; onClose: () =
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -242,156 +209,205 @@ export default function AdminMessagesPage() {
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="flex flex-col h-full overflow-hidden bg-chat-bg-primary">
       {/* Header */}
-      <div style={{ padding: '28px 36px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+      <div className="p-4 sm:p-6 lg:p-8 pb-4 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 style={{ color: '#f4f4f5', fontSize: '22px', fontWeight: 700, margin: '0 0 4px 0' }}>Messages</h1>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <p style={{ color: '#52525b', fontSize: '13px', margin: 0 }}>{total.toLocaleString()} total</p>
-              <p style={{ color: '#f59e0b', fontSize: '13px', margin: 0 }}>{deleted.toLocaleString()} deleted</p>
+            <h1 className="text-chat-text-primary text-2xl font-bold tracking-tight">Messages</h1>
+            <div className="flex items-center gap-4 mt-1.5">
+              <div className="flex items-center gap-1.5 text-chat-text-tertiary text-xs font-medium">
+                <Hash size={12} />
+                <span>{total.toLocaleString()} total</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-red-500/80 text-xs font-medium">
+                <Trash2 size={12} />
+                <span>{deleted.toLocaleString()} deleted</span>
+              </div>
             </div>
           </div>
-          <button onClick={fetchMessages} style={{
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
-            background: '#18181b', border: '1px solid #27272a', borderRadius: '8px',
-            color: '#a1a1aa', fontSize: '13px', cursor: 'pointer',
-          }}>
-            <RefreshCw size={13} />
+          <button 
+            onClick={fetchMessages}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-chat-bg-secondary border border-chat-border rounded-lg text-chat-text-secondary text-sm hover:text-chat-text-primary hover:bg-chat-bg-hover transition-all"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
         </div>
 
-        <div style={{ position: 'relative', maxWidth: '400px', marginBottom: '20px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
+        <div className="relative group max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-chat-text-tertiary group-focus-within:text-chat-accent transition-colors" />
           <input
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search text or @username to filter by sender…"
-            style={{
-              width: '100%', padding: '9px 12px 9px 34px', background: '#0f0f11',
-              border: '1px solid #1a1a1e', borderRadius: '8px', color: '#a1a1aa',
-              fontSize: '13px', outline: 'none', boxSizing: 'border-box',
-            }}
+            placeholder="Search content or @username…"
+            className="w-full bg-chat-bg-secondary border border-chat-border rounded-xl py-2.5 pl-10 pr-4 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/20 focus:border-chat-accent transition-all"
           />
         </div>
-
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 90px 80px',
-          padding: '0 16px 10px', borderBottom: '1px solid #1a1a1e',
-        }}>
-          {['Content', 'From', 'Chat', 'Date', 'Flags'].map(h => (
-            <p key={h} style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>{h}</p>
-          ))}
-        </div>
       </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 36px 24px' }} className="custom-scrollbar">
+      {/* Main Table Body */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 custom-scrollbar pb-8">
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '60px' }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '50%',
-              border: '2px solid #27272a', borderTopColor: '#2563eb',
-              animation: 'spin 0.8s linear infinite',
-            }} />
+          <div className="flex flex-col items-center justify-center pt-20 gap-4">
+            <div className="w-10 h-10 rounded-full border-2 border-chat-border border-t-chat-accent animate-spin" />
+            <p className="text-sm text-chat-text-tertiary font-medium">Scanning platform communications...</p>
           </div>
-        ) : messages.map((msg, idx) => (
-          <div key={msg._id}
-            onClick={() => setContextMsgId(msg._id)}
-            style={{
-              display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 90px 80px',
-              padding: '12px 16px', borderBottom: '1px solid #0d0d0f', alignItems: 'center',
-              background: msg.isDeletedForEveryone ? 'rgba(239,68,68,0.03)' : 'transparent',
-              animation: 'slideIn 0.15s ease-out', animationDelay: `${idx * 0.015}s`,
-              animationFillMode: 'both', transition: 'background 0.1s',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = msg.isDeletedForEveryone ? 'rgba(239,68,68,0.06)' : '#0d0d0f'}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = msg.isDeletedForEveryone ? 'rgba(239,68,68,0.03)' : 'transparent'}
-          >
-            {/* Content */}
-            <div style={{ paddingRight: '12px', overflow: 'hidden' }}>
-              <p style={{
-                color: msg.isDeletedForEveryone ? '#52525b' : '#a1a1aa',
-                fontSize: '13px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                textDecoration: msg.isDeletedForEveryone ? 'line-through' : 'none',
-                fontStyle: msg.isDeletedForEveryone ? 'italic' : 'normal',
-              }}>
-                <MediaIcon type={msg.mediaType} />
-                {msg.text || `[${msg.mediaType || 'media'}]`}
-              </p>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center pt-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-chat-bg-secondary flex items-center justify-center mb-4 border border-chat-border">
+              <MessageSquare size={32} className="text-chat-text-tertiary" />
+            </div>
+            <h3 className="text-chat-text-primary font-semibold">No messages found</h3>
+            <p className="text-chat-text-tertiary text-sm mt-1 max-w-[240px]">We couldn't find any messages matching your criteria.</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block w-full">
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_100px_100px] gap-4 px-4 py-3 border-b border-chat-border bg-chat-bg-secondary/30 rounded-t-xl sticky top-0 z-10 backdrop-blur-md">
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider">Message Content</div>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider">Sender</div>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider">Conversation</div>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider">Sent Date</div>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider text-right pr-4">Status</div>
+              </div>
+
+              <div className="divide-y divide-chat-border/50 bg-chat-bg-secondary/10 border-x border-b border-chat-border rounded-b-xl">
+                {messages.map((msg) => (
+                  <div 
+                    key={msg._id} 
+                    onClick={() => setContextMsgId(msg._id)}
+                    className={`grid grid-cols-[1.5fr_1fr_1fr_100px_100px] gap-4 px-4 py-4 items-center hover:bg-chat-bg-hover/20 transition-all cursor-pointer group ${
+                      msg.isDeletedForEveryone ? 'bg-red-500/[0.02]' : ''
+                    }`}
+                  >
+                    {/* Content */}
+                    <div className="min-w-0 pr-4">
+                      <p className={`text-[13px] truncate transition-colors ${
+                        msg.isDeletedForEveryone 
+                          ? 'text-chat-text-tertiary italic line-through' 
+                          : 'text-chat-text-primary group-hover:text-chat-accent'
+                      }`}>
+                        <MediaIndicator type={msg.mediaType} />
+                        {msg.text || `[${msg.mediaType || 'Media Content'}]`}
+                      </p>
+                    </div>
+
+                    {/* Sender */}
+                    <SenderBadge msg={msg} />
+
+                    {/* Chat */}
+                    <div className="flex items-center gap-1.5 text-chat-text-secondary text-[12px]">
+                      <span className="opacity-60">{msg.chatId?.isGroupChat ? 'Group:' : 'Direct:'}</span>
+                      <span className="font-medium truncate">{msg.chatId?.isGroupChat ? (msg.chatId?.name || 'Group Chat') : 'Private DM'}</span>
+                    </div>
+
+                    {/* Date */}
+                    <p className="text-chat-text-tertiary text-[12px]">
+                      {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </p>
+
+                    {/* Status */}
+                    <div className="flex items-center justify-end gap-2 pr-4">
+                      {msg.isDeletedForEveryone && (
+                        <span className="p-1 bg-red-500/10 rounded-md text-red-500" title="Deleted for everyone">
+                          <Trash2 size={12} />
+                        </span>
+                      )}
+                      {msg.isEdited && (
+                        <span className="px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] font-bold text-amber-500 uppercase tracking-tighter">
+                          Edited
+                        </span>
+                      )}
+                      {!msg.isDeletedForEveryone && !msg.isEdited && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Sender — uses senderUsername snapshot */}
-            <SenderDisplay msg={msg} />
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {messages.map((msg) => (
+                <div 
+                  key={msg._id} 
+                  onClick={() => setContextMsgId(msg._id)}
+                  className={`bg-chat-bg-secondary border border-chat-border rounded-2xl p-4 active:scale-[0.98] transition-all ${
+                    msg.isDeletedForEveryone ? 'border-red-500/20' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <SenderBadge msg={msg} />
+                    <span className="text-[10px] text-chat-text-tertiary font-bold flex items-center gap-1">
+                      <Clock size={10} />
+                      {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </span>
+                  </div>
+                  
+                  <div className={`p-3 rounded-xl mb-3 text-[13px] leading-relaxed ${
+                    msg.isDeletedForEveryone 
+                      ? 'bg-red-500/5 text-chat-text-tertiary italic line-through' 
+                      : 'bg-chat-bg-primary/50 text-chat-text-secondary border border-chat-border/30'
+                  }`}>
+                    <MediaIndicator type={msg.mediaType} />
+                    {msg.text || `[${msg.mediaType || 'Media Content'}]`}
+                  </div>
 
-            {/* Chat */}
-            <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>
-              {msg.chatId?.isGroupChat ? (msg.chatId?.name || 'Group') : 'DM'}
-            </p>
-
-            {/* Date */}
-            <p style={{ color: '#52525b', fontSize: '11px', margin: 0 }}>
-              {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-            </p>
-
-            {/* Flags */}
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-              {msg.isDeletedForEveryone && (
-                <span title="Deleted for everyone">
-                  <Trash2 size={12} color="#ef4444" />
-                </span>
-              )}
-              {msg.isEdited && (
-                <span style={{ fontSize: '10px', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '4px', padding: '1px 5px' }}>
-                  edited
-                </span>
-              )}
+                  <div className="flex items-center justify-between mt-auto">
+                    <div className="text-[11px] font-bold text-chat-text-tertiary flex items-center gap-1.5">
+                      <span className="opacity-50 lowercase">in</span>
+                      <span className="truncate max-w-[120px]">{msg.chatId?.isGroupChat ? (msg.chatId?.name || 'Group Chat') : 'Private DM'}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {msg.isEdited && (
+                        <span className="text-[9px] font-bold text-amber-500 bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">EDITED</span>
+                      )}
+                      <span className="text-[9px] font-bold text-chat-accent bg-chat-accent/5 px-1.5 py-0.5 rounded border border-chat-accent/10">DETAILS</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
+          </>
+        )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={{
-          flexShrink: 0, padding: '14px 36px', borderTop: '1px solid #18181b',
-          display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end',
-        }}>
-          <span style={{ color: '#52525b', fontSize: '13px' }}>Page {page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{
-            padding: '6px 10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '7px',
-            color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: page === 1 ? 0.4 : 1,
-          }}>
-            <ChevronLeft size={14} />
-          </button>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{
-            padding: '6px 10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '7px',
-            color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: page === totalPages ? 0.4 : 1,
-          }}>
-            <ChevronRight size={14} />
-          </button>
+      {/* Pagination Footer */}
+      <div className="shrink-0 px-4 sm:px-6 lg:px-8 py-4 bg-chat-bg-secondary/50 border-t border-chat-border flex items-center justify-between">
+        <p className="text-chat-text-tertiary text-[11px] font-bold uppercase tracking-widest">
+          {total.toLocaleString()} total <span className="hidden sm:inline">records</span>
+        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-widest hidden xs:block">Page {page} / {totalPages}</p>
+          <div className="flex gap-1">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))} 
+              disabled={page === 1}
+              className="p-1.5 bg-chat-bg-primary border border-chat-border rounded-lg text-chat-text-secondary disabled:opacity-30 hover:text-chat-text-primary transition-all"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+              disabled={page === totalPages}
+              className="p-1.5 bg-chat-bg-primary border border-chat-border rounded-lg text-chat-text-secondary disabled:opacity-30 hover:text-chat-text-primary transition-all"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Context Modal */}
-      {contextMsgId && (
-        <ContextModal messageId={contextMsgId} onClose={() => setContextMsgId(null)} />
-      )}
-
-      {/* Animations */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes modalSlideIn {
-          from { opacity: 0; transform: scale(0.96) translateY(8px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
+      <AnimatePresence>
+        {contextMsgId && (
+          <ContextModal messageId={contextMsgId} onClose={() => setContextMsgId(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { getAuthToken } from "@/lib/storage";
 import { Users, MessageSquare, BookImage, Ban, ShieldCheck, Activity, TrendingUp } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface Stats {
   users: { total: number; banned: number; admins: number };
@@ -21,28 +22,27 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: any; label: string; value: number; sub?: string; color: string;
 }) {
   return (
-    <div style={{
-      background: '#0f0f11', border: '1px solid #1a1a1e', borderRadius: '14px',
-      padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '12px',
-      transition: 'border-color 0.2s',
-    }}
-    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#27272a'}
-    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#1a1a1e'}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-chat-bg-secondary border border-chat-border rounded-xl p-5 flex flex-col gap-3 transition-colors hover:border-chat-text-tertiary/50"
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ color: '#71717a', fontSize: '13px', margin: 0 }}>{label}</p>
-        <div style={{
-          width: '32px', height: '32px', borderRadius: '8px',
-          background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={15} color={color} />
+      <div className="flex items-center justify-between">
+        <p className="text-chat-text-tertiary text-xs font-medium uppercase tracking-wider">{label}</p>
+        <div 
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ backgroundColor: `${color}15` }}
+        >
+          <Icon size={15} style={{ color }} />
         </div>
       </div>
-      <p style={{ color: '#f4f4f5', fontSize: '28px', fontWeight: 700, margin: 0, letterSpacing: '-0.5px' }}>
-        {value.toLocaleString()}
-      </p>
-      {sub && <p style={{ color: '#52525b', fontSize: '12px', margin: 0 }}>{sub}</p>}
-    </div>
+      <div className="flex flex-col gap-1">
+        <p className="text-chat-text-primary text-2xl font-bold tracking-tight">
+          {value.toLocaleString()}
+        </p>
+        {sub && <p className="text-chat-text-tertiary text-[11px] leading-tight">{sub}</p>}
+      </div>
+    </motion.div>
   );
 }
 
@@ -67,118 +67,84 @@ function BarChart({ data, dataKey, color, title, icon: Icon }: {
   const totalWidth = data.length * barWidth + (data.length - 1) * gap;
 
   return (
-    <div style={{
-      background: '#0f0f11', border: '1px solid #1a1a1e', borderRadius: '14px',
-      padding: '22px 24px 18px', transition: 'border-color 0.2s', flex: 1, minWidth: 0,
-    }}
-    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#27272a'}
-    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#1a1a1e'}
-    >
+    <div className="bg-chat-bg-secondary border border-chat-border rounded-xl p-5 transition-colors hover:border-chat-text-tertiary/50 flex flex-col flex-1 min-w-0">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '28px', height: '28px', borderRadius: '7px',
-            background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon size={13} color={color} />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2.5">
+          <div 
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: `${color}15` }}
+          >
+            <Icon size={14} style={{ color }} />
           </div>
-          <p style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 500, margin: 0 }}>{title}</p>
+          <p className="text-chat-text-secondary text-sm font-semibold">{title}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <TrendingUp size={11} color={color} />
-          <span style={{ color: color, fontSize: '12px', fontWeight: 600 }}>{total}</span>
-          <span style={{ color: '#52525b', fontSize: '11px' }}>last 7d</span>
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-chat-bg-primary rounded-md border border-chat-border/50">
+          <TrendingUp size={12} style={{ color }} />
+          <span className="text-sm font-bold" style={{ color }}>{total}</span>
+          <span className="text-chat-text-tertiary text-[10px] uppercase font-medium">7d</span>
         </div>
       </div>
 
-      {/* Chart */}
-      <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
-        <svg width={totalWidth} height={chartH + 28} style={{ overflow: 'visible' }}>
-          {/* Grid lines */}
-          {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
-            <line
-              key={i}
-              x1={0} x2={totalWidth}
-              y1={chartH - chartH * pct} y2={chartH - chartH * pct}
-              stroke="#1a1a1e" strokeWidth={1}
-            />
-          ))}
+      {/* Chart Wrapper with Horizontal Scroll on Mobile */}
+      <div className="overflow-x-auto scrollbar-none pb-2">
+        <div className="flex justify-center min-w-max px-2">
+          <svg width={totalWidth} height={chartH + 28} className="overflow-visible">
+            {/* Grid lines */}
+            {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
+              <line
+                key={i}
+                x1={0} x2={totalWidth}
+                y1={chartH - chartH * pct} y2={chartH - chartH * pct}
+                stroke="currentColor" className="text-chat-border" strokeWidth={1}
+              />
+            ))}
 
-          {data.map((d, i) => {
-            const val = d[dataKey];
-            const barH = animated ? (val / max) * (chartH - 8) : 0;
-            const x = i * (barWidth + gap);
-            const y = chartH - barH;
-            const isHovered = hoveredIdx === i;
+            {data.map((d, i) => {
+              const val = d[dataKey];
+              const barH = animated ? (val / max) * (chartH - 8) : 0;
+              const x = i * (barWidth + gap);
+              const y = chartH - barH;
+              const isHovered = hoveredIdx === i;
 
-            return (
-              <g key={i}
-                onMouseEnter={() => setHoveredIdx(i)}
-                onMouseLeave={() => setHoveredIdx(null)}
-                style={{ cursor: 'pointer' }}
-              >
-                {/* Hover background */}
-                <rect
-                  x={x - 4} y={0}
-                  width={barWidth + 8} height={chartH}
-                  rx={6} fill={isHovered ? '#ffffff06' : 'transparent'}
-                />
+              return (
+                <g key={i}
+                  onMouseEnter={() => setHoveredIdx(i)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  className="cursor-pointer"
+                >
+                  {/* Hover background */}
+                  <rect
+                    x={x - 4} y={0}
+                    width={barWidth + 8} height={chartH}
+                    rx={6} className="fill-transparent hover:fill-chat-text-primary/5 transition-colors"
+                  />
 
-                {/* Bar */}
-                <rect
-                  x={x} y={y}
-                  width={barWidth} height={Math.max(barH, 2)}
-                  rx={6} ry={6}
-                  fill={isHovered ? color : color + 'cc'}
-                  style={{
-                    transition: 'height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), y 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.15s',
-                    transitionDelay: `${i * 0.06}s`,
-                  }}
-                />
-
-                {/* Glow on hover */}
-                {isHovered && (
+                  {/* Bar */}
                   <rect
                     x={x} y={y}
                     width={barWidth} height={Math.max(barH, 2)}
                     rx={6} ry={6}
-                    fill={color} opacity={0.15}
-                    style={{ filter: 'blur(6px)' }}
+                    style={{
+                      fill: isHovered ? color : `${color}cc`,
+                      transition: 'height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), y 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.15s',
+                      transitionDelay: `${i * 0.06}s`,
+                    }}
                   />
-                )}
 
-                {/* Value tooltip */}
-                {isHovered && (
-                  <g>
-                    <rect
-                      x={x + barWidth / 2 - 16} y={y - 28}
-                      width={32} height={22}
-                      rx={5} fill="#18181b" stroke="#27272a" strokeWidth={1}
-                    />
-                    <text
-                      x={x + barWidth / 2} y={y - 14}
-                      fill="#f4f4f5" fontSize="11" fontWeight="600"
-                      textAnchor="middle" fontFamily="inherit"
-                    >
-                      {val}
-                    </text>
-                  </g>
-                )}
-
-                {/* Day label */}
-                <text
-                  x={x + barWidth / 2} y={chartH + 16}
-                  fill={isHovered ? '#a1a1aa' : '#52525b'}
-                  fontSize="10" textAnchor="middle" fontFamily="inherit"
-                  style={{ transition: 'fill 0.15s' }}
-                >
-                  {d.label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+                  {/* Day label */}
+                  <text
+                    x={x + barWidth / 2} y={chartH + 18}
+                    className={`text-[10px] font-medium transition-colors ${isHovered ? 'fill-chat-text-secondary' : 'fill-chat-text-tertiary'}`}
+                    textAnchor="middle"
+                  >
+                    {d.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       </div>
     </div>
   );
@@ -223,62 +189,65 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }} className="custom-scrollbar">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar space-y-8">
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ color: '#f4f4f5', fontSize: '22px', fontWeight: 700, margin: '0 0 6px 0' }}>Dashboard</h1>
-        <p style={{ color: '#52525b', fontSize: '14px', margin: 0 }}>Platform overview and live stats</p>
+      <div>
+        <h1 className="text-chat-text-primary text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-chat-text-secondary text-sm mt-1">Platform overview and live stats</p>
       </div>
 
-      {/* Stats */}
+      {/* Stats Section */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} style={{
-              height: '120px', background: '#0f0f11', borderRadius: '14px',
-              border: '1px solid #1a1a1e', animation: 'pulse 1.5s ease-in-out infinite',
-            }} />
+            <div key={i} className="h-32 bg-chat-bg-secondary rounded-xl border border-chat-border animate-pulse" />
           ))}
         </div>
       ) : stats && (
-        <>
-          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '14px' }}>Users</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '28px' }}>
-            <StatCard icon={Users} label="Total Users" value={stats.users.total} color="#3b82f6" />
-            <StatCard icon={Ban} label="Banned Users" value={stats.users.banned} sub="Blocked from login" color="#ef4444" />
-            <StatCard icon={ShieldCheck} label="Admins" value={stats.users.admins} sub="With admin role" color="#10b981" />
+        <div className="space-y-8">
+          {/* User Stats */}
+          <div className="space-y-4">
+            <h2 className="text-chat-text-tertiary text-[10px] font-bold uppercase tracking-[0.2em]">User Management</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <StatCard icon={Users} label="Total Users" value={stats.users.total} color="#3b82f6" />
+              <StatCard icon={Ban} label="Banned Users" value={stats.users.banned} sub="Blocked from login" color="#ef4444" />
+              <StatCard icon={ShieldCheck} label="Admins" value={stats.users.admins} sub="With admin role" color="#10b981" />
+            </div>
           </div>
 
-          <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '14px' }}>Content</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '32px' }}>
-            <StatCard icon={MessageSquare} label="Total Messages" value={stats.messages.total} color="#8b5cf6" />
-            <StatCard icon={MessageSquare} label="Deleted Messages" value={stats.messages.deleted} sub="Removed for everyone" color="#f59e0b" />
-            <StatCard icon={BookImage} label="Active Stories" value={stats.stories.active} sub={`of ${stats.stories.total} total`} color="#ec4899" />
+          {/* Content Stats */}
+          <div className="space-y-4">
+            <h2 className="text-chat-text-tertiary text-[10px] font-bold uppercase tracking-[0.2em]">Platform Content</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <StatCard icon={MessageSquare} label="Total Messages" value={stats.messages.total} color="#8b5cf6" />
+              <StatCard icon={MessageSquare} label="Deleted Messages" value={stats.messages.deleted} sub="Removed for everyone" color="#f59e0b" />
+              <StatCard icon={BookImage} label="Active Stories" value={stats.stories.active} sub={`of ${stats.stories.total} total`} color="#ec4899" />
+            </div>
           </div>
 
           {/* Activity Charts */}
           {activity.length > 0 && (
-            <>
-              <p style={{ color: '#52525b', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '14px' }}>Activity — Last 7 Days</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="space-y-4">
+              <h2 className="text-chat-text-tertiary text-[10px] font-bold uppercase tracking-[0.2em]">Weekly Activity</h2>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <BarChart data={activity} dataKey="messages" color="#3b82f6" title="Messages Sent" icon={MessageSquare} />
                 <BarChart data={activity} dataKey="users" color="#10b981" title="New Registrations" icon={Users} />
               </div>
-            </>
+            </div>
           )}
-        </>
+        </div>
       )}
 
-      {/* Activity indicator */}
-      <div style={{
-        marginTop: '32px', background: '#0f0f11', border: '1px solid #1a1a1e',
-        borderRadius: '14px', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '12px',
-      }}>
-        <Activity size={16} color="#3b82f6" />
-        <p style={{ color: '#52525b', fontSize: '13px', margin: 0 }}>
-          Live data — refreshes on every page visit
+      {/* Footer Info */}
+      <div className="bg-chat-bg-secondary/50 border border-chat-border rounded-xl p-5 flex items-center gap-3">
+        <div className="p-2 bg-chat-accent/10 rounded-lg">
+          <Activity size={16} className="text-chat-accent" />
+        </div>
+        <p className="text-chat-text-secondary text-xs sm:text-sm">
+          Live data dashboard — Stats refresh automatically on every visit.
         </p>
       </div>
     </div>
   );
 }
+

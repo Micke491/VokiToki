@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, MessageSquare, BookImage, LogOut, Shield, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, BookImage, LogOut, Shield, ChevronRight, Menu, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getAuthToken, removeAuthToken } from '@/lib/storage';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -12,18 +14,16 @@ const navItems = [
   { href: '/admin/stories', label: 'Stories', icon: BookImage },
 ];
 
-import { getAuthToken, removeAuthToken } from '@/lib/storage';
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     async function checkAdmin() {
       try {
         const token = getAuthToken();
-
         if (!token) { router.replace('/'); return; }
 
         const res = await fetch('/api/admin/users?limit=1', {
@@ -39,6 +39,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     checkAdmin();
   }, [router]);
 
+  useEffect(() => {
+    // Close mobile menu on route change
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   function handleLogout() {
     removeAuthToken();
     router.push('/');
@@ -46,90 +51,129 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (checking) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#09090b' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            width: '48px', height: '48px', borderRadius: '50%',
-            border: '2px solid #27272a', borderTopColor: '#2563eb',
-            animation: 'spin 0.8s linear infinite'
-          }} />
-          <p style={{ color: '#71717a', fontSize: '14px' }}>Verifying access...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-chat-bg-primary gap-4">
+        <div className="w-12 h-12 rounded-full border-2 border-chat-border border-t-chat-accent animate-spin" />
+        <p className="text-sm text-chat-text-tertiary">Verifying access...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#09090b', fontFamily: 'var(--font-geist-sans)' }}>
-      {/* Sidebar */}
-      <aside style={{
-        width: '240px', flexShrink: 0, background: '#0c0c0e',
-        borderRight: '1px solid #18181b', display: 'flex', flexDirection: 'column',
-        padding: '0',
-      }}>
-        {/* Logo */}
-        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #18181b' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '34px', height: '34px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(37,99,235,0.4)'
-            }}>
-              <Shield size={16} color="white" />
+    <div className="flex flex-col lg:flex-row min-h-screen bg-chat-bg-primary font-sans">
+      {/* Mobile Header */}
+      <header className="lg:hidden flex items-center justify-between px-5 py-4 bg-chat-bg-secondary border-b border-chat-border sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-chat-accent to-chat-accent-hover flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+            <Shield size={14} className="text-white" />
+          </div>
+          <span className="text-sm font-semibold text-chat-text-primary">Admin Panel</span>
+        </div>
+        <button 
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="p-2 text-chat-text-secondary hover:text-chat-text-primary transition-colors"
+        >
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </header>
+
+      {/* Mobile Navigation Dropdown */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="lg:hidden fixed inset-x-0 top-[65px] bottom-0 bg-chat-bg-primary z-40 border-t border-chat-border overflow-y-auto"
+          >
+            <nav className="p-4 flex flex-col gap-1">
+              {navItems.map(({ href, label, icon: Icon, exact }) => {
+                const active = exact ? pathname === href : pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      active 
+                        ? 'bg-chat-bg-secondary text-chat-text-primary shadow-sm' 
+                        : 'text-chat-text-secondary hover:bg-chat-bg-secondary/50'
+                    }`}
+                  >
+                    <Icon size={18} className={active ? 'text-chat-accent' : ''} />
+                    <span className="flex-1 text-sm font-medium">{label}</span>
+                    {active && <ChevronRight size={14} className="text-chat-accent" />}
+                  </Link>
+                );
+              })}
+              <div className="mt-4 pt-4 border-t border-chat-border">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-chat-text-secondary hover:text-red-500 hover:bg-red-500/10 transition-all duration-200"
+                >
+                  <LogOut size={18} />
+                  <span className="text-sm font-medium">Back to App</span>
+                </button>
+              </div>
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-chat-bg-secondary border-r border-chat-border sticky top-0 h-screen">
+        {/* Logo Section */}
+        <div className="p-6 border-b border-chat-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-chat-accent to-chat-accent-hover flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+              <Shield size={16} className="text-white" />
             </div>
             <div>
-              <p style={{ color: '#f4f4f5', fontWeight: 600, fontSize: '14px', margin: 0 }}>Admin Panel</p>
-              <p style={{ color: '#52525b', fontSize: '11px', margin: 0 }}>ChatApp Control</p>
+              <p className="text-sm font-semibold text-chat-text-primary leading-tight">Admin Panel</p>
+              <p className="text-[11px] text-chat-text-tertiary leading-tight mt-0.5">ChatApp Control</p>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {/* Desktop Nav */}
+        <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
           {navItems.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
-              <Link key={href} href={href} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '9px 12px', borderRadius: '8px', textDecoration: 'none',
-                color: active ? '#f4f4f5' : '#71717a',
-                background: active ? '#18181b' : 'transparent',
-                transition: 'all 0.15s ease',
-                fontSize: '13px', fontWeight: active ? 500 : 400,
-              }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = '#a1a1aa'; }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = '#71717a'; }}
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
+                  active 
+                    ? 'bg-chat-bg-primary text-chat-text-primary shadow-sm border border-chat-border/50' 
+                    : 'text-chat-text-secondary hover:text-chat-text-primary hover:bg-chat-bg-primary/30'
+                }`}
               >
-                <Icon size={15} style={{ flexShrink: 0, color: active ? '#3b82f6' : 'inherit' }} />
-                <span style={{ flex: 1 }}>{label}</span>
-                {active && <ChevronRight size={12} style={{ color: '#3b82f6' }} />}
+                <Icon size={16} className={`shrink-0 transition-colors ${active ? 'text-chat-accent' : 'group-hover:text-chat-text-primary'}`} />
+                <span className={`flex-1 text-[13px] ${active ? 'font-medium' : 'font-normal'}`}>{label}</span>
+                {active && (
+                  <motion.div layoutId="activeNav" className="w-1.5 h-1.5 rounded-full bg-chat-accent" />
+                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Logout */}
-        <div style={{ padding: '12px 10px', borderTop: '1px solid #18181b' }}>
-          <button onClick={handleLogout} style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            width: '100%', padding: '9px 12px', borderRadius: '8px',
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#71717a', fontSize: '13px', transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ef4444'; (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#71717a'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        {/* Footer / Logout */}
+        <div className="p-3 border-t border-chat-border bg-chat-bg-secondary/50">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-chat-text-secondary hover:text-red-500 hover:bg-red-500/10 transition-all duration-200 group"
           >
-            <LogOut size={15} />
-            Back to App
+            <LogOut size={16} className="transition-transform group-hover:-translate-x-0.5" />
+            <span className="text-[13px] font-medium text-left">Back to App</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {children}
       </main>
     </div>
   );
 }
+
