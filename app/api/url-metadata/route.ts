@@ -30,6 +30,23 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
+        // SSRF protection: validate URL before fetching
+        let parsedUrl: URL;
+        try {
+            parsedUrl = new URL(url);
+        } catch {
+            return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+        }
+
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            return NextResponse.json({ error: "Only HTTP/HTTPS URLs are allowed" }, { status: 400 });
+        }
+
+        const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254'];
+        if (blockedHosts.includes(parsedUrl.hostname) || parsedUrl.hostname.startsWith('10.') || parsedUrl.hostname.startsWith('192.168.') || parsedUrl.hostname.startsWith('172.')) {
+            return NextResponse.json({ error: "Private/internal URLs are not allowed" }, { status: 400 });
+        }
+
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'

@@ -13,7 +13,7 @@ class EmailService {
     this.transporter = nodemailer.createTransport({
       host: 'smtp-relay.brevo.com',
       port: 587,
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
         user: process.env.BREVO_USER,
         pass: process.env.BREVO_SMTP_KEY,
@@ -24,7 +24,7 @@ class EmailService {
   async sendEmail({ to, subject, html }: EmailOptions): Promise<boolean> {
     try {
       const mailOptions = {
-        from: process.env.EMAIL_FROM || '"Chat App" <nikolamicic07@gmail.com>', 
+        from: process.env.EMAIL_FROM || '"Chat App" <noreply@example.com>',
         to,
         subject,
         html,

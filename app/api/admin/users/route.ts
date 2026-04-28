@@ -13,6 +13,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
+        console.log(`[AUDIT] Admin ${auth.id} (${auth.email}) accessed user list at ${new Date().toISOString()}`);
+
         const url = new URL(request.url);
         const search = url.searchParams.get('search') || '';
         const role = url.searchParams.get('role');

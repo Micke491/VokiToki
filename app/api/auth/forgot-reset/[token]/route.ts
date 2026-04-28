@@ -76,9 +76,9 @@ export async function POST(
     const body = await req.json();
     const newPassword = String(body.newPassword);
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters long' },
+        { error: 'Password must be at least 8 characters long' },
         { status: 400 }
       );
     }

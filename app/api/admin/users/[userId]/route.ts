@@ -42,6 +42,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ us
             return NextResponse.json({ message: 'User not found' }, { status: 404 });
         }
 
+        console.log(`[AUDIT] Admin ${auth.id} (${auth.email}) updated user ${targetUserId}: ${JSON.stringify(updateData)} at ${new Date().toISOString()}`);
+
         return NextResponse.json({ user: updatedUser, message: 'User updated successfully' }, { status: 200 });
     } catch (error) {
         console.error('Error updating user:', error);
