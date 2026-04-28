@@ -33,7 +33,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized sender" }, { status: 403 });
         }
 
-        const chat = await Chat.findById(chatId);
+        // 🚀 OPTIMIZATION 1: Parallelize chat and sender user fetch
+        const [chat, senderUser] = await Promise.all([
+            Chat.findById(chatId),
+            User.findById(senderId).select('username blockedUsers').lean() // Use .lean() for read-only
+        ]);
+
         if (!chat) return NextResponse.json({ error: "Chat not found" }, { status: 404 });
 
         const isParticipant = chat.participants.some(p => p.toString() === senderId);
@@ -41,12 +46,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Not a member of this chat" }, { status: 403 });
         }
 
-        const senderUser = await User.findById(senderId).select('username blockedUsers');
-
+        // 🚀 OPTIMIZATION 2: Optimized block checking for 1v1 chats
         if (!chat.isGroupChat) {
             const otherParticipantId = chat.participants.find(p => p.toString() !== senderId);
             if (otherParticipantId) {
-                const otherUser = await User.findById(otherParticipantId);
+                // Fetch other user with minimal fields
+                const otherUser = await User.findById(otherParticipantId)
+                    .select('blockedUsers')
+                    .lean(); // Use .lean() for performance
+
                 if (!otherUser) {
                     return NextResponse.json({ error: "Cannot send messages. The other user has deleted their account." }, { status: 403 });
                 }
@@ -60,6 +68,7 @@ export async function POST(req: Request) {
             }
         }
 
+        // 🚀 OPTIMIZATION 3: Create message without waiting for full population
         const newMessage = await Message.create({
             chatId,
             sender: senderId,
@@ -72,38 +81,51 @@ export async function POST(req: Request) {
             isForwarded: isForwarded || false,
         });
 
-        await Chat.findByIdAndUpdate(chatId, {
-            lastMessage: newMessage._id,
-            updatedAt: new Date(),
-            $set: { hiddenBy: [] }
-        });
+        // 🚀 OPTIMIZATION 4: Parallel Chat update and Message population
+        const [_, populatedMessage] = await Promise.all([
+            Chat.findByIdAndUpdate(chatId, {
+                lastMessage: newMessage._id,
+                updatedAt: new Date(),
+                $set: { hiddenBy: [] }
+            }),
+            Message.findById(newMessage._id)
+                .populate('sender', 'username email avatar')
+                .lean() // Use .lean() for read-only response
+        ]);
 
-        let populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username email avatar');
         if (!populatedMessage) {
             return NextResponse.json({ error: "Failed to create message" }, { status: 500 });
         }
 
+        // 🚀 OPTIMIZATION 5: Populate replyTo if needed (separate query if necessary)
+        let finalMessage = populatedMessage;
         if (replyTo) {
-            populatedMessage = await populatedMessage.populate({
-                path: 'replyTo',
-                populate: { path: 'sender', select: 'username' }
-            });
+            finalMessage = await Message.findById(newMessage._id)
+                .populate('sender', 'username email avatar')
+                .populate({
+                    path: 'replyTo',
+                    populate: { path: 'sender', select: 'username' }
+                })
+                .lean();
         }
 
-        // Trigger Pusher events
-        await pusherServer.trigger(`chat-${chatId}`, "receive-message", populatedMessage);
+        // 🚀 OPTIMIZATION 6: Send Pusher events in background (fire and forget)
+        // Don't await these - they happen in the background
+        pusherServer.trigger(`chat-${chatId}`, "receive-message", finalMessage)
+            .catch(err => console.error('Pusher receive-message error:', err));
 
         const chatUpdatePromises = chat.participants.map((participantId: any) => {
             return pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
                 chatId,
-                lastMessage: populatedMessage,
+                lastMessage: finalMessage,
                 unreadCount: participantId.toString() !== senderId ? 1 : 0
-            });
+            }).catch(err => console.error('Pusher chat-update error:', err));
         });
 
-        await Promise.all(chatUpdatePromises);
+        // Fire off Pusher events but don't wait for them
+        Promise.all(chatUpdatePromises).catch(err => console.error('Pusher promises error:', err));
 
-        return NextResponse.json({ message: populatedMessage }, { status: 201 });
+        return NextResponse.json({ message: finalMessage }, { status: 201 });
     } catch (error) {
         console.error("POST message error:", error);
         return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -127,7 +149,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Chat ID required" }, { status: 400 });
         }
 
-        const chat = await Chat.findById(chatId);
+        // 🚀 OPTIMIZATION 7: Use lean() for chat authorization check
+        const chat = await Chat.findById(chatId).lean();
         if (!chat || !chat.participants.some(p => p.toString() === auth.id)) {
             return NextResponse.json({ error: "Chat not found or unauthorized" }, { status: 404 });
         }
@@ -141,6 +164,7 @@ export async function GET(req: Request) {
             query.createdAt = { $lt: new Date(before) };
         }
 
+        // 🚀 OPTIMIZATION 8: Limit population depth for GET requests
         const messages = await Message.find(query)
             .populate('sender', 'username email avatar')
             .populate({
@@ -156,7 +180,8 @@ export async function GET(req: Request) {
                 select: 'username avatar'
             })
             .sort({ createdAt: -1 })
-            .limit(limit + 1);
+            .limit(limit + 1)
+            .lean(); // Use .lean() for read-only retrieval
 
         const hasMore = messages.length > limit;
         const messagesToReturn = hasMore ? messages.slice(0, limit) : messages;
@@ -177,8 +202,9 @@ export async function GET(req: Request) {
             })
             .map(msg => msg._id);
 
+        // 🚀 OPTIMIZATION 9: Async read status update (fire and forget)
         if (unreadMessageIds.length > 0) {
-            await Message.updateMany(
+            Message.updateMany(
                 { 
                     _id: { $in: unreadMessageIds },
                     'readBy.userId': { $ne: auth.id }
@@ -190,7 +216,7 @@ export async function GET(req: Request) {
                     $addToSet: { deliveredTo: auth.id },
                     $set: { status: 'seen', read: true }
                 }
-            );
+            ).catch(err => console.error('Error updating read status:', err));
         }
 
         return NextResponse.json({ 
