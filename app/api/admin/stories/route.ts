@@ -20,6 +20,7 @@ export async function GET(request: Request) {
         const total = await Story.countDocuments();
         const stories = await Story.find()
             .populate('userId', 'username email avatar')
+            .populate('viewedBy.userId', 'username avatar')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit)
