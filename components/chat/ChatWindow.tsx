@@ -1223,9 +1223,10 @@ export default function ChatWindow({
             alert("You cannot call this user. There is a block between you.");
             return;
           }
-          // Dispatches a global event that allows ChatPageContent to pick up the incoming CallModal logic
           window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type: callType } }));
         }}
+        isBlocked={isBlockedChat}
+        isDeleted={isRecipientDeleted}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1526,6 +1527,8 @@ export default function ChatWindow({
             groupAdminId={groupAdminId}
             currentUserId={currentUserId}
             onViewProfile={(userId) => setViewingProfileUserId(userId)}
+            isBlocked={isBlockedChat}
+            isDeleted={isRecipientDeleted}
           />
         )}
       </div>

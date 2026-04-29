@@ -17,12 +17,7 @@ export async function POST(req: Request) {
         if (!success) {
             return NextResponse.json(
                 { error: "Too many messages. Slow down!" },
-                { 
-                    status: 429,
-                    headers: {
-                        "X-RateLimit-Reset": reset.toString(),
-                    }
-                }
+                { status: 429, headers: { "X-RateLimit-Reset": reset.toString() } }
             );
         }
 
@@ -33,27 +28,27 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized sender" }, { status: 403 });
         }
 
-        const chat = await Chat.findById(chatId);
+        const [chat, senderUser] = await Promise.all([
+            Chat.findById(chatId).lean(),
+            User.findById(senderId).select('username blockedUsers').lean(),
+        ]);
+
         if (!chat) return NextResponse.json({ error: "Chat not found" }, { status: 404 });
 
-        const isParticipant = chat.participants.some(p => p.toString() === senderId);
+        const isParticipant = chat.participants.some((p: any) => p.toString() === senderId);
         if (!isParticipant) {
             return NextResponse.json({ error: "Not a member of this chat" }, { status: 403 });
         }
 
-        const senderUser = await User.findById(senderId).select('username blockedUsers');
-
         if (!chat.isGroupChat) {
-            const otherParticipantId = chat.participants.find(p => p.toString() !== senderId);
+            const otherParticipantId = chat.participants.find((p: any) => p.toString() !== senderId);
             if (otherParticipantId) {
-                const otherUser = await User.findById(otherParticipantId);
+                const otherUser = await User.findById(otherParticipantId).select('blockedUsers').lean();
                 if (!otherUser) {
                     return NextResponse.json({ error: "Cannot send messages. The other user has deleted their account." }, { status: 403 });
                 }
-
                 const iBlockedThem = senderUser?.blockedUsers?.some((id: any) => id.toString() === otherParticipantId.toString());
                 const theyBlockedMe = otherUser.blockedUsers?.some((id: any) => id.toString() === senderId);
-
                 if (iBlockedThem || theyBlockedMe) {
                     return NextResponse.json({ error: "You cannot send messages to this user." }, { status: 403 });
                 }
@@ -72,36 +67,35 @@ export async function POST(req: Request) {
             isForwarded: isForwarded || false,
         });
 
-        await Chat.findByIdAndUpdate(chatId, {
-            lastMessage: newMessage._id,
-            updatedAt: new Date(),
-            $set: { hiddenBy: [] }
-        });
+        const [populatedMessage] = await Promise.all([
+            Message.findById(newMessage._id)
+                .populate('sender', 'username email avatar')
+                .populate(replyTo ? {
+                    path: 'replyTo',
+                    populate: { path: 'sender', select: 'username' }
+                } : [])
+                .lean(),
+            Chat.findByIdAndUpdate(chatId, {
+                lastMessage: newMessage._id,
+                updatedAt: new Date(),
+                $set: { hiddenBy: [] }
+            }),
+        ]);
 
-        let populatedMessage = await Message.findById(newMessage._id).populate('sender', 'username email avatar');
         if (!populatedMessage) {
             return NextResponse.json({ error: "Failed to create message" }, { status: 500 });
         }
 
-        if (replyTo) {
-            populatedMessage = await populatedMessage.populate({
-                path: 'replyTo',
-                populate: { path: 'sender', select: 'username' }
-            });
-        }
-
-        // Trigger Pusher events
-        await pusherServer.trigger(`chat-${chatId}`, "receive-message", populatedMessage);
-
-        const chatUpdatePromises = chat.participants.map((participantId: any) => {
-            return pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
-                chatId,
-                lastMessage: populatedMessage,
-                unreadCount: participantId.toString() !== senderId ? 1 : 0
-            });
-        });
-
-        await Promise.all(chatUpdatePromises);
+        await Promise.all([
+            pusherServer.trigger(`chat-${chatId}`, "receive-message", populatedMessage),
+            ...chat.participants.map((participantId: any) =>
+                pusherServer.trigger(`user-${participantId.toString()}`, "chat-update", {
+                    chatId,
+                    lastMessage: populatedMessage,
+                    unreadCount: participantId.toString() !== senderId ? 1 : 0
+                })
+            ),
+        ]);
 
         return NextResponse.json({ message: populatedMessage }, { status: 201 });
     } catch (error) {

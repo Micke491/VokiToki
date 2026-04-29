@@ -8,6 +8,8 @@ interface CallButtonProps {
   currentUserId: string;
   currentUserUsername: string;
   currentUserAvatar?: string;
+  isBlocked?: boolean;
+  isDeleted?: boolean;
 }
 
 export default function CallButton({
@@ -15,20 +17,23 @@ export default function CallButton({
   onCallStart,
   currentUserUsername,
   currentUserAvatar,
+  isBlocked,
+  isDeleted,
 }: CallButtonProps) {
   const [loadingType, setLoadingType] = useState<"voice" | "video" | null>(null);
 
   const startCall = (type: "voice" | "video") => {
-    window.dispatchEvent(new CustomEvent("start-call", { 
-      detail: { chatId, type } 
-    }));
+    if (isBlocked || isDeleted) return;
+    onCallStart(type);
   };
+
+  const isDisabled = isBlocked || isDeleted || !!loadingType;
 
   return (
     <div className="flex items-center gap-1">
       <button
         onClick={() => startCall("voice")}
-        disabled={!!loadingType}
+        disabled={isDisabled}
         className="p-2 text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-hover rounded-full transition-colors disabled:opacity-50"
         title="Start Voice Call"
       >
@@ -41,7 +46,7 @@ export default function CallButton({
 
       <button
         onClick={() => startCall("video")}
-        disabled={!!loadingType}
+        disabled={isDisabled}
         className="p-2 text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-hover rounded-full transition-colors disabled:opacity-50"
         title="Start Video Call"
       >

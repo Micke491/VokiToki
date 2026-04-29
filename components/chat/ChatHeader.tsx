@@ -25,6 +25,8 @@ interface ChatHeaderProps {
   recipientLastSeen?: string;
   recipientStoriesUser?: any;
   onStoryClick?: (userId: string, stories: any[], username: string, avatar?: string) => void;
+  isBlocked?: boolean;
+  isDeleted?: boolean;
 }
 
 const ChatHeader = ({
@@ -49,6 +51,8 @@ const ChatHeader = ({
   recipientLastSeen,
   recipientStoriesUser,
   onStoryClick,
+  isBlocked,
+  isDeleted,
 }: ChatHeaderProps) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -192,6 +196,8 @@ const ChatHeader = ({
             currentUserId={currentUserId}
             currentUserUsername={currentUserUsername}
             currentUserAvatar={currentUserAvatar}
+            isBlocked={isBlocked}
+            isDeleted={isDeleted}
           />
           <button
             onClick={() => setShowSearch(true)}
@@ -210,33 +216,6 @@ const ChatHeader = ({
             </svg>
           </button>
 
-          {/* Three-dot menu for View Profile (1v1 chats) */}
-          {!isGroup && recipientId && onViewProfile && (
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
-                title="More options"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </button>
-
-              {showDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <button
-                    onClick={() => {
-                      onViewProfile(recipientId);
-                      setShowDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
-                  >
-                    <UserIcon className="w-4 h-4 text-chat-accent" />
-                    View Profile
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </header>

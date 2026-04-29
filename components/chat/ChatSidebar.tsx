@@ -26,6 +26,8 @@ interface ChatSidebarProps {
   groupAdminId?: string;
   currentUserId?: string;
   onViewProfile?: (userId: string) => void;
+  isBlocked?: boolean;
+  isDeleted?: boolean;
 }
 
 const ChatSidebar = ({
@@ -42,6 +44,8 @@ const ChatSidebar = ({
   groupAdminId,
   currentUserId,
   onViewProfile,
+  isBlocked,
+  isDeleted,
 }: ChatSidebarProps) => {
   const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -555,7 +559,7 @@ const ChatSidebar = ({
           )}
         </div>
         {/* Wallpaper Section */}
-        {setWallpaper && (
+        {setWallpaper && !isBlocked && !isDeleted && (
           <div className="p-4 border-t border-chat-border">
             <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest mb-3 flex items-center gap-2">
               <ImageIcon className="w-3.5 h-3.5" />
