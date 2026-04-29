@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { getAuthToken } from '@/lib/storage';
 import Pusher from 'pusher-js';
 import ConfirmModal from '../ui/ConfirmModal';
-import { Plus, Menu, Search, X, MoreVertical, LogOut } from 'lucide-react';
+import { Plus, Menu, Search, X, MoreVertical, LogOut, ShieldAlert } from 'lucide-react';
+import ReportModal from '../ui/ReportModal';
 
 interface Chat {
   _id: string;
@@ -60,6 +61,7 @@ export default function ChatList({
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [blockConfirm, setBlockConfirm] = useState<{ chatId: string; userId: string; username: string } | null>(null);
+  const [reportData, setReportData] = useState<{ userId: string; username: string } | null>(null);
   const [blocking, setBlocking] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
@@ -559,6 +561,21 @@ export default function ChatList({
                         Block User
                       </button>
                     )}
+                    {!isGroup && (
+                      <button
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          setReportData({
+                            userId: otherUser._id,
+                            username: otherUser.username,
+                          });
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-amber-500 hover:bg-amber-500/10 transition-colors border-t border-chat-border"
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                        Report User
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -581,6 +598,14 @@ export default function ChatList({
         confirmText="Block"
         type="danger"
         isLoading={blocking}
+      />
+      {/* Report User Modal */}
+      <ReportModal
+        isOpen={!!reportData}
+        onClose={() => setReportData(null)}
+        targetId={reportData?.userId || ''}
+        targetType="user"
+        targetName={reportData?.username}
       />
     </div>
   );

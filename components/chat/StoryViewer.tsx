@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { X, MoreVertical, Volume2, VolumeX, Plus, Eye, ArrowLeft } from 'lucide-react';
+import { X, MoreVertical, Volume2, VolumeX, Plus, Eye, ArrowLeft, ShieldAlert } from 'lucide-react';
+import ReportModal from '../ui/ReportModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Story } from '../../types/chat';
 import { getAuthToken } from '@/lib/storage';
@@ -43,6 +44,7 @@ export default function StoryViewer({
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [showVideoIndicator, setShowVideoIndicator] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -320,6 +322,19 @@ export default function StoryViewer({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {!isOwner && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowReportModal(true);
+                    setIsPaused(true);
+                  }}
+                  className="p-1.5 md:p-2 text-amber-500/90 hover:text-amber-500 transition-colors"
+                  title="Report Story"
+                >
+                  <ShieldAlert className="w-4 h-4 md:w-5 md:h-5 shadow-sm" />
+                </button>
+              )}
               {isVideo && (
                 <button
                   onClick={(e) => {
@@ -461,6 +476,18 @@ export default function StoryViewer({
             <ArrowLeft className="w-8 h-8 text-white group-hover:translate-x-0.5 transition-transform rotate-180" />
           </button>
         </div>
+
+        {/* Report Story Modal */}
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => {
+            setShowReportModal(false);
+            setIsPaused(false);
+          }}
+          targetId={currentStory._id}
+          targetType="story"
+          targetName={`story by ${username}`}
+        />
       </motion.div>
     </AnimatePresence>
   );

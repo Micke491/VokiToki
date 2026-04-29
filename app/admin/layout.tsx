@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, MessageSquare, BookImage, LogOut, Shield, ChevronRight, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, BookImage, LogOut, Shield, ChevronRight, Menu, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAuthToken, removeAuthToken } from '@/lib/storage';
 
@@ -12,6 +12,7 @@ const navItems = [
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/admin/stories', label: 'Stories', icon: BookImage },
+  { href: '/admin/reports', label: 'Reports', icon: AlertCircle },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

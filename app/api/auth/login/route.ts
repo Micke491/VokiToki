@@ -52,6 +52,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "This account has been banned" }, { status: 403 });
     }
 
+    if (user.timeoutUntil && new Date(user.timeoutUntil) > new Date()) {
+      const timeoutDate = new Date(user.timeoutUntil).toLocaleString();
+      return NextResponse.json({ 
+        message: `Your account is temporarily suspended until ${timeoutDate}` 
+      }, { status: 403 });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });

@@ -12,6 +12,7 @@ export interface AuthUser {
   email?: string;
   role: 'user' | 'admin';
   isBanned: boolean;
+  timeoutUntil?: Date;
 }
 
 import { connectDB } from "./db";
@@ -19,7 +20,6 @@ import User from "@/models/User";
 
 export async function verifyToken(req: Request): Promise<AuthUser | null> {
   try {
-    // 1. Get Token from Header or Cookie
     const authHeader = req.headers.get("authorization") || "";
     let token = "";
 
@@ -33,7 +33,6 @@ export async function verifyToken(req: Request): Promise<AuthUser | null> {
 
     if (!token) return null;
 
-    // 2. Verify Token
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       console.error("JWT_SECRET is missing in env");
@@ -42,7 +41,6 @@ export async function verifyToken(req: Request): Promise<AuthUser | null> {
 
     const decoded = jwt.verify(token, secret) as DecodedToken;
     
-    // Normalize ID field (database often uses _id, token might use userId)
     const id = decoded.userId || decoded.id || decoded._id;
 
     if (!id) return null;
@@ -54,15 +52,19 @@ export async function verifyToken(req: Request): Promise<AuthUser | null> {
       return null;
     }
 
+    if (user.timeoutUntil && new Date(user.timeoutUntil) > new Date()) {
+      return null;
+    }
+
     return { 
       id, 
       email: decoded.email,
       role: user.role || 'user',
-      isBanned: user.isBanned || false
+      isBanned: user.isBanned || false,
+      timeoutUntil: user.timeoutUntil
     };
     
   } catch (err) {
-    // Token is invalid or expired
     return null;
   }
 }

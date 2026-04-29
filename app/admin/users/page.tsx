@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAuthToken } from "@/lib/storage";
-import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, ShieldAlert, XCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserRow {
@@ -13,6 +13,7 @@ interface UserRow {
   avatar?: string;
   role: 'user' | 'admin';
   isBanned: boolean;
+  timeoutUntil?: string;
   createdAt: string;
   lastSeen?: string;
   isOnline: boolean;
@@ -54,6 +55,8 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [timingOutUser, setTimingOutUser] = useState<UserRow | null>(null);
+  const [customTimeout, setCustomTimeout] = useState('');
 
   function getToken() {
     return document.cookie.match(/(?:^|; )token=([^;]+)/)?.[1] || getAuthToken() || '';
@@ -115,6 +118,41 @@ export default function AdminUsersPage() {
       });
       if (res.ok) {
         setUsers(prev => prev.map(u => u._id === userId ? { ...u, role: newRole } : u));
+      }
+    } catch { } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function clearTimeout(userId: string) {
+    setActionLoading(userId + '_timeout');
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/moderation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ action: 'timeout', timeoutUntil: null }),
+      });
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u._id === userId ? { ...u, timeoutUntil: undefined } : u));
+      }
+    } catch { } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function applyTimeout(userId: string, date: string | null) {
+    setActionLoading(userId + '_timeout');
+    try {
+      const isoDate = date ? new Date(date).toISOString() : null;
+      const res = await fetch(`/api/admin/users/${userId}/moderation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ action: 'timeout', timeoutUntil: isoDate }),
+      });
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u._id === userId ? { ...u, timeoutUntil: isoDate || undefined } : u));
+        setTimingOutUser(null);
+        setCustomTimeout('');
       }
     } catch { } finally {
       setActionLoading(null);
@@ -186,24 +224,24 @@ export default function AdminUsersPage() {
           <>
             {/* Desktop Table View */}
             <div className="hidden lg:block w-full">
-              <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 border-b border-chat-border bg-chat-bg-secondary/30 rounded-t-xl sticky top-0 z-10 backdrop-blur-md">
+              <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_120px] gap-4 px-4 py-3 border-b border-chat-border bg-chat-bg-secondary/30 rounded-t-xl sticky top-0 z-10 backdrop-blur-md items-center">
                 <button onClick={() => handleSort('username')} className="flex items-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
                   User <SortIcon field="username" sortBy={sortBy} sortOrder={sortOrder} />
                 </button>
                 <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider">Email Address</div>
-                <button onClick={() => handleSort('createdAt')} className="flex items-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
+                <button onClick={() => handleSort('createdAt')} className="flex items-center justify-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
                   Joined <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
                 </button>
                 <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider text-center">Role</div>
                 <button onClick={() => handleSort('isBanned')} className="flex items-center justify-center text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider hover:text-chat-text-primary transition-colors">
                   Status <SortIcon field="isBanned" sortBy={sortBy} sortOrder={sortOrder} />
                 </button>
-                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider text-right pr-4">Actions</div>
+                <div className="text-[11px] font-bold text-chat-text-tertiary uppercase tracking-wider text-center">Actions</div>
               </div>
 
               <div className="divide-y divide-chat-border/50 bg-chat-bg-secondary/10 border-x border-b border-chat-border rounded-b-xl">
                 {users.map((user) => (
-                  <div key={user._id} className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-4 py-4 items-center hover:bg-chat-bg-hover/20 transition-colors group">
+                  <div key={user._id} className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_120px] gap-4 px-4 py-4 items-center hover:bg-chat-bg-hover/20 transition-colors group">
                     {/* User Profile */}
                     <div className="flex items-center gap-3">
                       <Avatar user={user} className="w-9 h-9" />
@@ -217,7 +255,7 @@ export default function AdminUsersPage() {
                     <p className="text-chat-text-secondary text-[13px] truncate pr-4">{user.email}</p>
 
                     {/* Date */}
-                    <p className="text-chat-text-tertiary text-[12px]">
+                    <p className="text-chat-text-tertiary text-[12px] text-center">
                       {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
 
@@ -233,7 +271,7 @@ export default function AdminUsersPage() {
                     </div>
 
                     {/* Status Badge */}
-                    <div className="flex justify-center">
+                    <div className="flex flex-col items-center gap-1">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                         user.isBanned 
                           ? 'bg-red-500/10 text-red-500 border-red-500/20' 
@@ -241,10 +279,32 @@ export default function AdminUsersPage() {
                       }`}>
                         {user.isBanned ? 'Banned' : 'Active'}
                       </span>
+                      {user.timeoutUntil && new Date(user.timeoutUntil) > new Date() && (
+                        <span className="px-2 py-0.5 rounded-md text-[8px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          Timed Out
+                        </span>
+                      )}
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      {user.timeoutUntil && new Date(user.timeoutUntil) > new Date() && (
+                        <button
+                          onClick={() => clearTimeout(user._id)}
+                          disabled={actionLoading === user._id + '_timeout'}
+                          className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all"
+                          title="Clear Timeout"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      )}
+                        <button
+                          onClick={() => setTimingOutUser(user)}
+                          className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all"
+                          title="Timeout User"
+                        >
+                          <Clock size={16} />
+                        </button>
                       <button
                         onClick={() => toggleBan(user._id, user.isBanned)}
                         disabled={actionLoading === user._id + '_ban'}
@@ -294,6 +354,11 @@ export default function AdminUsersPage() {
                           Banned
                         </span>
                       )}
+                      {user.timeoutUntil && new Date(user.timeoutUntil) > new Date() && (
+                        <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          Timed Out
+                        </span>
+                      )}
                     </div>
                   </div>
                   
@@ -311,6 +376,23 @@ export default function AdminUsersPage() {
                   </div>
 
                   <div className="flex gap-2">
+                    {user.timeoutUntil && new Date(user.timeoutUntil) > new Date() && (
+                      <button
+                        onClick={() => clearTimeout(user._id)}
+                        disabled={actionLoading === user._id + '_timeout'}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-amber-500/5 text-amber-500 border border-amber-500/10 active:scale-95 transition-all"
+                      >
+                        <XCircle size={14} />
+                        Clear Timeout
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setTimingOutUser(user)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-amber-500/5 text-amber-500 border border-amber-500/10 active:scale-95 transition-all"
+                    >
+                      <Clock size={14} />
+                      Timeout
+                    </button>
                     <button
                       onClick={() => toggleBan(user._id, user.isBanned)}
                       disabled={actionLoading === user._id + '_ban'}
@@ -364,6 +446,86 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+
+      {/* Timeout Mini-Modal */}
+      <AnimatePresence>
+        {timingOutUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setTimingOutUser(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm bg-chat-bg-secondary border border-chat-border rounded-2xl p-6 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-chat-text-primary">Timeout @{timingOutUser.username}</h3>
+                  <p className="text-[10px] text-chat-text-tertiary">User will be unable to login until expiry</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: '1 Hour', val: 1 },
+                    { label: '24 Hours', val: 24 },
+                    { label: '3 Days', val: 72 },
+                    { label: '1 Week', val: 168 }
+                  ].map(q => (
+                    <button
+                      key={q.label}
+                      onClick={() => {
+                        const d = new Date();
+                        d.setHours(d.getHours() + q.val);
+                        applyTimeout(timingOutUser._id, d.toISOString());
+                      }}
+                      className="py-2 bg-chat-bg-primary border border-chat-border rounded-lg text-xs font-bold text-chat-text-secondary hover:border-amber-500/50 hover:text-amber-500 transition-all"
+                    >
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                   <div className="text-[10px] font-bold text-chat-text-tertiary uppercase tracking-widest mb-1.5 ml-1">Custom Expiry</div>
+                   <input 
+                     type="datetime-local"
+                     className="w-full bg-chat-bg-primary border border-chat-border rounded-lg px-3 py-2 text-xs text-chat-text-primary focus:outline-none focus:border-amber-500/50"
+                     value={customTimeout}
+                     onChange={(e) => setCustomTimeout(e.target.value)}
+                   />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    onClick={() => setTimingOutUser(null)}
+                    className="flex-1 py-2 rounded-lg text-xs font-bold text-chat-text-tertiary hover:bg-chat-bg-hover transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    disabled={!customTimeout || actionLoading?.includes('timeout')}
+                    onClick={() => applyTimeout(timingOutUser._id, customTimeout)}
+                    className="flex-1 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/10"
+                  >
+                    Set Timeout
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

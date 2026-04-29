@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { getAuthToken } from "@/lib/storage";
-import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Phone, Zap, Download, Image as ImageIcon } from "lucide-react";
+import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Phone, Zap, Download, Image as ImageIcon, ShieldAlert } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
@@ -36,6 +36,7 @@ interface MessageItemProps {
   onJumpToMessage?: (messageId: string) => Promise<void> | void;
   onPreviewImage: (url: string) => void;
   onCallAction?: (callType: "voice" | "video") => void;
+  onReport: (message: Message) => void;
 }
 
 const MessageItem = ({
@@ -64,6 +65,7 @@ const MessageItem = ({
   onJumpToMessage,
   onPreviewImage,
   onCallAction,
+  onReport,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -288,7 +290,7 @@ const MessageItem = ({
                     {message.replyTo.mediaUrl && (
                       <div className="flex-shrink-0 w-12 h-12 rounded overflow-hidden border border-white/20 ml-2">
                         {message.replyTo.mediaType === "video" ? (
-                          <div className="w-full h-full bg-chat-border bg-chat-bg-secondary flex items-center justify-center">
+                          <div className="w-full h-full bg-chat-bg-secondary flex items-center justify-center">
                             <svg
                               className="w-6 h-6 text-chat-text-tertiary"
                               fill="currentColor"
@@ -303,7 +305,7 @@ const MessageItem = ({
                             </svg>
                           </div>
                         ) : message.replyTo.mediaType === "audio" ? (
-                          <div className="w-full h-full bg-chat-border bg-chat-bg-secondary flex items-center justify-center">
+                          <div className="w-full h-full bg-chat-bg-secondary flex items-center justify-center">
                             <Mic className="w-6 h-6 text-chat-text-tertiary" />
                           </div>
                         ) : (
@@ -639,6 +641,15 @@ const MessageItem = ({
                              >
                                <Info className="w-3.5 h-3.5" />
                                <span className="font-medium">View Status</span>
+                             </button>
+                           )}
+                           {!isOwn && (
+                             <button
+                               onClick={(e) => { e.stopPropagation(); onReport(message); setShowMoreMenu(null); }}
+                               className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-amber-500/10 text-amber-500 transition-colors"
+                             >
+                               <ShieldAlert className="w-3.5 h-3.5" />
+                               <span className="font-medium">Report Message</span>
                              </button>
                            )}
                            {isOwn && (

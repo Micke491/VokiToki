@@ -21,7 +21,6 @@ export interface IUser extends Document {
   }[];
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
-  // Profile fields
   links: {
     label: string;
     url: string;
@@ -30,6 +29,7 @@ export interface IUser extends Document {
   status?: string;
   lastSeen?: Date;
   isOnline: boolean;
+  timeoutUntil?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -143,6 +143,9 @@ const UserSchema = new Schema<IUser>(
     isOnline: {
       type: Boolean,
       default: false,
+    },
+    timeoutUntil: {
+      type: Date,
     },
   },
   {

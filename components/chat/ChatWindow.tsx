@@ -26,6 +26,7 @@ import StickerPicker from "./StickerPicker";
 import EmojiPicker from "emoji-picker-react";
 import ImagePreviewModal from "../ui/ImagePreviewModal";
 import UserProfileModal from "../ui/UserProfileModal";
+import ReportModal from "../ui/ReportModal";
 
 export default function ChatWindow({
   chatId,
@@ -85,6 +86,7 @@ export default function ChatWindow({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isBlockedChat, setIsBlockedChat] = useState(false);
   const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null);
+  const [reportingMessage, setReportingMessage] = useState<Message | null>(null);
   const [recipientOnline, setRecipientOnline] = useState(false);
   const [recipientLastSeen, setRecipientLastSeen] = useState<string | undefined>(undefined);
 
@@ -1369,6 +1371,7 @@ export default function ChatWindow({
                           // Triggers the active UI call locally/globally
                           window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type } }));
                         }}
+                        onReport={(msg) => setReportingMessage(msg)}
                       />
                     </div>
                   );
@@ -1538,6 +1541,15 @@ export default function ChatWindow({
         isOpen={!!viewingProfileUserId}
         onClose={() => setViewingProfileUserId(null)}
         userId={viewingProfileUserId || ''}
+      />
+
+      {/* Report Message Modal */}
+      <ReportModal
+        isOpen={!!reportingMessage}
+        onClose={() => setReportingMessage(null)}
+        targetId={reportingMessage?._id || ''}
+        targetType="message"
+        targetName={`message from ${reportingMessage?.sender?.username}`}
       />
 
       <ConfirmModal 
