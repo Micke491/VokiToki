@@ -17,6 +17,7 @@ import StoryManagementModal from "@/components/chat/StoryManagementModal";
 import UserProfileModal from "@/components/ui/UserProfileModal";
 import { useStories } from "@/hooks/useStories";
 import { getAuthToken } from "@/lib/storage";
+import NotificationListener from "@/components/layout/NotificationListener";
 import toast from "react-hot-toast";
 
 interface User {
@@ -299,6 +300,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   return (
     <div className="flex h-screen-safe bg-background text-chat-text-primary overflow-hidden relative">
+
+      <NotificationListener currentUser={currentUser} />
+
       {/* Signature Ambient Gradient */}
       <div className="ambient-glow">
         <div className="ambient-glow-inner" />

@@ -14,8 +14,37 @@ interface User {
   avatar?: string;
 }
 
-export default function NotificationListener() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+export default function NotificationListener({ currentUser: propUser }: { currentUser?: User | null }) {
+  const [internalUser, setInternalUser] = useState<User | null>(null);
+  
+  useEffect(() => {
+    if (propUser === undefined) {
+      const fetchUser = async () => {
+        try {
+          const token = getAuthToken();
+          if (!token) return;
+
+          const response = await fetch("/api/users/current_user", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setInternalUser(data.user);
+          }
+        } catch (error) {
+          console.error("Failed to fetch user in NotificationListener:", error);
+        }
+      };
+
+      fetchUser();
+    }
+  }, [propUser]);
+
+  const currentUser = propUser !== undefined ? propUser : internalUser;
+
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
   const pathname = usePathname();
@@ -26,40 +55,24 @@ export default function NotificationListener() {
   }, [pathname]);
 
   useEffect(() => {
-    fetchCurrentUser();
     registerServiceWorker();
-  }, []);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const token = getAuthToken();
-      if (!token) return;
-      const response = await fetch("/api/users/current_user", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentUser(data.user);
-      }
-    } catch (error) {
-      console.error("Error fetching user for notifications:", error);
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!currentUser) return;
 
     const userChannel = pusherClient.subscribe(`user-${currentUser._id}`);
 
-    // Global Message Notifications
-    userChannel.bind("chat-update", (data: any) => {
-      const { chatId, lastMessage, unreadCount } = data;
+    const handleChatUpdate = (data: any) => {
+      const { chatId, lastMessage } = data;
       
-      if (isNotificationsEnabled()) {
+      if (isNotificationsEnabled() && lastMessage) {
         const senderId = lastMessage.sender?._id?.toString() || lastMessage.sender?.toString();
         const currentUserId = currentUser._id.toString();
 
-        // Don't notify if message is from me
         if (senderId === currentUserId) return;
 
         const currentPath = pathnameRef.current;
@@ -67,7 +80,6 @@ export default function NotificationListener() {
         const isCurrentChat = currentChatId === chatId;
         const isVisible = document.visibilityState === 'visible';
 
-        // Notify if not in this chat OR window is hidden
         if (!isVisible || !isCurrentChat) {
           const senderName = lastMessage.sender?.username || 'Someone';
           const bodyText = lastMessage.text
@@ -86,10 +98,9 @@ export default function NotificationListener() {
           });
         }
       }
-    });
+    };
 
-    // Global Call Notifications
-    userChannel.bind("call:incoming", (data: any) => {
+    const handleIncomingCall = (data: any) => {
       if (data.callerId !== currentUser._id) {
         setIncomingCall(data);
 
@@ -105,9 +116,9 @@ export default function NotificationListener() {
           });
         }
       }
-    });
+    };
 
-    userChannel.bind("call:ended", (data: any) => {
+    const handleCallEnded = (data: any) => {
       setIncomingCall((prev: any) => {
         if (prev?.chatId === data.chatId) return null;
         return prev;
@@ -116,10 +127,16 @@ export default function NotificationListener() {
         if (prev?.chatId === data.chatId) return null;
         return prev;
       });
-    });
+    };
+
+    userChannel.bind("chat-update", handleChatUpdate);
+    userChannel.bind("call:incoming", handleIncomingCall);
+    userChannel.bind("call:ended", handleCallEnded);
 
     return () => {
-      pusherClient.unsubscribe(`user-${currentUser._id}`);
+      userChannel.unbind("chat-update", handleChatUpdate);
+      userChannel.unbind("call:incoming", handleIncomingCall);
+      userChannel.unbind("call:ended", handleCallEnded);
     };
   }, [currentUser]);
 
