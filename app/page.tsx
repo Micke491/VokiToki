@@ -1,6 +1,37 @@
+"use client";
+
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getAuthToken, removeAuthToken } from '@/lib/storage';
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+
+      try {
+        const response = await fetch("/api/users/current_user", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          router.push('/chat');
+        } else if (response.status === 401 || response.status === 404) {
+          removeAuthToken();
+        }
+      } catch (err) {
+        console.error("Session verification failed:", err);
+      }
+    };
+
+    checkSession();
+  }, [router]);
   return (
     // Deep dark background with a subtle ambient top glow
     <div className="relative min-h-screen bg-[#09090b] text-zinc-100 font-sans flex flex-col selection:bg-blue-500/30">

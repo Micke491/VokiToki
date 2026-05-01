@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAuthToken } from "@/lib/storage";
-import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, ShieldAlert, XCircle, Clock } from 'lucide-react';
+import { Search, Ban, ShieldCheck, User, RefreshCw, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, ShieldAlert, XCircle, Clock, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserRow {
@@ -57,6 +57,7 @@ export default function AdminUsersPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [timingOutUser, setTimingOutUser] = useState<UserRow | null>(null);
   const [customTimeout, setCustomTimeout] = useState('');
+  const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
 
   function getToken() {
     return document.cookie.match(/(?:^|; )token=([^;]+)/)?.[1] || getAuthToken() || '';
@@ -153,6 +154,27 @@ export default function AdminUsersPage() {
         setUsers(prev => prev.map(u => u._id === userId ? { ...u, timeoutUntil: isoDate || undefined } : u));
         setTimingOutUser(null);
         setCustomTimeout('');
+      }
+    } catch { } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function deleteUser(userId: string) {
+    setActionLoading(userId + '_delete');
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/moderation`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}` 
+        },
+        body: JSON.stringify({ action: 'delete' }),
+      });
+      if (res.ok) {
+        setUsers(prev => prev.filter(u => u._id !== userId));
+        setTotalCount(prev => prev - 1);
+        setDeletingUser(null);
       }
     } catch { } finally {
       setActionLoading(null);
@@ -325,6 +347,14 @@ export default function AdminUsersPage() {
                       >
                         <ShieldCheck size={16} />
                       </button>
+                      <button
+                        onClick={() => setDeletingUser(user)}
+                        disabled={actionLoading?.includes('_delete')}
+                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Delete User"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -413,6 +443,14 @@ export default function AdminUsersPage() {
                       <ShieldCheck size={14} />
                       {user.role === 'admin' ? 'Demote' : 'Make Admin'}
                     </button>
+                    <button
+                      onClick={() => setDeletingUser(user)}
+                      disabled={actionLoading?.includes('_delete')}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-red-500/5 text-red-500 border border-red-500/10 transition-all active:scale-95"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -469,7 +507,7 @@ export default function AdminUsersPage() {
                   <Clock size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-chat-text-primary">Timeout @{timingOutUser.username}</h3>
+                  <h3 className="text-sm font-bold text-chat-text-primary">Timeout @{timingOutUser?.username}</h3>
                   <p className="text-[10px] text-chat-text-tertiary">User will be unable to login until expiry</p>
                 </div>
               </div>
@@ -485,6 +523,7 @@ export default function AdminUsersPage() {
                     <button
                       key={q.label}
                       onClick={() => {
+                        if (!timingOutUser) return;
                         const d = new Date();
                         d.setHours(d.getHours() + q.val);
                         applyTimeout(timingOutUser._id, d.toISOString());
@@ -515,13 +554,77 @@ export default function AdminUsersPage() {
                   </button>
                   <button 
                     disabled={!customTimeout || actionLoading?.includes('timeout')}
-                    onClick={() => applyTimeout(timingOutUser._id, customTimeout)}
+                    onClick={() => timingOutUser && applyTimeout(timingOutUser._id, customTimeout)}
                     className="flex-1 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/10"
                   >
                     Set Timeout
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+        {/* Delete Confirmation Modal */}
+        {deletingUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeletingUser(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm bg-chat-bg-secondary border border-chat-border rounded-3xl p-6 shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-chat-text-primary">Delete @{deletingUser?.username}?</h3>
+                  <p className="text-[10px] text-red-500 font-black uppercase tracking-widest">Permanent Destruction</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-chat-bg-primary rounded-2xl border border-chat-border mb-6">
+                <p className="text-xs text-chat-text-secondary leading-relaxed">
+                  You are about to permanently erase <span className="text-chat-text-primary font-bold">@{deletingUser?.username}</span>. This will wipe all messages, media, and platform activity.
+                </p>
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-red-500">
+                  <AlertTriangle size={12} />
+                  THIS ACTION CANNOT BE UNDONE
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setDeletingUser(null)}
+                  className="flex-1 py-3 rounded-xl text-xs font-bold text-chat-text-tertiary hover:bg-chat-bg-hover transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  disabled={actionLoading?.includes('_delete')}
+                  onClick={() => deletingUser && deleteUser(deletingUser._id)}
+                  className="flex-1 py-3 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                >
+                  {actionLoading?.includes('_delete') ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 size={14} />
+                      Hard Delete
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Decorative element to match reports page style */}
+              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-red-500/5 blur-[40px] rounded-full pointer-events-none" />
             </motion.div>
           </div>
         )}

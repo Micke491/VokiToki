@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { MessageCircle, Mail, Lock, User, AlertCircle, Loader2, CheckCircle, EyeOff, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { setAuthToken } from '@/lib/storage';
+import { setAuthToken, getAuthToken, removeAuthToken } from '@/lib/storage';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -15,6 +17,32 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+
+      try {
+        const response = await fetch("/api/users/current_user", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          router.push('/chat');
+        } else if (response.status === 401 || response.status === 404) {
+          removeAuthToken();
+        }
+      } catch (err) {
+        console.error("Session verification failed:", err);
+      }
+    };
+
+    checkSession();
+  }, [router]);
 
   const validateForm = () => {
     if (!username || !email || !password || !confirmPassword) {

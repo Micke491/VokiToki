@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Message from '@/models/Message';
 import User from '@/models/User';
+import Chat from '@/models/Chat';
 import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';

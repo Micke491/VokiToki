@@ -413,6 +413,7 @@ export default function ChatList({
             const isGroup = chat.isGroupChat;
             const chatName = isGroup ? chat.name : (otherUser.username || 'Unknown User');
             const chatAvatar = isGroup ? chat.avatar : otherUser.avatar;
+            const isDeleted = !isGroup && (otherUser.username === "Unknown User" || !otherUser.username || otherUser.username === "Unknown");
 
             return (
               <div
@@ -545,7 +546,7 @@ export default function ChatList({
                         </button>
                       </>
                     )}
-                    {!isGroup && (
+                    {!isGroup && !isDeleted && (
                       <button
                         onClick={() => {
                           setOpenMenuId(null);
@@ -561,7 +562,7 @@ export default function ChatList({
                         Block User
                       </button>
                     )}
-                    {!isGroup && (
+                    {!isGroup && !isDeleted && (
                       <button
                         onClick={() => {
                           setOpenMenuId(null);
