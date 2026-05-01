@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import StoryRing from "./StoryRing";
 import { useRouter } from 'next/navigation';
 import { getAuthToken } from '@/lib/storage';
-import Pusher from 'pusher-js';
+import { pusherClient } from '@/lib/pusher-client';
 import ConfirmModal from '../ui/ConfirmModal';
 import { Plus, Menu, Search, X, MoreVertical, LogOut, ShieldAlert } from 'lucide-react';
 import ReportModal from '../ui/ReportModal';
@@ -65,7 +65,7 @@ export default function ChatList({
   const [blocking, setBlocking] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
-  const pusherClientRef = useRef<Pusher | null>(null);
+
 
   useEffect(() => {
     fetchChats();
@@ -80,11 +80,7 @@ export default function ChatList({
     const token = getAuthToken();
     if (!token || !currentUserId) return;
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
-    pusherClientRef.current = pusher;
-    const channel = pusher.subscribe(`user-${currentUserId}`);
+    const channel = pusherClient.subscribe(`user-${currentUserId}`);
 
     const onChatUpdate = (data: { chatId: string, lastMessage?: any, unreadCount?: number, name?: string, avatar?: string, participants?: Chat['participants'] }) => {
       setChats(prevChats => {
@@ -174,9 +170,10 @@ export default function ChatList({
     channel.bind('profile-updated', onProfileUpdate);
 
     return () => {
-      pusher.unsubscribe(`user-${currentUserId}`);
-      pusher.disconnect();
-      pusherClientRef.current = null;
+      channel.unbind('chat-update', onChatUpdate);
+      channel.unbind('chat-removed', onChatRemoved);
+      channel.unbind('chat-new', onChatNew);
+      channel.unbind('profile-updated', onProfileUpdate);
     };
   }, [currentUserId]);
 

@@ -18,15 +18,25 @@ export default function IncomingCallModal({ callData, onAccept, onDecline }: Inc
   }, [onDecline]);
 
   useEffect(() => {
+    let audio: HTMLAudioElement | null = null;
     try {
-      const audio = new Audio('/ringtone.mp3'); 
+      audio = new Audio('/ringtone.mp3'); 
       audio.loop = true;
-      audio.play().catch(e => console.log('Audio autoplay blocked', e));
-      return () => {
+      audio.play().catch(e => {
+        if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
+          console.warn('Ringtone could not be played (likely missing /ringtone.mp3)', e.message);
+        }
+      });
+    } catch(e) {
+      console.error('Audio initialization failed', e);
+    }
+
+    return () => {
+      if (audio) {
         audio.pause();
         audio.currentTime = 0;
-      };
-    } catch(e) {}
+      }
+    };
   }, []);
 
   return (
