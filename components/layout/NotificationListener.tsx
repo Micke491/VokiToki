@@ -84,9 +84,9 @@ export default function NotificationListener({ currentUser: propUser }: { curren
           const senderName = lastMessage.sender?.username || 'Someone';
           const bodyText = lastMessage.text
             ? lastMessage.text.substring(0, 100)
-            : lastMessage.mediaType === 'image' ? '📷 Photo'
-            : lastMessage.mediaType === 'video' ? '🎥 Video'
-            : lastMessage.mediaType === 'audio' ? '🎤 Voice message'
+            : lastMessage.mediaType === 'image' ? 'Photo'
+            : lastMessage.mediaType === 'video' ? 'Video'
+            : lastMessage.mediaType === 'audio' ? 'Voice message'
             : 'New message';
 
           showNotification({
@@ -95,6 +95,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
             chatId: chatId,
             type: 'message',
             senderName,
+            icon: lastMessage.sender?.avatar,
           });
         }
       }
@@ -113,6 +114,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
             body: `${callerName} is calling you...`,
             chatId: data.chatId,
             type: 'call',
+            icon: data.callerAvatar,
           });
         }
       }

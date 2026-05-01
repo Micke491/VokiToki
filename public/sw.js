@@ -5,16 +5,17 @@ self.addEventListener('push', (event) => {
 
   try {
     const data = event.data.json();
-    const { title, body, chatId, type, tag } = data;
+    const { title, body, chatId, type, tag, icon, badge } = data;
 
     const options = {
       body,
-      icon: NOTIFICATION_ICON,
-      badge: NOTIFICATION_ICON,
       tag: tag || chatId || 'default',
       renotify: true,
       data: { chatId, type, url: chatId ? `/chat/${chatId}` : '/chat' },
     };
+
+    if (icon) options.icon = icon;
+    if (badge) options.badge = badge;
 
     if (type === 'call') {
       options.tag = `call-${chatId}-${Date.now()}`;
@@ -31,18 +32,21 @@ self.addEventListener('push', (event) => {
 self.addEventListener('message', (event) => {
   if (!event.data || event.data.action !== 'showNotification') return;
 
-  const { title, body, chatId, type, senderName, messageCount } = event.data;
+  const { title, body, chatId, type, senderName, messageCount, icon, badge } = event.data;
 
   if (type === 'call') {
-    self.registration.showNotification(title, {
+    const options = {
       body,
-      icon: NOTIFICATION_ICON,
-      badge: NOTIFICATION_ICON,
       tag: `call-${chatId}-${Date.now()}`,
       renotify: true,
       requireInteraction: true,
       data: { chatId, type: 'call', url: chatId ? `/chat/${chatId}` : '/chat' },
-    });
+    };
+
+    if (icon) options.icon = icon;
+    if (badge) options.badge = badge;
+
+    self.registration.showNotification(title, options);
     return;
   }
 
@@ -60,14 +64,17 @@ self.addEventListener('message', (event) => {
       ? `${count} new messages`
       : body;
 
-    self.registration.showNotification(title, {
+    const options = {
       body: groupedBody,
-      icon: NOTIFICATION_ICON,
-      badge: NOTIFICATION_ICON,
       tag: chatId,
       renotify: true,
       data: { chatId, type: 'message', url: `/chat/${chatId}`, messageCount: count },
-    });
+    };
+
+    if (icon) options.icon = icon;
+    if (badge) options.badge = badge;
+
+    self.registration.showNotification(title, options);
   });
 });
 

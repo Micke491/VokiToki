@@ -36,6 +36,8 @@ interface NotificationData {
   type?: 'message' | 'call';
   senderName?: string;
   messageCount?: number;
+  icon?: string;
+  badge?: string;
 }
 
 export async function showNotification(data: NotificationData): Promise<void> {
@@ -54,11 +56,15 @@ export async function showNotification(data: NotificationData): Promise<void> {
       }
     }
 
-    new Notification(data.title, {
+    const options: NotificationOptions = {
       body: data.body,
-      icon: '/next.svg',
       tag: data.chatId || 'default',
-    });
+    };
+
+    if (data.icon) options.icon = data.icon;
+    if (data.badge) options.badge = data.badge;
+
+    new Notification(data.title, options);
   } catch (err) {
     console.error('[Push] Failed to show notification:', err);
   }
