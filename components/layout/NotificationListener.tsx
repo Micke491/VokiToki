@@ -14,7 +14,37 @@ interface User {
   avatar?: string;
 }
 
-export default function NotificationListener({ currentUser }: { currentUser: User | null }) {
+export default function NotificationListener({ currentUser: propUser }: { currentUser?: User | null }) {
+  const [internalUser, setInternalUser] = useState<User | null>(null);
+  
+  useEffect(() => {
+    if (propUser === undefined) {
+      const fetchUser = async () => {
+        try {
+          const token = getAuthToken();
+          if (!token) return;
+
+          const response = await fetch("/api/users/current_user", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setInternalUser(data.user);
+          }
+        } catch (error) {
+          console.error("Failed to fetch user in NotificationListener:", error);
+        }
+      };
+
+      fetchUser();
+    }
+  }, [propUser]);
+
+  const currentUser = propUser !== undefined ? propUser : internalUser;
+
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
   const pathname = usePathname();
