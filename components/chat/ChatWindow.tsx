@@ -1,5 +1,7 @@
 "use client";
 
+import { showNotification, isNotificationsEnabled } from "@/lib/pushNotifications";
+
 import {
   useEffect,
   useState,
@@ -9,7 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { getAuthToken } from "@/lib/storage";
-import Pusher from "pusher-js";
+import { pusherClient } from "@/lib/pusher-client";
 import { EmojiClickData } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -47,7 +49,6 @@ export default function ChatWindow({
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -166,11 +167,7 @@ export default function ChatWindow({
     const token = getAuthToken();
     if (!token) return;
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
-
-    const channel = pusher.subscribe(`chat-${chatId}`);
+    const channel = pusherClient.subscribe(`chat-${chatId}`);
 
     channel.bind("receive-message", (message: Message) => {
       if (message.chatId !== chatId) return;
@@ -192,6 +189,7 @@ export default function ChatWindow({
 
         return [...prev, message];
       });
+
       if (messagesContainerRef.current) {
         const { scrollTop, scrollHeight, clientHeight } =
           messagesContainerRef.current;
@@ -357,11 +355,8 @@ export default function ChatWindow({
       }
     });
 
-    setPusherClient(pusher);
-
     return () => {
-      pusher.unsubscribe(`chat-${chatId}`);
-      pusher.disconnect();
+      pusherClient.unsubscribe(`chat-${chatId}`);
     };
   }, [chatId, currentUserId]);
 

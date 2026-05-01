@@ -1,7 +1,9 @@
 "use client";
 
+import { registerServiceWorker, showNotification, isNotificationsEnabled } from "@/lib/pushNotifications";
+
 import { useState, useEffect, useRef } from "react";
-import Pusher from "pusher-js";
+import { pusherClient } from "@/lib/pusher-client";
 import { useRouter } from "next/navigation";
 import ChatList from "@/components/chat/ChatList";
 import ChatWindow from "@/components/chat/ChatWindow";
@@ -46,8 +48,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [incomingCall, setIncomingCall] = useState<any | null>(null);
-  const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
 
   const { 
     stories: allStoriesUsers, 
@@ -116,81 +116,25 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   }, [chatId]);
 
   useEffect(() => {
-    const handleStartCall = async (e: Event) => {
-      const { chatId, type } = (e as CustomEvent).detail;
-      if (!currentUser) return;
-
-      try {
-        await fetch("/api/calls/notify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
-          body: JSON.stringify({
-            chatId,
-            callType: type,
-            callerName: currentUser.username,
-            callerAvatar: currentUser.avatar,
-          }),
-        });
-        setActiveCall({ chatId, type });
-      } catch (err) {
-        console.error("Failed to initiate call:", err);
-      }
-    };
-    window.addEventListener("start-call", handleStartCall);
-    return () => window.removeEventListener("start-call", handleStartCall);
-  }, [currentUser]);
-
-  useEffect(() => {
     if (!chatId) return;
     const token = getAuthToken();
     if (!token) return;
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
-
-    const channel = pusher.subscribe(`chat-${chatId}`);
+    const channel = pusherClient.subscribe(`chat-${chatId}`);
 
     channel.bind('chat-updated', (updatedChat: Chat) => {
       setSelectedChat(updatedChat);
     });
 
     return () => {
-      pusher.unsubscribe(`chat-${chatId}`);
-      pusher.disconnect();
+      channel.unbind('chat-updated');
     };
   }, [chatId]);
 
   useEffect(() => {
     if (!currentUser) return;
-    const token = getAuthToken();
-    if (!token) return;
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
-
-    const channel = pusher.subscribe(`user-${currentUser._id}`);
-
-    channel.bind("call:incoming", (data: any) => {
-      if (data.callerId !== currentUser._id) {
-        setIncomingCall(data);
-      }
-    });
-
-    channel.bind("call:ended", (data: any) => {
-      setIncomingCall((prev: any) => {
-         if (prev?.chatId === data.chatId) return null;
-         return prev;
-      });
-      setActiveCall((prev: any) => {
-         if (prev?.chatId === data.chatId) return null;
-         return prev;
-      });
-    });
+    const channel = pusherClient.subscribe(`user-${currentUser._id}`);
 
     channel.bind("profile-updated", (data: { userId: string, username: string, avatar?: string }) => {
       setSelectedChat(prev => {
@@ -210,8 +154,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     });
 
     return () => {
-      pusher.unsubscribe(`user-${currentUser._id}`);
-      pusher.disconnect();
+      channel.unbind("profile-updated");
     };
   }, [currentUser]);
 
@@ -367,7 +310,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           currentUser={currentUser || undefined}
           isMobileDrawerOpen={showSidebarDrawer}
           onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
-          isHidden={!!activeCall}
         />
       </div>
 
@@ -478,31 +420,10 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         </div>
       </main>
 
-      {/* 4. Modals */}
       <NewChatModal
         isOpen={showNewChatModal}
         onClose={() => setShowNewChatModal(false)}
       />
-
-      {incomingCall && (
-        <IncomingCallModal
-          callData={incomingCall}
-          onAccept={() => {
-            setActiveCall({ chatId: incomingCall.chatId, type: incomingCall.callType });
-            setIncomingCall(null);
-          }}
-          onDecline={() => setIncomingCall(null)}
-        />
-      )}
-
-      {activeCall && currentUser && (
-        <CallModal
-          chatId={activeCall.chatId}
-          callType={activeCall.type}
-          username={currentUser.username}
-          onLeave={() => setActiveCall(null)}
-        />
-      )}
 
       {/* Story Viewer Modal */}
       {viewingStory && viewingStory.isOpen && (

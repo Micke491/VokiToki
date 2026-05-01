@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import Pusher from 'pusher-js';
+import { pusherClient } from '@/lib/pusher-client';
 
 interface Report {
   _id: string;
@@ -94,17 +94,13 @@ export default function AdminReportsPage() {
   useEffect(() => {
     fetchReports();
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
-    const channel = pusher.subscribe('admin-reports');
+    const channel = pusherClient.subscribe('admin-reports');
     channel.bind('new-report', () => {
       fetchReports();
     });
 
     return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
+      pusherClient.unsubscribe('admin-reports');
     };
   }, []);
 
