@@ -43,17 +43,9 @@ export async function showNotification(data: NotificationData): Promise<void> {
   if (getNotificationPermission() !== 'granted') return;
 
   try {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        action: 'showNotification',
-        ...data,
-      });
-      return;
-    }
-
     if ('serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.ready;
-      if (registration.active) {
+      if (registration && registration.active) {
         registration.active.postMessage({
           action: 'showNotification',
           ...data,
