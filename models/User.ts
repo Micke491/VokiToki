@@ -13,7 +13,6 @@ export interface IUser extends Document {
   twoFactorEnabled: boolean;
   twoFactorSecret?: string;
   theme: 'light' | 'dark' | 'system';
-  role: 'user' | 'admin';
   isBanned: boolean;
   mutedChats: {
     chatId: mongoose.Types.ObjectId;
@@ -92,11 +91,6 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ['light', 'dark', 'system'],
       default: 'dark',
-    },
-    role: {
-      type: String,
-      enum: ['user', 'admin'],
-      default: 'user',
     },
     isBanned: {
       type: Boolean,

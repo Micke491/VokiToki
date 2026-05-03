@@ -10,7 +10,6 @@ interface DecodedToken extends JwtPayload {
 export interface AuthUser {
   id: string;
   email?: string;
-  role: 'user' | 'admin';
   isBanned: boolean;
   timeoutUntil?: Date;
 }
@@ -59,7 +58,6 @@ export async function verifyToken(req: Request): Promise<AuthUser | null> {
     return { 
       id, 
       email: decoded.email,
-      role: user.role || 'user',
       isBanned: user.isBanned || false,
       timeoutUntil: user.timeoutUntil
     };
