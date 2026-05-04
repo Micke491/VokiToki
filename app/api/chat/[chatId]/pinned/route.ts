@@ -34,7 +34,8 @@ export async function GET(
             isDeletedForEveryone: false
         })
         .populate('sender', 'username email avatar')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .limit(1);
 
         return NextResponse.json(pinnedMessages, { status: 200 });
     } catch (error) {
@@ -58,6 +59,11 @@ export async function POST(
         if (!message || message.chatId.toString() !== chatId) {
             return NextResponse.json({ error: 'Message not found' }, { status: 404 });
         }
+
+        await Message.updateMany(
+            { chatId, isPinned: true },
+            { isPinned: false }
+        );
 
         message.isPinned = true;
         await message.save();

@@ -1,6 +1,23 @@
 import React, { useRef, useEffect } from "react";
 import { getAuthToken } from "@/lib/storage";
-import { Mic, Smile, Reply, MoreVertical, Pencil, Trash2, Bookmark, Share2, Info, X, Video, Phone, Zap, Download, Image as ImageIcon, ShieldAlert } from "lucide-react";
+import {
+  Mic,
+  Smile,
+  Reply,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Bookmark,
+  Share2,
+  Info,
+  X,
+  Video,
+  Phone,
+  Zap,
+  Download,
+  Image as ImageIcon,
+  ShieldAlert,
+} from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
@@ -69,7 +86,11 @@ const MessageItem = ({
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
-  const sender = message.sender || { _id: 'unknown', username: 'Unknown User', avatar: '' };
+  const sender = message.sender || {
+    _id: "unknown",
+    username: "Unknown User",
+    avatar: "",
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -95,7 +116,11 @@ const MessageItem = ({
       const isSwipingCorrectDirection = isOwn ? mx < 0 : mx > 0;
 
       if (!isSwipingCorrectDirection) {
-        if (!down) controls.start({ x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } });
+        if (!down)
+          controls.start({
+            x: 0,
+            transition: { type: "spring", stiffness: 300, damping: 30 },
+          });
         return;
       }
 
@@ -117,7 +142,7 @@ const MessageItem = ({
         }
       }
     },
-    { axis: "x", filterTaps: true }
+    { axis: "x", filterTaps: true },
   );
 
   useEffect(() => {
@@ -132,14 +157,18 @@ const MessageItem = ({
     });
   };
 
-  const handleDownload = async (e: React.MouseEvent, url: string, filename: string) => {
+  const handleDownload = async (
+    e: React.MouseEvent,
+    url: string,
+    filename: string,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     try {
       const response = await fetch(url);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = blobUrl;
       link.download = filename;
       document.body.appendChild(link);
@@ -147,9 +176,8 @@ const MessageItem = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      console.error('Download error:', error);
-      // Fallback: open in new tab if fetch fails
-      window.open(url, '_blank');
+      console.error("Download error:", error);
+      window.open(url, "_blank");
     }
   };
 
@@ -157,7 +185,12 @@ const MessageItem = ({
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 25 }}
+      transition={{
+        duration: 0.3,
+        type: "spring",
+        stiffness: 300,
+        damping: 25,
+      }}
       key={message._id}
       className="relative"
     >
@@ -171,9 +204,9 @@ const MessageItem = ({
 
       {message.isSystemMessage ? (
         <div className="flex justify-center my-4 w-full">
-           <span className="px-4 py-2 text-[11px] font-medium text-chat-text-tertiary bg-chat-bg-secondary border border-chat-border rounded-lg text-center shadow-sm max-w-[85%] mx-auto">
-             {message.text}
-           </span>
+          <span className="px-4 py-2 text-[11px] font-medium text-chat-text-tertiary bg-chat-bg-secondary border border-chat-border rounded-lg text-center shadow-sm max-w-[85%] mx-auto">
+            {message.text}
+          </span>
         </div>
       ) : (
         <motion.div
@@ -193,7 +226,9 @@ const MessageItem = ({
                 `}
             >
               <div className="w-1 h-3 bg-chat-border rounded-full"></div>
-              <span>Replying to {message.replyTo.sender?.username || 'Unknown User'}</span>
+              <span>
+                Replying to {message.replyTo.sender?.username || "Unknown User"}
+              </span>
             </div>
           )}
 
@@ -224,20 +259,38 @@ const MessageItem = ({
                   </span>
                 </div>
               )}
-              
+
               {message.isForwarded && (
-                 <div className={`flex items-center gap-1 mb-1 text-[10.5px] font-semibold text-chat-text-tertiary/70 italic ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    Forwarded
-                 </div>
+                <div
+                  className={`flex items-center gap-1 mb-1 text-[10.5px] font-semibold text-chat-text-tertiary/70 italic ${isOwn ? "justify-end mr-1" : "ml-1"}`}
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    />
+                  </svg>
+                  Forwarded
+                </div>
               )}
 
               {message.isPinned && (
-                <div className={`flex items-center gap-1 mb-1 text-[10px] font-bold text-chat-text-tertiary/60 capitalize ${isOwn ? 'justify-end mr-1' : 'ml-1'}`}>
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                     <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                <div
+                  className={`flex items-center gap-1 mb-1 text-[10px] font-bold text-chat-text-tertiary/60 capitalize ${isOwn ? "justify-end mr-1" : "ml-1"}`}
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                   </svg>
                   Pinned
                 </div>
@@ -250,7 +303,7 @@ const MessageItem = ({
                           : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                       }
                       ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
-                      ${(message.mediaUrl && !message.text) || message.mediaType === 'call' ? "bg-transparent !p-0 shadow-none border-none" : "px-4 py-2.5 shadow-sm"}
+                      ${(message.mediaUrl && !message.text) || message.mediaType === "call" ? "bg-transparent !p-0 shadow-none border-none" : "px-4 py-2.5 shadow-sm"}
                   `}
               >
                 {!message.isDeletedForEveryone && message.replyTo && (
@@ -258,7 +311,9 @@ const MessageItem = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (message.replyTo?._id && onJumpToMessage) {
-                         onJumpToMessage(message.replyTo._id as unknown as string);
+                        onJumpToMessage(
+                          message.replyTo._id as unknown as string,
+                        );
                       }
                     }}
                     className={`
@@ -272,7 +327,7 @@ const MessageItem = ({
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold mb-0.5 opacity-75">
-                        {message.replyTo.sender?.username || 'Unknown User'}
+                        {message.replyTo.sender?.username || "Unknown User"}
                       </p>
                       <p className="line-clamp-1 truncate">
                         {message.replyTo.text ||
@@ -320,60 +375,100 @@ const MessageItem = ({
                   </div>
                 )}
 
-                {message.mediaType === 'call' && !message.isDeletedForEveryone && (() => {
-                  const isEnded = message.text?.toLowerCase().includes('ended');
-                  const isVideo = message.text?.toLowerCase().includes('video');
-                  
-                  return (
-                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                      isEnded 
-                        ? 'bg-chat-bg-secondary/50 border border-chat-border opacity-80'
-                        : isOwn 
-                          ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 shadow-lg shadow-green-500/5' 
-                          : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/5'
-                    }`}>
-                      <div className={`p-2.5 rounded-full transition-colors ${
-                        isEnded 
-                          ? 'bg-chat-bg-primary text-chat-text-tertiary' 
-                          : isOwn ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
-                      }`}>
-                        {isVideo ? <Video className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
-                      </div>
-                      
-                      <div className="flex flex-col min-w-0">
-                        <span className={`text-sm font-bold truncate ${
-                          isEnded ? 'text-chat-text-secondary' : isOwn ? 'text-green-300' : 'text-blue-300'
-                        }`}>
-                          {message.text}
-                        </span>
-                        <span className={`text-[11px] font-medium ${
-                          isEnded ? 'text-chat-text-tertiary' : isOwn ? 'text-green-400/70' : 'text-blue-400/70'
-                        }`}>
-                          {isEnded ? 'Call Ended' : (isOwn ? 'Outgoing' : 'Incoming')}
-                        </span>
-                      </div>
+                {message.mediaType === "call" &&
+                  !message.isDeletedForEveryone &&
+                  (() => {
+                    const isEnded = message.text
+                      ?.toLowerCase()
+                      .includes("ended");
+                    const isVideo = message.text
+                      ?.toLowerCase()
+                      .includes("video");
 
-                      {onCallAction && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCallAction(isVideo ? "video" : "voice");
-                          }}
-                          className={`ml-auto px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 ${
+                    return (
+                      <div
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                          isEnded
+                            ? "bg-chat-bg-secondary/50 border border-chat-border opacity-80"
+                            : isOwn
+                              ? "bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 shadow-lg shadow-green-500/5"
+                              : "bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/5"
+                        }`}
+                      >
+                        <div
+                          className={`p-2.5 rounded-full transition-colors ${
                             isEnded
-                              ? 'bg-chat-bg-primary hover:bg-chat-hover text-chat-text-primary border border-chat-border'
-                              : isOwn 
-                                ? 'bg-green-500/30 hover:bg-green-500/50 text-green-200 border border-green-500/20' 
-                                : 'bg-blue-500/30 hover:bg-blue-500/50 text-blue-200 border border-blue-500/20'
+                              ? "bg-chat-bg-primary text-chat-text-tertiary"
+                              : isOwn
+                                ? "bg-green-500/20 text-green-400"
+                                : "bg-blue-500/20 text-blue-400"
                           }`}
                         >
-                          {isVideo ? <Video className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
-                          {isEnded ? 'Call Again' : (isOwn ? 'Call Again' : 'Join Call')}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
+                          {isVideo ? (
+                            <Video className="w-5 h-5" />
+                          ) : (
+                            <Phone className="w-5 h-5" />
+                          )}
+                        </div>
+
+                        <div className="flex flex-col min-w-0">
+                          <span
+                            className={`text-sm font-bold truncate ${
+                              isEnded
+                                ? "text-chat-text-secondary"
+                                : isOwn
+                                  ? "text-green-300"
+                                  : "text-blue-300"
+                            }`}
+                          >
+                            {message.text}
+                          </span>
+                          <span
+                            className={`text-[11px] font-medium ${
+                              isEnded
+                                ? "text-chat-text-tertiary"
+                                : isOwn
+                                  ? "text-green-400/70"
+                                  : "text-blue-400/70"
+                            }`}
+                          >
+                            {isEnded
+                              ? "Call Ended"
+                              : isOwn
+                                ? "Outgoing"
+                                : "Incoming"}
+                          </span>
+                        </div>
+
+                        {onCallAction && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCallAction(isVideo ? "video" : "voice");
+                            }}
+                            className={`ml-auto px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 ${
+                              isEnded
+                                ? "bg-chat-bg-primary hover:bg-chat-hover text-chat-text-primary border border-chat-border"
+                                : isOwn
+                                  ? "bg-green-500/30 hover:bg-green-500/50 text-green-200 border border-green-500/20"
+                                  : "bg-blue-500/30 hover:bg-blue-500/50 text-blue-200 border border-blue-500/20"
+                            }`}
+                          >
+                            {isVideo ? (
+                              <Video className="w-3.5 h-3.5" />
+                            ) : (
+                              <Phone className="w-3.5 h-3.5" />
+                            )}
+                            {isEnded
+                              ? "Call Again"
+                              : isOwn
+                                ? "Call Again"
+                                : "Join Call"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                 {message.mediaUrl && !message.isDeletedForEveryone && (
                   <div className="mb-2 rounded-lg overflow-hidden border border-chat-border max-w-[320px] bg-chat-bg-secondary relative group">
@@ -402,18 +497,27 @@ const MessageItem = ({
                           alt="Shared media"
                           className={`w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-opacity ${message.mediaType === "sticker" ? "max-w-[160px] aspect-square object-contain mx-auto" : ""}`}
                           onClick={(e) => {
-                            if (message.mediaType === "gif" || message.mediaType === "sticker") {
-                                const target = e.target as HTMLImageElement;
-                                const originalSrc = target.src.split('?t=')[0];
-                                target.src = originalSrc + "?t=" + Date.now();
+                            if (
+                              message.mediaType === "gif" ||
+                              message.mediaType === "sticker"
+                            ) {
+                              const target = e.target as HTMLImageElement;
+                              const originalSrc = target.src.split("?t=")[0];
+                              target.src = originalSrc + "?t=" + Date.now();
                             } else {
-                                onPreviewImage(message.mediaUrl!);
+                              onPreviewImage(message.mediaUrl!);
                             }
                           }}
                           onLoad={scrollToBottom}
                         />
                         <button
-                          onClick={(e) => handleDownload(e, message.mediaUrl!, `download-${message._id}`)}
+                          onClick={(e) =>
+                            handleDownload(
+                              e,
+                              message.mediaUrl!,
+                              `download-${message._id}`,
+                            )
+                          }
                           className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-black/70 rounded-full text-white backdrop-blur-sm shadow-lg transition-all z-30"
                           title="Download"
                         >
@@ -424,7 +528,7 @@ const MessageItem = ({
                   </div>
                 )}
 
-                {message.text && message.mediaType !== 'call' && (
+                {message.text && message.mediaType !== "call" && (
                   <>
                     <HighlightText
                       text={message.text}
@@ -443,71 +547,95 @@ const MessageItem = ({
               </div>
 
               {/* Reactions Display (Stacked) */}
-              {message.reactions && message.reactions.length > 0 && !message.isDeletedForEveryone && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className={`absolute -bottom-6 ${
-                    isOwn ? "right-0" : "left-0"
-                  } flex items-center z-10 cursor-pointer group/reactions`}
-                >
-                  <div className={`
+              {message.reactions &&
+                message.reactions.length > 0 &&
+                !message.isDeletedForEveryone && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`absolute -bottom-6 ${
+                      isOwn ? "right-0" : "left-0"
+                    } flex items-center z-10 cursor-pointer group/reactions`}
+                  >
+                    <div
+                      className={`
                     flex items-center bg-chat-bg-primary border border-chat-border 
                     rounded-full px-1.5 py-0.5 shadow-sm hover:shadow-md transition-all duration-200 gap-1
                     ${isOwn ? "flex-row-reverse" : "flex-row"}
-                  `}>
-                    <div className="flex -space-x-1.5">
-                      {Array.from(new Set(message.reactions.map((r) => r.emoji)))
-                        .slice(0, 3) // Show first 3 distinct emojis
-                        .map((emoji, idx) => (
-                          <span 
-                            key={emoji} 
-                            className="text-[13px] bg-chat-bg-primary rounded-full ring-1 ring-chat-border"
-                            style={{ zIndex: 10 - idx }}
-                          >
-                            {emoji}
-                          </span>
-                        ))}
+                  `}
+                    >
+                      <div className="flex -space-x-1.5">
+                        {Array.from(
+                          new Set(message.reactions.map((r) => r.emoji)),
+                        )
+                          .slice(0, 3) // Show first 3 distinct emojis
+                          .map((emoji, idx) => (
+                            <span
+                              key={emoji}
+                              className="text-[13px] bg-chat-bg-primary rounded-full ring-1 ring-chat-border"
+                              style={{ zIndex: 10 - idx }}
+                            >
+                              {emoji}
+                            </span>
+                          ))}
+                      </div>
+                      <span className="text-[11px] font-bold text-chat-text-secondary px-0.5">
+                        {message.reactions.length}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-bold text-chat-text-secondary px-0.5">
-                      {message.reactions.length}
-                    </span>
-                  </div>
-                  
-                  {/* Hover Details Tooltip (with bridge to prevent closing) */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/reactions:flex flex-col pb-3 z-50 pointer-events-auto">
-                     <div className="bg-chat-bg-primary text-chat-text-primary p-2 rounded-lg text-[10px] whitespace-nowrap shadow-xl border border-chat-border animate-in fade-in zoom-in duration-200">
-                       {Array.from(new Set(message.reactions.map(r => r.emoji))).map(emoji => {
-                         const userReacted = message.reactions!.some(r => r.userId === currentUserId && r.emoji === emoji);
-                         return (
-                           <div 
-                             key={emoji} 
-                             className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors ${userReacted ? "hover:bg-red-500/20 text-blue-400" : "hover:bg-white/10"}`}
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               if (userReacted) {
+
+                    {/* Hover Details Tooltip (with bridge to prevent closing) */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/reactions:flex flex-col pb-3 z-50 pointer-events-auto">
+                      <div className="bg-chat-bg-primary text-chat-text-primary p-2 rounded-lg text-[10px] whitespace-nowrap shadow-xl border border-chat-border animate-in fade-in zoom-in duration-200">
+                        {Array.from(
+                          new Set(message.reactions.map((r) => r.emoji)),
+                        ).map((emoji) => {
+                          const userReacted = message.reactions!.some(
+                            (r) =>
+                              r.userId === currentUserId && r.emoji === emoji,
+                          );
+                          return (
+                            <div
+                              key={emoji}
+                              className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors ${userReacted ? "hover:bg-red-500/20 text-blue-400" : "hover:bg-white/10"}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (userReacted) {
                                   onRemoveReaction(message._id, emoji);
-                               } else {
-                                  fetch(`/api/chat/message/messages/${message._id}/reaction`, {
+                                } else {
+                                  fetch(
+                                    `/api/chat/message/messages/${message._id}/reaction`,
+                                    {
                                       method: "POST",
                                       headers: {
-                                          "Content-Type": "application/json",
-                                          Authorization: `Bearer ${getAuthToken()}`,
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${getAuthToken()}`,
                                       },
                                       body: JSON.stringify({ chatId, emoji }),
-                                  });
-                               }
-                             }}
-                           >
-                             <span>{emoji}</span>
-                             <span className="opacity-70">{message.reactions!.filter(r => r.emoji === emoji).length}</span>
-                             {userReacted && <span className="text-[8px] opacity-50 ml-1">(click to remove)</span>}
-                           </div>
-                         );
-                       })}
-                     </div>
+                                    },
+                                  );
+                                }
+                              }}
+                            >
+                              <span>{emoji}</span>
+                              <span className="opacity-70">
+                                {
+                                  message.reactions!.filter(
+                                    (r) => r.emoji === emoji,
+                                  ).length
+                                }
+                              </span>
+                              {userReacted && (
+                                <span className="text-[8px] opacity-50 ml-1">
+                                  (click to remove)
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Emoji Picker Popover */}
               {showEmojiPicker === message._id && (
@@ -516,17 +644,20 @@ const MessageItem = ({
                   onClick={(e) => e.stopPropagation()}
                   className={`
                     fixed z-[99999] shadow-2xl rounded-xl overflow-hidden
-                    ${isOwn 
-                      ? "right-4 sm:right-auto sm:translate-x-0" 
-                      : "left-4 sm:left-auto sm:translate-x-0"
+                    ${
+                      isOwn
+                        ? "right-4 sm:right-auto sm:translate-x-0"
+                        : "left-4 sm:left-auto sm:translate-x-0"
                     }
                     bottom-20 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2
                     animate-in zoom-in duration-200
                   `}
                 >
                   <div className="bg-chat-bg-primary p-1 border-b border-chat-border flex justify-between items-center">
-                    <span className="text-xs font-bold px-2 text-chat-text-tertiary">Select Reaction</span>
-                    <button 
+                    <span className="text-xs font-bold px-2 text-chat-text-tertiary">
+                      Select Reaction
+                    </span>
+                    <button
                       onClick={() => setShowEmojiPicker(null)}
                       className="p-1 hover:bg-chat-hover rounded-full text-chat-text-tertiary"
                     >
@@ -548,7 +679,7 @@ const MessageItem = ({
 
               {/* Message Actions Menu */}
               {!message.isDeletedForEveryone && (
-                  <>
+                <>
                   {/* New Simplified Message Actions */}
                   <div
                     className={`
@@ -559,7 +690,9 @@ const MessageItem = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setShowEmojiPicker(showEmojiPicker === message._id ? null : message._id);
+                        setShowEmojiPicker(
+                          showEmojiPicker === message._id ? null : message._id,
+                        );
                       }}
                       className="p-2 hover:bg-chat-bg-secondary rounded-full text-chat-text-tertiary hover:text-yellow-500 transition-all shadow-md border border-chat-border/50 bg-chat-bg-primary/90 backdrop-blur-sm h-9 w-9 flex items-center justify-center"
                       title="React"
@@ -581,94 +714,127 @@ const MessageItem = ({
                     <div className="relative h-9 w-9 flex items-center justify-center">
                       <button
                         onClick={(e) => {
-                           e.stopPropagation();
-                           setShowMoreMenu(showMoreMenu === message._id ? null : message._id);
+                          e.stopPropagation();
+                          setShowMoreMenu(
+                            showMoreMenu === message._id ? null : message._id,
+                          );
                         }}
                         data-more-menu-trigger
-                        className={`p-2 rounded-full transition-all shadow-md border border-chat-border/50 bg-chat-bg-primary/90 backdrop-blur-sm ${showMoreMenu === message._id ? 'text-chat-accent bg-chat-bg-secondary' : 'text-chat-text-tertiary hover:bg-chat-bg-secondary hover:text-chat-accent'}`}
+                        className={`p-2 rounded-full transition-all shadow-md border border-chat-border/50 bg-chat-bg-primary/90 backdrop-blur-sm ${showMoreMenu === message._id ? "text-chat-accent bg-chat-bg-secondary" : "text-chat-text-tertiary hover:bg-chat-bg-secondary hover:text-chat-accent"}`}
                         title="More"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
-                      
+
                       {/* More Menu Dropdown (Controlled by Click) */}
                       {showMoreMenu === message._id && (
-                        <div 
+                        <div
                           data-more-menu
                           className={`
                           absolute bottom-full mb-2 flex flex-col bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl py-1 min-w-[150px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200
                           ${isOwn ? "left-0" : "right-0"}
-                        `}>
-                           {isOwn && message.text && (Date.now() - new Date(message.createdAt).getTime() <= 15 * 60 * 1000) && (
-                             <button
-                               onClick={(e) => { e.stopPropagation(); onEdit(message); setShowMoreMenu(null); }}
-                               className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
-                             >
-                               <Pencil className="w-3.5 h-3.5" />
-                               <span className="font-medium">Edit Message</span>
-                             </button>
-                           )}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               onForward(message);
-                               setShowMoreMenu(null);
-                             }}
-                             className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
-                           >
-                             <Share2 className="w-3.5 h-3.5" />
-                             <span className="font-medium">Forward Message</span>
-                           </button>
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               onPin(message);
-                               setShowMoreMenu(null);
-                             }}
-                             className={`flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover transition-colors ${message.isPinned ? "text-chat-accent bg-chat-accent/5" : "text-chat-text-primary"}`}
-                           >
-                             <Bookmark className={`w-3.5 h-3.5 ${message.isPinned ? "fill-current" : ""}`} />
-                             <span className="font-medium">{message.isPinned ? "Unpin Message" : "Pin Message"}</span>
-                           </button>
-                           {isOwn && isGroup && (
-                             <button
-                               onClick={(e) => { 
-                                 e.stopPropagation(); 
-                                 onViewStatus(message); 
-                                 setShowMoreMenu(null); 
-                               }}
-                               className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
-                             >
-                               <Info className="w-3.5 h-3.5" />
-                               <span className="font-medium">View Status</span>
-                             </button>
-                           )}
-                           {!isOwn && (
-                             <button
-                               onClick={(e) => { e.stopPropagation(); onReport(message); setShowMoreMenu(null); }}
-                               className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-amber-500/10 text-amber-500 transition-colors"
-                             >
-                               <ShieldAlert className="w-3.5 h-3.5" />
-                               <span className="font-medium">Report Message</span>
-                             </button>
-                           )}
-                           {isOwn && (
-                             <>
-                               <div className="h-[1px] bg-chat-border my-1 mx-2" />
-                               <button
-                                 onClick={(e) => { e.stopPropagation(); onDelete(message._id); setShowMoreMenu(null); }}
-                                 className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-red-500/10 text-red-500 transition-colors"
-                               >
-                                 <Trash2 className="w-3.5 h-3.5" />
-                                 <span className="font-bold">Delete</span>
-                               </button>
-                             </>
-                           )}
+                        `}
+                        >
+                          {isOwn &&
+                            message.text &&
+                            Date.now() -
+                              new Date(message.createdAt).getTime() <=
+                              15 * 60 * 1000 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEdit(message);
+                                  setShowMoreMenu(null);
+                                }}
+                                className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                <span className="font-medium">
+                                  Edit Message
+                                </span>
+                              </button>
+                            )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onForward(message);
+                              setShowMoreMenu(null);
+                            }}
+                            className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span className="font-medium">Forward Message</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPin(message);
+                              setShowMoreMenu(null);
+                            }}
+                            className={`flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover transition-colors ${
+                              message.isPinned
+                                ? "text-red-500 bg-red-500/5"
+                                : "text-chat-text-primary"
+                            }`}
+                          >
+                            <Bookmark
+                              className={`w-3.5 h-3.5 ${message.isPinned ? "fill-current" : ""}`}
+                            />
+                            <span className="font-medium">
+                              {message.isPinned
+                                ? "Unpin Message"
+                                : "Pin Message"}
+                            </span>
+                          </button>
+                          {isOwn && isGroup && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onViewStatus(message);
+                                setShowMoreMenu(null);
+                              }}
+                              className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-chat-hover text-chat-text-primary transition-colors"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                              <span className="font-medium">View Status</span>
+                            </button>
+                          )}
+                          {!isOwn && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onReport(message);
+                                setShowMoreMenu(null);
+                              }}
+                              className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-amber-500/10 text-amber-500 transition-colors"
+                            >
+                              <ShieldAlert className="w-3.5 h-3.5" />
+                              <span className="font-medium">
+                                Report Message
+                              </span>
+                            </button>
+                          )}
+                          {isOwn && (
+                            <>
+                              <div className="h-[1px] bg-chat-border my-1 mx-2" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDelete(message._id);
+                                  setShowMoreMenu(null);
+                                }}
+                                className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-red-500/10 text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="font-bold">Delete</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
-                  </>
+                </>
               )}
             </div>
           </div>
@@ -684,14 +850,12 @@ const MessageItem = ({
             )}
             <span>{formatTime(message.createdAt)}</span>
             {isOwn && !message.isDeletedForEveryone && (
-              <MessageStatusIcon
-                status={message.status}
-                className="ml-1"
-              />
+              <MessageStatusIcon status={message.status} className="ml-1" />
             )}
           </div>
         </motion.div>
-      )}</motion.div>
+      )}
+    </motion.div>
   );
 };
 

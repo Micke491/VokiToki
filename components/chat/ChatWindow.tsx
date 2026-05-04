@@ -249,7 +249,7 @@ export default function ChatWindow({
     channel.bind(
       "user-typing",
       (data: { username: string; userId: string }) => {
-        if (data.userId !== currentUserId) {
+        if (String(data.userId) !== String(currentUserId)) {
           setTypingUsers((prev) => {
             if (!prev.includes(data.username)) {
               return [...prev, data.username];
@@ -329,14 +329,12 @@ export default function ChatWindow({
     );
 
     channel.bind("message-pinned", (pinnedMessage: Message) => {
-      setPinnedMessages((prev) => {
-        if (prev.some((m) => m._id === pinnedMessage._id)) return prev;
-        return [pinnedMessage, ...prev];
-      });
+      setPinnedMessages([pinnedMessage]);
       setMessages((prev) =>
-        prev.map((m) =>
-          m._id === pinnedMessage._id ? { ...m, isPinned: true } : m,
-        ),
+        prev.map((m) => ({
+          ...m,
+          isPinned: String(m._id) === String(pinnedMessage._id),
+        }))
       );
     });
 
@@ -377,13 +375,22 @@ export default function ChatWindow({
 
   useLayoutEffect(() => {
     if (!loading && messages.length > 0 && !hasScrolledInitially.current) {
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop =
-          messagesContainerRef.current.scrollHeight;
-        hasScrolledInitially.current = true;
-      }
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight;
+          hasScrolledInitially.current = true;
+        }
+      });
+      const timeout = setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
+      return () => clearTimeout(timeout);
     }
-  }, [loading]);
+  }, [loading, messages.length]);
+
 
   useLayoutEffect(() => {
     if (prevScrollHeightRef.current > 0 && messagesContainerRef.current) {
@@ -438,13 +445,15 @@ export default function ChatWindow({
       } else {
         setMessages(newMessages);
 
-        // Also fetch pinned messages
         fetch(`/api/chat/${chatId}/pinned`, {
           headers: { Authorization: `Bearer ${getAuthToken()}` },
         })
           .then((res) => res.json())
           .then((data) => {
-            if (Array.isArray(data)) setPinnedMessages(data);
+            if (Array.isArray(data)) {
+              setPinnedMessages(data);
+              setTimeout(() => scrollToBottom(true), 50)
+            }
           })
           .catch((err) =>
             console.error("Failed to fetch pinned messages", err),
@@ -763,6 +772,7 @@ export default function ChatWindow({
     setSending(true);
 
     if (isTypingRef.current) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       fetch("/api/chat/typing", {
         method: "POST",
         headers: {
@@ -1247,28 +1257,27 @@ export default function ChatWindow({
             {pinnedMessages.length > 0 && (
               <div className="sticky top-0 z-30 mb-6 bg-chat-bg-primary/90 backdrop-blur-md rounded-xl shadow-sm border border-chat-border overflow-hidden text-sm">
                 <div className="px-3 py-2 border-b border-chat-border flex items-center gap-2 text-xs font-semibold text-chat-text-tertiary bg-chat-bg-secondary">
-                  <span className="flex-1">
-                    Pinned Messages ({pinnedMessages.length})
-                  </span>
+                  <span className="flex-1">Pinned Message</span>
+                  <button 
+                    onClick={() => handlePin(pinnedMessages[0])}
+                    className="hover:text-red-500 transition-colors"
+                  >
+                    Unpin
+                  </button>
                 </div>
-                <div className="max-h-32 overflow-y-auto custom-scrollbar">
-                  {pinnedMessages.map((msg) => (
+                <div>
+                  {pinnedMessages.slice(0, 1).map((msg) => (
                     <div
                       key={`pinned-${msg._id}`}
-                      className="px-4 py-2 hover:bg-chat-bg-secondary cursor-pointer border-b last:border-0 border-chat-border/50 flex flex-col gap-1 transition-colors"
-                      onClick={() => {
-                        jumpToMessage(msg._id);
-                      }}
+                      className="px-4 py-2 hover:bg-chat-bg-secondary cursor-pointer flex flex-col gap-1 transition-colors"
+                      onClick={() => jumpToMessage(msg._id)}
                     >
                       <div className="flex items-center gap-2 text-xs text-chat-text-tertiary">
                         <span className="font-semibold text-chat-text-primary">
                           {msg.sender?.username || "Unknown User"}
                         </span>
-                        <span>
-                          {new Date(msg.createdAt).toLocaleDateString()}
-                        </span>
                       </div>
-                      <div className="text-chat-text-secondary line-clamp-1">
+                      <div className="text-chat-text-secondary line-clamp-1 text-xs">
                         {msg.text ||
                           (msg.mediaUrl
                             ? `Attached ${msg.mediaType === "video" ? "Video" : msg.mediaType === "gif" ? "GIF" : msg.mediaType === "audio" ? "Voice record" : "Photo"}`
@@ -1373,22 +1382,8 @@ export default function ChatWindow({
                 })}
               </div>
             )}
-            <div ref={messagesEndRef} />
 
-            {typingUsers.length > 0 && !isRecipientDeleted && (
-              <div className="px-4 py-2 flex items-center gap-2 text-sm text-chat-text-tertiary">
-                <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-1.5 h-1.5 bg-chat-text-tertiary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-                <span className="font-medium text-xs">
-                  {typingUsers.length === 1
-                    ? `${typingUsers[0]} is typing...`
-                    : `${typingUsers.length} people are typing...`}
-                </span>
-              </div>
-            )}
+            <div ref={messagesEndRef} />
           </div>
 
           <AnimatePresence>
@@ -1447,6 +1442,30 @@ export default function ChatWindow({
             imageUrl={previewImage}
             onClose={() => setPreviewImage(null)}
           />
+
+          <div className="h-6 px-6 flex items-center bg-transparent relative z-20">
+            <AnimatePresence>
+              {typingUsers.length > 0 && !isRecipientDeleted && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="flex items-center gap-2 text-chat-text-tertiary"
+                >
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-chat-accent rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-chat-accent rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-chat-accent rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                  <span className="font-medium text-[11px] italic">
+                    {typingUsers.length === 1
+                      ? `${typingUsers[0]} is typing...`
+                      : `${typingUsers.length} people are typing...`}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* READ-ONLY BANNER OR MESSAGE INPUT */}
           {isBlockedChat ? (
