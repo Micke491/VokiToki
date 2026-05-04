@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { getAuthToken, removeAuthToken } from "@/lib/storage";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
@@ -18,24 +18,21 @@ function AbstractNetworkShape() {
 
   useFrame((state) => {
     if (meshRef.current) {
-      // Slower, smoother rotation
       meshRef.current.rotation.x = state.clock.getElapsedTime() * 0.1;
       meshRef.current.rotation.y = state.clock.getElapsedTime() * 0.15;
     }
   });
 
   return (
-    // Reduced float speeds for a more ambient, less distracting feel
     <Float speed={2} rotationIntensity={0.5} floatIntensity={2}>
-      {/* Reduced geometry from 64x64 to 48x48 to save mobile GPU memory */}
       <Sphere ref={meshRef} args={[2.2, 48, 48]} position={[0, 0, -1]}>
         <MeshDistortMaterial
           color="#93c5fd"
           emissive="#2563eb"
           emissiveIntensity={2}
           attach="material"
-          distort={0.4} // Slightly less aggressive distortion
-          speed={1.5} // Slower morphing speed
+          distort={0.4}
+          speed={1.5}
           roughness={0.1}
           metalness={1}
           wireframe={true}
@@ -52,41 +49,103 @@ function Scene() {
     <>
       <ambientLight intensity={1.5} color="#ffffff" />
       <directionalLight position={[10, 10, 5]} intensity={3} color="#ffffff" />
-
-      <pointLight
-        position={[0, 0, 0]}
-        color="#60a5fa"
-        intensity={15}
-        distance={10}
-      />
+      <pointLight position={[0, 0, 0]} color="#60a5fa" intensity={15} distance={10} />
       <pointLight position={[-5, -5, -5]} color="#3b82f6" intensity={10} />
       <pointLight position={[5, 5, 5]} color="#8b5cf6" intensity={10} />
 
       <AbstractNetworkShape />
 
-      {/* Reduced particle counts to prevent mobile overdraw lag */}
-      <Sparkles
-        count={120} // Down from 250
-        scale={14}
-        size={3}
-        speed={0.4}
-        opacity={0.6}
-        color="#93c5fd"
-      />
-      <Sparkles
-        count={60} // Down from 150
-        scale={14}
-        size={2}
-        speed={0.2}
-        opacity={0.4}
-        color="#ffffff"
-      />
+      <Sparkles count={120} scale={14} size={3} speed={0.4} opacity={0.6} color="#93c5fd" />
+      <Sparkles count={60} scale={14} size={2} speed={0.2} opacity={0.4} color="#ffffff" />
     </>
   );
 }
 
+function SceneMobile() {
+  return (
+    <>
+      <ambientLight intensity={1.2} color="#ffffff" />
+      <pointLight position={[0, 0, 0]} color="#60a5fa" intensity={10} distance={8} />
+      <Float speed={1.5} rotationIntensity={0.3} floatIntensity={1}>
+        <Sphere args={[1.2, 32, 32]} position={[0, 0, 0]}>
+          <MeshDistortMaterial
+            color="#93c5fd"
+            emissive="#2563eb"
+            emissiveIntensity={1.5}
+            attach="material"
+            distort={0.35}
+            speed={1}
+            roughness={0.1}
+            metalness={1}
+            wireframe={true}
+            transparent
+            opacity={0.4}
+          />
+        </Sphere>
+      </Float>
+      <Sparkles count={50} scale={8} size={2} speed={0.3} opacity={0.4} color="#93c5fd" />
+    </>
+  );
+}
+
+function StaticBackground() {
+  return (
+    <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#09090b] to-[#09090b]" />
+  );
+}
+
+const navItems = [
+  { label: "Features", href: "/features" },
+  { label: "About", href: "/about" },
+  { label: "Login", href: "/auth-pages/login" },
+];
+
+const features = [
+  {
+    id: "instant-messaging",
+    title: "Instant Messaging",
+    desc: "Real time, zero lag messaging that keeps your conversations flowing whether you're sending a quick note or a long message, delivery is instant and reliable",
+    iconColor: "bg-blue-500",
+  },
+  {
+    id: "rich-media-sharing",
+    title: "Rich Media Sharing",
+    desc: "Send high-resolution photos, voice memos, video clips, and large files without compression or quality loss your memories stay sharp",
+    iconColor: "bg-purple-500",
+  },
+  {
+    id: "end-to-end-security",
+    title: "Secure by Default",
+    desc: "Every message is encrypted end-to-end before it leaves your device. No ads, no data harvesting your private conversations stay private",
+    iconColor: "bg-emerald-500",
+  },
+];
+
 export default function LandingPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReducedMotion(mediaQuery.matches);
+
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches);
+
+    const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    const mobileListener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener("change", listener);
+    mq.addEventListener("change", mobileListener);
+
+    return () => {
+      mediaQuery.removeEventListener("change", listener);
+      mq.removeEventListener("change", mobileListener);
+    };
+  }, []);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -95,125 +154,151 @@ export default function LandingPage() {
 
       try {
         const response = await fetch("/api/users/current_user", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (response.ok) {
-          router.push("/chat");
-        } else if (response.status === 401 || response.status === 404) {
-          removeAuthToken();
-        }
+        if (response.ok) router.push("/chat");
+        else if (response.status === 401 || response.status === 404) removeAuthToken();
       } catch (err) {
         console.error("Session verification failed:", err);
       }
     };
-
     checkSession();
   }, [router]);
 
+  if (!isMounted) return null;
+
   return (
     <div className="relative min-h-screen bg-[#09090b] text-zinc-100 font-sans flex flex-col selection:bg-blue-500/30 overflow-hidden">
-      {/* --- 3D Background Layer --- */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <Canvas
-          camera={{ position: [0, 0, 6], fov: 45 }}
-          // Crucial for mobile: Cap pixel ratio to 1.5x to prevent extreme battery drain
-          dpr={[1, 1.5]}
-          // Request high performance from the device GPU
-          gl={{ powerPreference: "high-performance", antialias: true }}
-        >
-          <Scene />
-        </Canvas>
-      </div>
 
-      {/* Intensified Background Ambient Gradient */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        Skip to main content
+      </a>
+
+      {/* 3D Canvas — desktop: full screen, mobile: smaller top-right bubble */}
+      {!prefersReducedMotion ? (
+        isMobile ? (
+          <div
+            className="absolute top-10 right-[-2rem] z-0 pointer-events-none"
+            style={{ width: "220px", height: "220px", opacity: 0.55 }}
+          >
+            <Canvas camera={{ position: [0, 0, 4], fov: 50 }} dpr={[1, 1.5]} gl={{ powerPreference: "low-power", antialias: false }}>
+              <SceneMobile />
+            </Canvas>
+          </div>
+        ) : (
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <Canvas
+              camera={{ position: [0, 0, 6], fov: 45 }}
+              dpr={[1, 1.5]}
+              gl={{ powerPreference: "high-performance", antialias: true }}
+            >
+              <Scene />
+            </Canvas>
+          </div>
+        )
+      ) : (
+        <StaticBackground />
+      )}
+
       <div className="pointer-events-none absolute inset-0 flex justify-center z-0">
-        {/* Added transform-gpu and will-change-transform to stop CSS blur from causing mobile repaints */}
-        <div className="h-[50rem] w-[100%] max-w-[70rem] bg-blue-500/20 blur-[100px] md:blur-[140px] rounded-full translate-y-[-15%] mix-blend-screen transform-gpu will-change-transform"></div>
+        <div className="h-[50rem] w-[100%] max-w-[70rem] bg-blue-500/20 blur-[100px] md:blur-[140px] rounded-full translate-y-[-15%] mix-blend-screen transform-gpu motion-safe:will-change-transform"></div>
       </div>
-
-      {/* Navigation Layer */}
-      <nav className="w-full bg-[#09090b]/40 backdrop-blur-lg flex items-center justify-between px-6 py-5 fixed top-0 left-0 right-0 z-50 transition-all border-b border-white/10">
+      <nav
+        aria-label="Main navigation"
+        className="w-full bg-[#09090b]/40 backdrop-blur-lg flex items-center justify-between px-6 py-5 fixed top-0 left-0 right-0 z-50 border-b border-white/10"
+      >
         <div className="text-xl font-bold tracking-tighter text-zinc-100 flex items-center gap-2 drop-shadow-md">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,1)] animate-pulse"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,1)] motion-safe:animate-pulse"></span>
           ChatApp
         </div>
-        <div className="flex items-center gap-8">
-          <Link
-            href="/auth-pages/login"
-            className="text-sm font-medium text-zinc-300 hover:text-white transition-colors duration-300 drop-shadow-sm"
-          >
-            Login
-          </Link>
-          <Link
-            href="/auth-pages/register"
-            className="text-sm font-medium bg-white text-[#09090b] px-5 py-2.5 rounded-full hover:bg-blue-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)]"
-          >
-            Sign Up
-          </Link>
-        </div>
+
+        <ul className="flex items-center gap-6 md:gap-8">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <li key={item.href} className="hidden sm:block">
+                <Link
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative text-sm font-medium transition-colors duration-300 drop-shadow-sm pb-1
+                    ${isActive ? "text-blue-400" : "text-zinc-300 hover:text-white"}
+                    after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-blue-400 after:transition-all after:duration-300
+                    ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"}
+                  `}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <Link
+              href="/auth-pages/register"
+              className="text-sm font-medium bg-white text-[#09090b] px-5 py-2.5 rounded-full hover:bg-blue-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] motion-reduce:transition-none motion-reduce:hover:scale-100"
+            >
+              Sign Up
+            </Link>
+          </li>
+        </ul>
       </nav>
 
-      {/* Main Content Area */}
-      <main className="relative z-10 flex-grow flex flex-col items-center justify-center pt-32 pb-16 px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <section className="text-center max-w-4xl mx-auto mb-32 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-400 leading-[1.1] text-balance drop-shadow-sm">
-            Connect in real-time <br />
-            <span className="text-blue-400 bg-clip-text bg-gradient-to-r from-blue-300 to-blue-600 drop-shadow-lg">
+      <main id="main-content" className="relative z-10 flex-grow flex flex-col items-center justify-center pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+
+        <section
+          aria-labelledby="hero-heading"
+          className="text-center max-w-4xl mx-auto mb-32 space-y-8 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-8 duration-1000"
+        >
+          <h1 id="hero-heading" className="text-5xl md:text-7xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-400 leading-[1.1] drop-shadow-sm">
+            Connect in real-time
+            <span className="block mt-3 text-2xl md:text-4xl font-normal text-zinc-400 tracking-normal drop-shadow-none bg-none">
               Simple and secure
             </span>
           </h1>
 
           <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mx-auto leading-relaxed text-balance font-light drop-shadow-md">
-            Chat with friends, share media, and stay connected without any
-            distractions. A clean interface built entirely for communication.
+            Chat with friends, share moments, and stay connected — no ads, no noise, no compromises. Just clean, fast, encrypted communication built around you.
           </p>
 
           <div className="flex justify-center pt-8">
             <Link
               href="/auth-pages/register"
-              className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-105 active:scale-95 shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50"
+              className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100"
             >
               Start Chatting Now
             </Link>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-12 py-12">
-          <div className="flex flex-col text-left group cursor-default">
-            <h3 className="text-xl font-semibold text-white mb-4 tracking-tight group-hover:text-blue-300 transition-colors duration-300 drop-shadow-md">
-              Instant Messaging
-            </h3>
-            <p className="text-zinc-300 leading-relaxed font-light text-base md:text-lg">
-              Fast and reliable messaging. Get your words across instantly
-              without delays, optimizing your daily communication flow.
-            </p>
-          </div>
+        <ul className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 py-12">
+          {features.map((feature, idx) => (
+            <li
+              key={idx}
+              className="group relative p-8 rounded-2xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:-translate-y-1 hover:border-white/10 motion-reduce:hover:-translate-y-0 text-left"
+            >
+              <div className={`absolute -top-3 left-6 w-10 h-10 rounded-full ${feature.iconColor}/20 group-hover:${feature.iconColor}/40 transition-colors blur-md`} />
 
-          <div className="flex flex-col text-left group cursor-default">
-            <h3 className="text-xl font-semibold text-white mb-4 tracking-tight group-hover:text-blue-300 transition-colors duration-300 drop-shadow-md">
-              Media Sharing
-            </h3>
-            <p className="text-zinc-300 leading-relaxed font-light text-base md:text-lg">
-              Share high-resolution photos, audio, and video effortlessly to
-              make your private conversations significantly more engaging.
-            </p>
-          </div>
+              <h3 className="relative text-xl font-semibold text-white mb-4 tracking-tight group-hover:text-blue-300 transition-colors duration-300 drop-shadow-md z-10">
+                {feature.title}
+              </h3>
 
-          <div className="flex flex-col text-left group cursor-default">
-            <h3 className="text-xl font-semibold text-white mb-4 tracking-tight group-hover:text-blue-300 transition-colors duration-300 drop-shadow-md">
-              Secure by Default
-            </h3>
-            <p className="text-zinc-300 leading-relaxed font-light text-base md:text-lg">
-              Your conversations are kept strictly private with our sturdy,
-              built-in, end-to-end encryption and security features.
-            </p>
-          </div>
-        </section>
+              <p className="relative text-zinc-400 leading-relaxed font-light text-base z-10 group-hover:text-zinc-300 transition-colors">
+                {feature.desc}
+              </p>
+
+              <Link
+                href={`/features#${feature.id}`}
+                className="mt-6 font-medium text-sm text-blue-400 opacity-0 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10 relative flex items-center gap-1 hover:text-blue-300"
+                aria-label={`Learn more about ${feature.title}`}
+              >
+                Learn more <span className="inline-block group-hover:translate-x-1 transition-transform">→</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </main>
     </div>
   );
