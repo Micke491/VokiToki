@@ -20,10 +20,11 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/auth/forgot-reset/${token}`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${baseUrl}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword: password }),
+        body: JSON.stringify({ token, newPassword: password }),
       });
       if (!res.ok) throw new Error('Invalid token or expired');
       setSuccess(true);
