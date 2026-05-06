@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 import { getAuthToken, removeAuthToken } from "@/lib/storage";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
@@ -153,9 +154,7 @@ export default function LandingPage() {
       if (!token) return;
 
       try {
-        const response = await fetch("/api/users/current_user", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await apiFetch(`/api/users/current_user`);
 
         if (response.ok) router.push("/chat");
         else if (response.status === 401 || response.status === 404) removeAuthToken();

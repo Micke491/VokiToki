@@ -8,6 +8,7 @@ import (
 	"chat-app/internal/db"
 	"chat-app/internal/handlers"
 	"chat-app/internal/middleware"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -16,35 +17,103 @@ func main() {
 	config.LoadConfig()
 	db.ConnectMongo()
 	db.ConnectRedis()
+
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://127.0.0.1:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type", "Accept"},
+		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type", "Accept", "Cache-Control"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "time": time.Now()})
 	})
+
 	auth := r.Group("/api/auth")
 	{
 		auth.POST("/register", middleware.RateLimiter(5, 5*time.Minute, "auth:register"), handlers.Register)
 		auth.POST("/login", middleware.RateLimiter(10, 5*time.Minute, "auth:login"), handlers.Login)
-		
 		auth.POST("/password-reset-request", middleware.RateLimiter(3, 10*time.Minute, "auth:reset-request"), handlers.RequestPasswordReset)
 		auth.POST("/reset-password", middleware.RateLimiter(5, 10*time.Minute, "auth:reset-execute"), handlers.ExecutePasswordReset)
 	}
-	protected := r.Group("/api")
-	protected.Use(middleware.AuthMiddleware())
+
+	api := r.Group("/api")
+	api.Use(middleware.AuthMiddleware())
 	{
-		protected.GET("/me", func(c *gin.Context) {
-			user, _ := c.Get("user")
-			c.JSON(200, gin.H{"user": user})
-		})
+		api.GET("/users/current_user", handlers.GetCurrentUser)
+		api.PATCH("/users/current_user", handlers.UpdateCurrentUser)
+		api.DELETE("/users/current_user", handlers.DeleteCurrentUser)
+
+		api.GET("/me", handlers.GetCurrentUser)
+
+		api.PATCH("/users/preferences", handlers.UpdatePreferences)
+
+		api.POST("/users/profile/upload", handlers.UploadProfilePicture)
+
+		api.GET("/users/search", handlers.SearchUsers)
+
+		api.GET("/users/status", handlers.GetStatus)
+		api.POST("/users/status", handlers.UpdateStatus)
+
+		api.GET("/users/block/check", handlers.CheckBlockStatus)
+
+		api.POST("/users/block", handlers.BlockUser)
+		api.DELETE("/users/block", handlers.UnblockUser)
+
+		api.GET("/users/blocked", handlers.GetBlockedUsers)
+
+		api.GET("/profile", handlers.GetMyProfile)
+		api.PATCH("/profile", middleware.RateLimiter(10, 5*time.Minute, "profile:update"), handlers.UpdateMyProfile)
+		api.DELETE("/profile", middleware.RateLimiter(10, 5*time.Minute, "profile:delete-story"), handlers.DeleteMyStory)
+		api.GET("/profile/:userId", handlers.GetUserProfile)
+
+		api.GET("/stories", handlers.GetAllStories)
+		api.POST("/stories", middleware.RateLimiter(10, 5*time.Minute, "stories:create"), handlers.CreateStory)
+		api.GET("/stories/:userId", handlers.GetUserStories)
+		api.POST("/stories/:userId", handlers.MarkStoryViewed)
+
+		api.POST("/reports", middleware.RateLimiter(5, 5*time.Minute, "reports:create"), handlers.CreateReport)
+
+		api.GET("/url-metadata", middleware.RateLimiter(30, time.Minute, "url-metadata"), handlers.GetURLMetadata)
+
+		api.GET("/chats", handlers.GetChats)
+		api.POST("/chats", middleware.RateLimiter(5, 5*time.Minute, "chat:create"), handlers.CreateChat)
+		api.POST("/chats/GroupChat", handlers.CreateGroupChat)
+		api.DELETE("/chats/:id", handlers.HideChat)
+		api.POST("/chat/typing", handlers.TypingIndicator)
+
+		api.POST("/chat/message", middleware.RateLimiter(60, time.Minute, "message:send"), handlers.SendMessage)
+		api.GET("/chat/message", handlers.GetMessages)
+		api.PATCH("/chat/message/messages/:messageId/status", handlers.UpdateMessageStatus)
+		api.POST("/chat/message/messages/:messageId/status", handlers.UpdateMessageStatus) // Bulk
+		api.POST("/chat/message/messages/:messageId/reaction", handlers.ManageReaction)
+		api.DELETE("/chat/message/messages/:messageId/reaction", handlers.ManageReaction)
+		api.PATCH("/chat/message/messages/:messageId/edit", handlers.EditMessage)
+		api.DELETE("/chat/message/messages/:messageId/delete", handlers.DeleteMessage)
+
+		api.GET("/chat/:chatId", handlers.GetChatById)
+		api.DELETE("/chat/:chatId", handlers.LeaveChat)
+		api.PATCH("/chat/:chatId/update", handlers.UpdateGroupChat)
+		api.POST("/chat/:chatId/remove", handlers.RemoveParticipant)
+		api.POST("/chat/:chatId/leave", handlers.LeaveChat)
+		api.POST("/chat/:chatId/add", handlers.AddParticipant)
+		api.GET("/chat/:chatId/pinned", handlers.GetPinnedMessages)
+		api.POST("/chat/:chatId/pinned", handlers.PinMessage)
+		api.DELETE("/chat/:chatId/pinned", handlers.UnpinMessage)
+
+		api.GET("/chat/media/list", handlers.ListMedia)
+		api.POST("/chat/media/upload", handlers.UploadMedia)
+
+		api.POST("/calls/notify", handlers.NotifyCall)
+		api.POST("/calls/create-room", handlers.CreateRoom)
+		api.POST("/calls/end", handlers.EndCall)
 	}
+
+	go handlers.StartStoryCleanup()
 
 	log.Printf("Server starting on port %s", config.AppConfig.Port)
 	if err := r.Run(":" + config.AppConfig.Port); err != nil {

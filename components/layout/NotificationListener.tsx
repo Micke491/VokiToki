@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { pusherClient } from "@/lib/pusher-client";
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import { showNotification, isNotificationsEnabled, registerServiceWorker } from "@/lib/pushNotifications";
 import { usePathname } from "next/navigation";
 import IncomingCallModal from "@/components/chat/IncomingCallModal";
@@ -21,14 +21,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     if (propUser === undefined) {
       const fetchUser = async () => {
         try {
-          const token = getAuthToken();
-          if (!token) return;
-
-          const response = await fetch("/api/users/current_user", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+          const response = await apiFetch(`/api/users/current_user`);
 
           if (response.ok) {
             const data = await response.json();
@@ -102,7 +95,10 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     };
 
     const handleIncomingCall = (data: any) => {
-      if (data.callerId !== currentUser._id) {
+      const callerId = data.callerId?.toString();
+      const myId = currentUser._id?.toString();
+
+      if (callerId && myId && callerId !== myId) {
         setIncomingCall(data);
 
         if (isNotificationsEnabled()) {
@@ -148,12 +144,8 @@ export default function NotificationListener({ currentUser: propUser }: { curren
       if (!currentUser) return;
 
       try {
-        await fetch("/api/calls/notify", {
+        await apiFetch("/api/calls/notify", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({
             chatId,
             callType: type,
@@ -180,12 +172,8 @@ export default function NotificationListener({ currentUser: propUser }: { curren
             setIncomingCall(null);
           }}
           onDecline={() => {
-            fetch("/api/calls/end", {
+            apiFetch("/api/calls/end", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${getAuthToken()}`,
-              },
               body: JSON.stringify({ chatId: incomingCall.chatId, callType: incomingCall.callType }),
             }).catch(console.error);
             setIncomingCall(null);

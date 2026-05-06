@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getAuthToken } from '@/lib/storage';
+import { apiFetch } from '@/lib/api';
 import { pusherClient } from '@/lib/pusher-client';
 import { Story, StoryUser } from '@/types/chat';
 
@@ -12,11 +12,7 @@ export function useStories(currentUserId: string) {
   const fetchStories = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/stories', {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/stories`);
 
       if (response.ok) {
         const data = await response.json();
@@ -31,12 +27,8 @@ export function useStories(currentUserId: string) {
 
   const markStoryAsViewed = useCallback(async (userId: string, storyId: string) => {
     try {
-      const response = await fetch(`/api/stories/${userId}`, {
+      const response = await apiFetch(`/api/stories/${userId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ storyId }),
       });
 

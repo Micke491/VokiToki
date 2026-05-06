@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Link as LinkIcon, Globe, Calendar, CheckCircle } from 'lucide-react';
-import { getAuthToken } from '@/lib/storage';
+import { apiFetch } from '@/lib/api';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -32,11 +32,7 @@ export default function UserProfileModal({
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/profile/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/profile/${userId}`);
 
       if (response.ok) {
         const data = await response.json();

@@ -8,6 +8,7 @@ import { pusherClient } from '@/lib/pusher-client';
 import ConfirmModal from '../ui/ConfirmModal';
 import { Plus, Menu, Search, X, MoreVertical, LogOut, ShieldAlert } from 'lucide-react';
 import ReportModal from '../ui/ReportModal';
+import { apiFetch } from '@/lib/api';
 
 interface Chat {
   _id: string;
@@ -180,11 +181,7 @@ export default function ChatList({
   const fetchChats = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/chats', {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-          'Cache-Control': 'no-cache',
-        },
+      const response = await apiFetch('/api/chats', {
         cache: 'no-store'
       });
 
@@ -216,11 +213,8 @@ export default function ChatList({
   const handleRemoveChat = async (chatId: string) => {
     setOpenMenuId(null);
     try {
-      const response = await fetch(`/api/chats/${chatId}`, {
+      const response = await apiFetch(`/api/chats/${chatId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
       });
       if (response.ok) {
         setChats(prev => prev.filter(c => c._id !== chatId));
@@ -236,11 +230,8 @@ export default function ChatList({
   const handleLeaveGroup = async (chatId: string) => {
     setOpenMenuId(null);
     try {
-      const response = await fetch(`/api/chat/${chatId}/leave`, {
+      const response = await apiFetch(`/api/chat/${chatId}/leave`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
       });
       if (response.ok) {
         setChats(prev => prev.filter(c => c._id !== chatId));
@@ -256,12 +247,8 @@ export default function ChatList({
   const handleBlockUser = async (targetUserId: string, chatId: string) => {
     setBlocking(true);
     try {
-      const response = await fetch('/api/users/block', {
+      const response = await apiFetch(`/api/users/block`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ targetUserId }),
       });
       if (response.ok) {
@@ -429,12 +416,7 @@ export default function ChatList({
                       {chatAvatar ? (
                         <img src={chatAvatar} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                          <circle cx="9" cy="7" r="4"></circle>
-                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
+                        (chatName || "G").charAt(0).toUpperCase()
                       )}
                       {isUnread && (
                         <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full"></span>

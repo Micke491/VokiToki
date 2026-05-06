@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MessageCircle, Mail, Lock, AlertCircle, Loader2, EyeOff, Eye, Github, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
 import { setAuthToken, getAuthToken, removeAuthToken } from '@/lib/storage';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -20,14 +21,12 @@ export default function LoginPage() {
   useEffect(() => {
     const checkSession = async () => {
       const token = getAuthToken();
-      if (!token) return;
-
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       try {
-        const response = await fetch("/api/users/current_user", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await apiFetch(`/api/users/current_user`);
 
         if (response.ok) {
           router.push('/chat');
@@ -48,10 +47,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${baseUrl}/api/auth/login`, {
+      const response = await apiFetch(`/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 

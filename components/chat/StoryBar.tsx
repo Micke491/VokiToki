@@ -8,7 +8,7 @@ import { Story, StoryUser } from '../../types/chat';
 import { pusherClient } from '@/lib/pusher-client';
 import StoryManagementModal from './StoryManagementModal';
 import { useStories } from '@/hooks/useStories';
-import { getAuthToken } from '@/lib/storage';
+import { apiFetch } from '@/lib/api';
 
 interface StoryBarProps {
   currentUserId: string;
@@ -56,11 +56,8 @@ export default function StoryBar({
       const formData = new FormData();
       formData.append('file', file);
 
-      const uploadRes = await fetch('/api/stories', {
+      const uploadRes = await apiFetch(`/api/stories`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: formData,
       });
 

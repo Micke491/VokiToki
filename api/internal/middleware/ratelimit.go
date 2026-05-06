@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -19,28 +18,29 @@ func RateLimiter(limit int, window time.Duration, prefix string) gin.HandlerFunc
 
 		ip := c.ClientIP()
 		key := fmt.Sprintf("%s:%s", prefix, ip)
-		ctx := context.Background()
+		ctx := c.Request.Context() 
 
-		count, err := db.RedisClient.Get(ctx, key).Int()
-		if err != nil && err.Error() != "redis: nil" {
+		count, err := db.RedisClient.Incr(ctx, key).Result()
+		if err != nil {
 			c.Next()
 			return
 		}
 
-		if count >= limit {
-			reset, _ := db.RedisClient.TTL(ctx, key).Result()
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"message": "Too many attempts. Please try again soon.",
-			})
-			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(reset).Unix()))
-			c.Abort()
-			return
+		if count == 1 {
+			db.RedisClient.Expire(ctx, key, window)
 		}
 
-		if count == 0 {
-			db.RedisClient.Set(ctx, key, 1, window)
-		} else {
-			db.RedisClient.Incr(ctx, key)
+		if int(count) > limit {
+			reset, _ := db.RedisClient.TTL(ctx, key).Result()
+			
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", limit))
+			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(reset).Unix()))
+			
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": "Too many requests. Please try again later.",
+			})
+			c.Abort()
+			return
 		}
 
 		c.Next()

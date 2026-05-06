@@ -8,44 +8,78 @@ import (
 )
 
 type Config struct {
-	MongoURI     string
-	DBName       string
-	JWTSecret    string
-	Port         string
-	SMTPHost     string
-	SMTPPort     string
-	SMTPUser     string
-	SMTPPass     string
-	EmailFrom    string
-	RedisURL     string
-	RedisToken   string
+	MongoURI      string
+	DBName        string
+	JWTSecret     string
+	Port          string
+	SMTPHost      string
+	SMTPPort      string
+	SMTPUser      string
+	SMTPPass      string
+	EmailFrom     string
+	RedisURL      string
+	RedisToken    string
+	CloudinaryURL string
+	PusherAppID   string
+	PusherKey     string
+	PusherSecret  string
+	PusherCluster string
+	Environment   string
+	LiveKitAPIKey    string
+	LiveKitAPISecret string
+	LiveKitURL       string
 }
 
 var AppConfig *Config
 
 func LoadConfig() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Println("No .env file found, reading from environment variables")
-	}
+    if err := godotenv.Load(); err != nil {
+        log.Println("No .env file found, using system environment variables")
+    }
 
 	AppConfig = &Config{
-		MongoURI:   getEnv("MONGODB_URI", ""),
-		DBName:     getEnv("DB_NAME", "chat-app"),
-		JWTSecret:  getEnv("JWT_SECRET", ""),
-		Port:       getEnv("PORT", "8080"),
-		SMTPHost:   getEnv("SMTP_HOST", ""),
-		SMTPPort:   getEnv("SMTP_PORT", "587"),
-		SMTPUser:   getEnv("SMTP_USER", ""),
-		SMTPPass:   getEnv("SMTP_PASS", ""),
-		EmailFrom:  getEnv("EMAIL_FROM", ""),
-		RedisURL:   getEnv("REDIS_URL", ""),
-		RedisToken: getEnv("REDIS_TOKEN", ""),
+		MongoURI:      getEnv("MONGODB_URI", ""),
+		DBName:        getEnv("DB_NAME", "chat-app"),
+		JWTSecret:     getEnv("JWT_SECRET", ""),
+		Port:          getEnv("PORT", "8080"),
+		SMTPHost:      getEnv("SMTP_HOST", ""),
+		SMTPPort:      getEnv("SMTP_PORT", "587"),
+		SMTPUser:      getEnv("SMTP_USER", ""),
+		SMTPPass:      getEnv("SMTP_PASS", ""),
+		EmailFrom:     getEnv("EMAIL_FROM", ""),
+		RedisURL:      getEnv("REDIS_URL", ""),
+		RedisToken:    getEnv("REDIS_TOKEN", ""),
+		CloudinaryURL: getEnv("CLOUDINARY_URL", ""),
+		PusherAppID:   getEnv("PUSHER_APP_ID", ""),
+		PusherKey:     getEnv("PUSHER_KEY", ""),
+		PusherSecret:  getEnv("PUSHER_SECRET", ""),
+		PusherCluster: getEnv("PUSHER_CLUSTER", "mt1"),
+		Environment:   getEnv("APP_ENV", "development"),
+		LiveKitAPIKey:    getEnv("LIVEKIT_API_KEY", ""),
+		LiveKitAPISecret: getEnv("LIVEKIT_API_SECRET", ""),
+		LiveKitURL:       getEnv("NEXT_PUBLIC_LIVEKIT_URL", ""),
 	}
 
-	if AppConfig.MongoURI == "" || AppConfig.JWTSecret == "" {
-		log.Fatal("Critical environment variables missing (MONGODB_URI or JWT_SECRET)")
+	requiredVars := map[string]string{
+        "MONGODB_URI":   AppConfig.MongoURI,
+        "JWT_SECRET":    AppConfig.JWTSecret,
+        "PUSHER_APP_ID": AppConfig.PusherAppID,
+		"PUSHER_KEY": AppConfig.PusherKey,
+		"PUSHER_SECRET":  AppConfig.PusherSecret,
+		"PUSHER_CLUSTER": AppConfig.PusherCluster,
+		"LIVEKIT_API_KEY": AppConfig.LiveKitAPIKey,
+		"LIVEKIT_API_SECRET": AppConfig.LiveKitAPISecret,
 	}
+
+    for name, value := range requiredVars {
+        if value == "" {
+            if AppConfig.Environment == "production" {
+                log.Fatalf("CRITICAL: Missing required environment variable: %s", name)
+            } else {
+                log.Printf("WARNING: Missing optional environment variable: %s", name)
+            }
+        }
+    }
 }
 
 func getEnv(key, defaultValue string) string {

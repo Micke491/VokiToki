@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import { 
   LiveKitRoom, 
   VideoConference, 
@@ -17,39 +17,46 @@ interface CallModalProps {
 
 export default function CallModal({ onLeave, chatId, callType, username }: CallModalProps) {
   const [token, setToken] = useState("");
+  const [serverUrl, setServerUrl] = useState("");
+  const isLeaving = React.useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const resp = await fetch("/api/calls/create-room", {
+        const resp = await apiFetch("/api/calls/create-room", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({ chatId, username }),
         });
         const data = await resp.json();
         setToken(data.token);
+        setServerUrl(data.serverUrl);
       } catch (e) {
-        console.error(e);
+        console.error("Token fetch error:", e);
       }
     })();
   }, [chatId, username]);
 
-  const handleDisconnected = () => {
+  const handleDisconnected = (reason?: any) => {
+    if (isLeaving.current) return;
+    console.log("LiveKit Disconnected. Reason:", reason);
+    
+    // Only leave if it wasn't a temporary hiccup or if it's been long enough
+    isLeaving.current = true;
+    
     onLeave();
-    fetch("/api/calls/end", {
+    apiFetch("/api/calls/end", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getAuthToken()}`,
-      },
       body: JSON.stringify({ chatId, callType }),
     }).catch(console.error);
   };
 
-  if (token === "") {
+  const handleConnected = () => {
+    setIsConnected(true);
+    console.log("Connected to LiveKit room successfully");
+  };
+
+  if (token === "" || serverUrl === "") {
     return (
       <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm">
         <Loader2 className="w-10 h-10 text-white animate-spin" />
@@ -69,8 +76,12 @@ export default function CallModal({ onLeave, chatId, callType, username }: CallM
           video={callType === "video"}
           audio={true}
           token={token}
-          serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+          serverUrl={serverUrl}
+          onConnected={handleConnected}
           onDisconnected={handleDisconnected}
+          connectOptions={{
+            autoSubscribe: true,
+          }}
           data-lk-theme="default"
           style={{ height: '100%' }}
         >

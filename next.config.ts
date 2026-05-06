@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://*.giphy.com https://giphy.com https://*.cloudinary.com https://res.cloudinary.com",
+              "img-src 'self' data: blob: https://*.giphy.com https://giphy.com https://*.cloudinary.com https://res.cloudinary.com https://*.ytimg.com https://i.ytimg.com",
               "media-src 'self' blob: https://*.cloudinary.com https://res.cloudinary.com",
               "connect-src 'self' http://localhost:8081 http://127.0.0.1:8081 https://api.giphy.com https://*.pusher.com https://*.pusherapp.com wss://*.pusher.com wss://*.pusherapp.com https://*.cloudinary.com https://res.cloudinary.com https://*.livekit.cloud wss://*.livekit.cloud",
               "frame-src 'none'",

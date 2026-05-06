@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertCircle, ShieldAlert, Send, ChevronRight } from 'lucide-react';
-import { getAuthToken } from '@/lib/storage';
+import { apiFetch } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
 interface ReportModalProps {
@@ -48,12 +48,8 @@ export default function ReportModal({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/reports', {
+      const response = await apiFetch(`/api/reports`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           targetId,
           targetType,

@@ -7,7 +7,7 @@ import (
 )
 
 type User struct {
-	ID                   bson.ObjectID        `bson:"_id,omitempty" json:"id"`
+	ID                   bson.ObjectID        `bson:"_id,omitempty" json:"_id"`
 	Username             string               `bson:"username" json:"username"`
 	Email                string               `bson:"email" json:"email"`
 	Password             string               `bson:"password" json:"-"`
@@ -19,7 +19,7 @@ type User struct {
 	BlockedUsers         []bson.ObjectID      `bson:"blockedUsers" json:"blockedUsers"`
 	TwoFactorEnabled     bool                 `bson:"twoFactorEnabled" json:"twoFactorEnabled"`
 	TwoFactorSecret      string               `bson:"twoFactorSecret" json:"twoFactorSecret"`
-	Theme                string               `bson:"theme" json:"theme"` // 'light' | 'dark' | 'system'
+	Theme                string               `bson:"theme" json:"theme"`
 	IsBanned             bool                 `bson:"isBanned" json:"isBanned"`
 	MutedChats           []MutedChat          `bson:"mutedChats" json:"mutedChats"`
 	ResetPasswordToken   *string              `bson:"resetPasswordToken,omitempty" json:"resetPasswordToken,omitempty"`

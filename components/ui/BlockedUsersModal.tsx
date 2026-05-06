@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import { X, UserX, Loader2, ShieldOff } from 'lucide-react';
 
 interface BlockedUser {
@@ -30,11 +30,7 @@ export default function BlockedUsersModal({ isOpen, onClose }: BlockedUsersModal
   const fetchBlockedUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/users/blocked', {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/users/blocked`);
 
       if (!response.ok) throw new Error('Failed to fetch blocked users');
 
@@ -50,12 +46,8 @@ export default function BlockedUsersModal({ isOpen, onClose }: BlockedUsersModal
   const handleUnblock = async (userId: string) => {
     try {
       setUnblockingId(userId);
-      const response = await fetch('/api/users/block', {
+      const response = await apiFetch(`/api/users/block`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ targetUserId: userId }),
       });
 

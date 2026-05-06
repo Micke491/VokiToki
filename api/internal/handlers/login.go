@@ -28,7 +28,7 @@ func Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	email := strings.ToLower(req.Email)
+	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	var user models.User
 	err := db.UserCollection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
@@ -56,12 +56,24 @@ func Login(c *gin.Context) {
 
 	token, err := services.GenerateToken(user.ID.Hex(), user.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate session"})
 		return
+	}
+
+	db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
+		"$set": bson.M{
+			"isOnline": true,
+			"lastSeen": time.Now(),
+		},
+	})
+
+	if db.RedisClient != nil {
+		db.RedisClient.Del(ctx, "user_auth:"+user.ID.Hex())
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"token":   token,
+		"user":    user,
 	})
 }

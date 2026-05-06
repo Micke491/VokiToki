@@ -6,12 +6,17 @@ import (
 	"time"
 
 	"chat-app/internal/config"
+
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var MongoClient *mongo.Client
 var UserCollection *mongo.Collection
+var ChatCollection *mongo.Collection
+var StoryCollection *mongo.Collection
+var ReportCollection *mongo.Collection
+var MessageCollection *mongo.Collection
 
 func ConnectMongo() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -29,7 +34,12 @@ func ConnectMongo() {
 	}
 
 	MongoClient = client
-	UserCollection = client.Database(config.AppConfig.DBName).Collection("users")
+	db := client.Database(config.AppConfig.DBName)
+	UserCollection = db.Collection("users")
+	ChatCollection = db.Collection("chats")
+	StoryCollection = db.Collection("stories")
+	ReportCollection = db.Collection("reports")
+	MessageCollection = db.Collection("messages")
 
 	log.Println("Successfully connected to MongoDB")
 }

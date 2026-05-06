@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { getAuthToken } from "@/lib/storage";
 import { pusherClient } from "@/lib/pusher-client";
+import { apiFetch } from "@/lib/api";
 import { EmojiClickData } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -100,9 +101,7 @@ export default function ChatWindow({
     if (isGroup) return;
     const checkBlockStatus = async () => {
       try {
-        const response = await fetch(`/api/users/block/check?chatId=${chatId}`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
-        });
+        const response = await apiFetch(`/api/users/block/check?chatId=${chatId}`);
         if (response.ok) {
           const data = await response.json();
           setIsBlockedChat(data.blocked);
@@ -122,9 +121,7 @@ export default function ChatWindow({
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`/api/profile/${otherUser._id}`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
-        });
+        const res = await apiFetch(`/api/profile/${otherUser._id}`);
         if (res.ok) {
           const data = await res.json();
           setRecipientOnline(data.user?.isOnline || false);
@@ -177,12 +174,8 @@ export default function ChatWindow({
         if (exists) return prev;
 
         if (message.sender && message.sender._id !== currentUserId) {
-          fetch(`/api/chat/message/messages/${message._id}/status`, {
+          apiFetch(`/api/chat/message/messages/${message._id}/status`, {
             method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
             body: JSON.stringify({ status: "seen" }),
           });
         }
@@ -411,15 +404,10 @@ export default function ChatWindow({
         setLoadingMore(true);
       }
 
-      const url = new URL("/api/chat/message", window.location.href);
-      url.searchParams.append("chatId", chatId);
-      url.searchParams.append("t", Date.now().toString()); // Cache buster
-      if (beforeDate) url.searchParams.append("before", beforeDate);
+      let endpoint = `/api/chat/message?chatId=${chatId}&t=${Date.now()}`;
+      if (beforeDate) endpoint += `&before=${encodeURIComponent(beforeDate)}`;
 
-      const response = await fetch(url.toString(), {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+      const response = await apiFetch(endpoint, {
         cache: "no-store",
       });
 
@@ -445,9 +433,7 @@ export default function ChatWindow({
       } else {
         setMessages(newMessages);
 
-        fetch(`/api/chat/${chatId}/pinned`, {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
-        })
+        apiFetch(`/api/chat/${chatId}/pinned`)
           .then((res) => res.json())
           .then((data) => {
             if (Array.isArray(data)) {
@@ -519,13 +505,10 @@ export default function ChatWindow({
 
         const beforeDate =
           currentMessages.length > 0 ? currentMessages[0].createdAt : undefined;
-        const url = new URL("/api/chat/message", window.location.href);
-        url.searchParams.append("chatId", chatId);
-        url.searchParams.append("limit", "50");
-        if (beforeDate) url.searchParams.append("before", beforeDate);
+        let endpoint = `/api/chat/message?chatId=${chatId}&limit=50`;
+        if (beforeDate) endpoint += `&before=${encodeURIComponent(beforeDate)}`;
 
-        const response = await fetch(url.toString(), {
-          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        const response = await apiFetch(endpoint, {
           signal,
         });
 
@@ -596,14 +579,10 @@ export default function ChatWindow({
 
     if (unreadMessageIds.length > 0) {
       try {
-        await fetch(
+        await apiFetch(
           `/api/chat/message/messages/${unreadMessageIds[0]}/status`,
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
             body: JSON.stringify({
               messageIds: unreadMessageIds,
               status: "seen",
@@ -718,11 +697,8 @@ export default function ChatWindow({
     formData.append("file", audioBlob, "voice_message.webm");
 
     try {
-      const response = await fetch("/api/chat/media/upload", {
+      const response = await apiFetch("/api/chat/media/upload", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: formData,
       });
 
@@ -730,12 +706,8 @@ export default function ChatWindow({
       const data = await response.json();
 
       if (pusherClient) {
-        await fetch("/api/chat/message", {
+        await apiFetch("/api/chat/message", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({
             chatId,
             senderId: currentUserId,
@@ -773,12 +745,8 @@ export default function ChatWindow({
 
     if (isTypingRef.current) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      fetch("/api/chat/typing", {
+      apiFetch("/api/chat/typing", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           chatId,
           username: currentUserUsername || "Someone",
@@ -790,22 +758,14 @@ export default function ChatWindow({
 
     try {
       if (editingMessage) {
-        await fetch(`/api/chat/message/messages/${editingMessage._id}/edit`, {
+        await apiFetch(`/api/chat/message/messages/${editingMessage._id}/edit`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({ text: messageText }),
         });
         setEditingMessage(null);
       } else {
-        const response = await fetch("/api/chat/message", {
+        const response = await apiFetch("/api/chat/message", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({
             chatId,
             senderId: currentUserId,
@@ -845,11 +805,8 @@ export default function ChatWindow({
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/chat/media/upload", {
+      const response = await apiFetch("/api/chat/media/upload", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: formData,
       });
 
@@ -860,12 +817,8 @@ export default function ChatWindow({
       const data = await response.json();
 
       if (pusherClient) {
-        await fetch("/api/chat/message", {
+        await apiFetch("/api/chat/message", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({
             chatId,
             senderId: currentUserId,
@@ -893,12 +846,8 @@ export default function ChatWindow({
     
     setSending(true);
     try {
-      const response = await fetch("/api/chat/message", {
+      const response = await apiFetch("/api/chat/message", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           chatId,
           senderId: currentUserId,
@@ -930,12 +879,8 @@ export default function ChatWindow({
     
     setSending(true);
     try {
-      const response = await fetch("/api/chat/message", {
+      const response = await apiFetch("/api/chat/message", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           chatId,
           senderId: currentUserId,
@@ -982,13 +927,10 @@ export default function ChatWindow({
   const confirmDeleteMessage = async () => {
     if (!messageToDelete || !pusherClient) return;
     try {
-      await fetch(
+      await apiFetch(
         `/api/chat/message/messages/${messageToDelete}/delete?forEveryone=true`,
         {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
         },
       );
     } catch (error) {
@@ -1013,17 +955,12 @@ export default function ChatWindow({
 
   const handlePin = async (message: Message) => {
     if (message.isPinned) {
-      await fetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
+      await apiFetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${getAuthToken()}` },
       });
     } else {
-      await fetch(`/api/chat/${chatId}/pinned`, {
+      await apiFetch(`/api/chat/${chatId}/pinned`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ messageId: message._id }),
       });
     }
@@ -1049,12 +986,8 @@ export default function ChatWindow({
   ) => {
     if (!pusherClient) return;
     try {
-      await fetch(`/api/chat/message/messages/${messageId}/reaction`, {
+      await apiFetch(`/api/chat/message/messages/${messageId}/reaction`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           chatId,
           emoji: emojiData.emoji,
@@ -1069,13 +1002,10 @@ export default function ChatWindow({
   const removeReaction = async (messageId: string, emoji: string) => {
     if (!pusherClient) return;
     try {
-      await fetch(
+      await apiFetch(
         `/api/chat/message/messages/${messageId}/reaction?chatId=${chatId}&emoji=${encodeURIComponent(emoji)}`,
         {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
         },
       );
     } catch (error) {
@@ -1090,12 +1020,8 @@ export default function ChatWindow({
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
       if (!isTypingRef.current) {
-        fetch("/api/chat/typing", {
+        apiFetch("/api/chat/typing", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({
             chatId,
             username: currentUserUsername || "Someone",
@@ -1107,12 +1033,8 @@ export default function ChatWindow({
 
       typingTimeoutRef.current = setTimeout(() => {
         if (pusherClient) {
-          fetch("/api/chat/typing", {
+          apiFetch("/api/chat/typing", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
             body: JSON.stringify({
               chatId,
               username: currentUserUsername || "Someone",
@@ -1147,12 +1069,8 @@ export default function ChatWindow({
       return;
 
     for (const targetChatId of targetChatIds) {
-      await fetch("/api/chat/message", {
+      await apiFetch("/api/chat/message", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           chatId: targetChatId,
           senderId: currentUserId,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import { X, Check } from "lucide-react";
 
 interface Chat {
@@ -30,11 +30,7 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
   useEffect(() => {
     const fetchChats = async () => {
       try {
-        const response = await fetch("/api/chats", {
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
-        });
+        const response = await apiFetch("/api/chats");
         if (response.ok) {
           const data = await response.json();
           setChats(data);
@@ -49,8 +45,8 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
   }, []);
 
   const toggleSelect = (chatId: string) => {
-    setSelectedChatIds((prev) =>
-      prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]
+    setSelectedChatIds((prev: string[]) =>
+      prev.includes(chatId) ? prev.filter((id: string) => id !== chatId) : [...prev, chatId]
     );
   };
 
@@ -61,12 +57,12 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
     }
   };
 
-  const filteredChats = chats.filter((chat) => {
+  const filteredChats = chats.filter((chat: Chat) => {
     if (chat._id === currentChatId) return false;
     
     const chatName = chat.isGroupChat
       ? chat.name
-      : chat.participants.find((p) => p._id !== currentUserId)?.username;
+      : chat.participants.find((p: any) => p._id !== currentUserId)?.username;
     return chatName?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -102,13 +98,13 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
           ) : filteredChats.length === 0 ? (
             <div className="p-4 text-center text-sm text-chat-text-secondary">No chats found.</div>
           ) : (
-            filteredChats.map((chat) => {
+            filteredChats.map((chat: Chat) => {
               const chatName = chat.isGroupChat
                 ? chat.name
-                : chat.participants.find((p) => p._id !== currentUserId)?.username || "Unknown";
+                : chat.participants.find((p: any) => p._id !== currentUserId)?.username || "Unknown";
               const avatar = chat.isGroupChat
                 ? chat.avatar
-                : chat.participants.find((p) => p._id !== currentUserId)?.avatar;
+                : chat.participants.find((p: any) => p._id !== currentUserId)?.avatar;
               const isSelected = selectedChatIds.includes(chat._id);
 
               return (
