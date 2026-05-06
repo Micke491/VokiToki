@@ -406,138 +406,23 @@ __turbopack_context__.s([
     "default",
     ()=>CallModal
 ]);
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/api.ts [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$livekit$2f$components$2d$react$2f$dist$2f$room$2d$BP3SCCCd$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__L__as__LiveKitRoom$3e$__ = __turbopack_context__.i("[project]/node_modules/@livekit/components-react/dist/room-BP3SCCCd.mjs [app-client] (ecmascript) <export L as LiveKitRoom>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$livekit$2f$components$2d$react$2f$dist$2f$prefabs$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@livekit/components-react/dist/prefabs.mjs [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/loader-circle.js [app-client] (ecmascript) <export default as Loader2>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/framer-motion/dist/es/render/components/motion/proxy.mjs [app-client] (ecmascript)");
-;
 var _s = __turbopack_context__.k.signature();
+"use client";
 ;
-;
-;
-;
-;
-;
-function CallModal({ onLeave, chatId, callType, username }) {
+function CallModal({ onLeave }) {
     _s();
-    const [token, setToken] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
-    const [serverUrl, setServerUrl] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
-    const isLeaving = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].useRef(false);
-    const [isConnected, setIsConnected] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+    // We immediately call onLeave if this is ever rendered to prevent the app from getting "stuck"
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].useEffect({
         "CallModal.useEffect": ()=>{
-            ({
-                "CallModal.useEffect": async ()=>{
-                    try {
-                        const resp = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiFetch"])("/api/calls/create-room", {
-                            method: "POST",
-                            body: JSON.stringify({
-                                chatId,
-                                username
-                            })
-                        });
-                        const data = await resp.json();
-                        setToken(data.token);
-                        setServerUrl(data.serverUrl);
-                    } catch (e) {
-                        console.error("Token fetch error:", e);
-                    }
-                }
-            })["CallModal.useEffect"]();
+            if (onLeave) onLeave();
         }
     }["CallModal.useEffect"], [
-        chatId,
-        username
+        onLeave
     ]);
-    const handleDisconnected = (reason)=>{
-        if (isLeaving.current) return;
-        console.log("LiveKit Disconnected. Reason:", reason);
-        // Only leave if it wasn't a temporary hiccup or if it's been long enough
-        isLeaving.current = true;
-        onLeave();
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiFetch"])("/api/calls/end", {
-            method: "POST",
-            body: JSON.stringify({
-                chatId,
-                callType
-            })
-        }).catch(console.error);
-    };
-    const handleConnected = ()=>{
-        setIsConnected(true);
-        console.log("Connected to LiveKit room successfully");
-    };
-    if (token === "" || serverUrl === "") {
-        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-            className: "fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm",
-            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__["Loader2"], {
-                className: "w-10 h-10 text-white animate-spin"
-            }, void 0, false, {
-                fileName: "[project]/components/chat/CallModal.tsx",
-                lineNumber: 62,
-                columnNumber: 9
-            }, this)
-        }, void 0, false, {
-            fileName: "[project]/components/chat/CallModal.tsx",
-            lineNumber: 61,
-            columnNumber: 7
-        }, this);
-    }
-    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
-        initial: {
-            opacity: 0,
-            scale: 0.95
-        },
-        animate: {
-            opacity: 1,
-            scale: 1
-        },
-        exit: {
-            opacity: 0,
-            scale: 0.95
-        },
-        className: "fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4",
-        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-            className: "relative w-full max-w-5xl h-[80vh] bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-xl overflow-hidden shadow-2xl flex flex-col",
-            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$livekit$2f$components$2d$react$2f$dist$2f$room$2d$BP3SCCCd$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__L__as__LiveKitRoom$3e$__["LiveKitRoom"], {
-                video: callType === "video",
-                audio: true,
-                token: token,
-                serverUrl: serverUrl,
-                onConnected: handleConnected,
-                onDisconnected: handleDisconnected,
-                connectOptions: {
-                    autoSubscribe: true
-                },
-                "data-lk-theme": "default",
-                style: {
-                    height: '100%'
-                },
-                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$livekit$2f$components$2d$react$2f$dist$2f$prefabs$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["VideoConference"], {}, void 0, false, {
-                    fileName: "[project]/components/chat/CallModal.tsx",
-                    lineNumber: 88,
-                    columnNumber: 11
-                }, this)
-            }, void 0, false, {
-                fileName: "[project]/components/chat/CallModal.tsx",
-                lineNumber: 75,
-                columnNumber: 9
-            }, this)
-        }, void 0, false, {
-            fileName: "[project]/components/chat/CallModal.tsx",
-            lineNumber: 74,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
-        fileName: "[project]/components/chat/CallModal.tsx",
-        lineNumber: 68,
-        columnNumber: 5
-    }, this);
+    return null; // Renders nothing to avoid UI errors
 }
-_s(CallModal, "W3r3bPbykLfRM20J8IDkHfN7X84=");
+_s(CallModal, "OD7bBpZva5O2jO+Puf00hKivP7c=");
 _c = CallModal;
 var _c;
 __turbopack_context__.k.register(_c, "CallModal");
@@ -584,9 +469,7 @@ function NotificationListener({ currentUser: propUser }) {
                                 const data = await response.json();
                                 setInternalUser(data.user);
                             }
-                        } catch (error) {
-                            console.error("Failed to fetch user in NotificationListener:", error);
-                        }
+                        } catch (error) {}
                     }
                 }["NotificationListener.useEffect.fetchUser"];
                 fetchUser();
@@ -598,8 +481,16 @@ function NotificationListener({ currentUser: propUser }) {
     const currentUser = propUser !== undefined ? propUser : internalUser;
     const [incomingCall, setIncomingCall] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [activeCall, setActiveCall] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const activeCallRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(activeCall);
     const pathname = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["usePathname"])();
     const pathnameRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(pathname);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "NotificationListener.useEffect": ()=>{
+            activeCallRef.current = activeCall;
+        }
+    }["NotificationListener.useEffect"], [
+        activeCall
+    ]);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "NotificationListener.useEffect": ()=>{
             pathnameRef.current = pathname;
@@ -668,16 +559,10 @@ function NotificationListener({ currentUser: propUser }) {
             const handleCallEnded = {
                 "NotificationListener.useEffect.handleCallEnded": (data)=>{
                     setIncomingCall({
-                        "NotificationListener.useEffect.handleCallEnded": (prev)=>{
-                            if (prev?.chatId === data.chatId) return null;
-                            return prev;
-                        }
+                        "NotificationListener.useEffect.handleCallEnded": (prev)=>prev?.chatId === data.chatId ? null : prev
                     }["NotificationListener.useEffect.handleCallEnded"]);
                     setActiveCall({
-                        "NotificationListener.useEffect.handleCallEnded": (prev)=>{
-                            if (prev?.chatId === data.chatId) return null;
-                            return prev;
-                        }
+                        "NotificationListener.useEffect.handleCallEnded": (prev)=>prev?.chatId === data.chatId ? null : prev
                     }["NotificationListener.useEffect.handleCallEnded"]);
                 }
             }["NotificationListener.useEffect.handleCallEnded"];
@@ -699,8 +584,12 @@ function NotificationListener({ currentUser: propUser }) {
         "NotificationListener.useEffect": ()=>{
             const handleStartCall = {
                 "NotificationListener.useEffect.handleStartCall": async (e)=>{
+                    if (activeCallRef.current || !currentUser) return;
                     const { chatId, type } = e.detail;
-                    if (!currentUser) return;
+                    setActiveCall({
+                        chatId,
+                        type
+                    });
                     try {
                         await (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiFetch"])("/api/calls/notify", {
                             method: "POST",
@@ -711,12 +600,8 @@ function NotificationListener({ currentUser: propUser }) {
                                 callerAvatar: currentUser.avatar
                             })
                         });
-                        setActiveCall({
-                            chatId,
-                            type
-                        });
                     } catch (err) {
-                        console.error("Failed to initiate call:", err);
+                        setActiveCall(null);
                     }
                 }
             }["NotificationListener.useEffect.handleStartCall"];
@@ -746,12 +631,12 @@ function NotificationListener({ currentUser: propUser }) {
                             chatId: incomingCall.chatId,
                             callType: incomingCall.callType
                         })
-                    }).catch(console.error);
+                    }).catch(()=>{});
                     setIncomingCall(null);
                 }
             }, void 0, false, {
                 fileName: "[project]/components/layout/NotificationListener.tsx",
-                lineNumber: 168,
+                lineNumber: 167,
                 columnNumber: 9
             }, this),
             activeCall && currentUser && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$chat$2f$CallModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -761,13 +646,13 @@ function NotificationListener({ currentUser: propUser }) {
                 onLeave: ()=>setActiveCall(null)
             }, void 0, false, {
                 fileName: "[project]/components/layout/NotificationListener.tsx",
-                lineNumber: 185,
+                lineNumber: 184,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true);
 }
-_s(NotificationListener, "U9alwPNY2VtE7t+vpAsOM3joBes=", false, function() {
+_s(NotificationListener, "XBiJ37JfkwG3uB0ii1sllDB5+0E=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["usePathname"]
     ];

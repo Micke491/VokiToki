@@ -22,16 +22,12 @@ export default function NotificationListener({ currentUser: propUser }: { curren
       const fetchUser = async () => {
         try {
           const response = await apiFetch(`/api/users/current_user`);
-
           if (response.ok) {
             const data = await response.json();
             setInternalUser(data.user);
           }
-        } catch (error) {
-          console.error("Failed to fetch user in NotificationListener:", error);
-        }
+        } catch (error) {}
       };
-
       fetchUser();
     }
   }, [propUser]);
@@ -40,8 +36,14 @@ export default function NotificationListener({ currentUser: propUser }: { curren
 
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
+  
+  const activeCallRef = useRef(activeCall);
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -117,14 +119,8 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     };
 
     const handleCallEnded = (data: any) => {
-      setIncomingCall((prev: any) => {
-        if (prev?.chatId === data.chatId) return null;
-        return prev;
-      });
-      setActiveCall((prev: any) => {
-        if (prev?.chatId === data.chatId) return null;
-        return prev;
-      });
+      setIncomingCall((prev: any) => (prev?.chatId === data.chatId ? null : prev));
+      setActiveCall((prev: any) => (prev?.chatId === data.chatId ? null : prev));
     };
 
     userChannel.bind("chat-update", handleChatUpdate);
@@ -140,8 +136,11 @@ export default function NotificationListener({ currentUser: propUser }: { curren
 
   useEffect(() => {
     const handleStartCall = async (e: Event) => {
+      if (activeCallRef.current || !currentUser) return;
+      
       const { chatId, type } = (e as CustomEvent).detail;
-      if (!currentUser) return;
+      
+      setActiveCall({ chatId, type });
 
       try {
         await apiFetch("/api/calls/notify", {
@@ -153,11 +152,11 @@ export default function NotificationListener({ currentUser: propUser }: { curren
             callerAvatar: currentUser.avatar,
           }),
         });
-        setActiveCall({ chatId, type });
       } catch (err) {
-        console.error("Failed to initiate call:", err);
+        setActiveCall(null);
       }
     };
+
     window.addEventListener("start-call", handleStartCall);
     return () => window.removeEventListener("start-call", handleStartCall);
   }, [currentUser]);
@@ -175,7 +174,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
             apiFetch("/api/calls/end", {
               method: "POST",
               body: JSON.stringify({ chatId: incomingCall.chatId, callType: incomingCall.callType }),
-            }).catch(console.error);
+            }).catch(() => {});
             setIncomingCall(null);
           }}
         />

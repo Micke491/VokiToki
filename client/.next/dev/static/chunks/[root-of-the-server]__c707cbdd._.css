@@ -661,6 +661,10 @@
     top: calc(var(--spacing) * -6);
   }
 
+  .-top-10 {
+    top: calc(var(--spacing) * -10);
+  }
+
   .top-0 {
     top: calc(var(--spacing) * 0);
   }
@@ -4785,6 +4789,18 @@
     @supports (color: color-mix(in lab, red, red)) {
       .hover\:bg-chat-accent\/20:hover {
         background-color: color-mix(in oklab, var(--accent-color) 20%, transparent);
+      }
+    }
+  }
+
+  @media (hover: hover) {
+    .hover\:bg-chat-accent\/80:hover {
+      background-color: var(--accent-color);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-chat-accent\/80:hover {
+        background-color: color-mix(in oklab, var(--accent-color) 80%, transparent);
       }
     }
   }
