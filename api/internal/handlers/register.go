@@ -60,6 +60,7 @@ func Register(c *gin.Context) {
 		Username:         username,
 		Email:            email,
 		Password:         hashedPassword,
+		Role:             "user",
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
 		IsBanned:         false,
