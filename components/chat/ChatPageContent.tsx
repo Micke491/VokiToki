@@ -16,6 +16,7 @@ import StoryViewer from "@/components/chat/StoryViewer";
 import StoryManagementModal from "@/components/chat/StoryManagementModal";
 import UserProfileModal from "@/components/ui/UserProfileModal";
 import { useStories } from "@/hooks/useStories";
+import { apiFetch } from "@/lib/api";
 import { getAuthToken } from "@/lib/storage";
 import NotificationListener from "@/components/layout/NotificationListener";
 import toast from "react-hot-toast";
@@ -73,18 +74,16 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [viewingProfile, setViewingProfile] = useState<{ isOpen: boolean; userId: string } | null>(null);
 
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const storyInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingStory, setUploadingStory] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
 
     const updateStatus = async (online: boolean) => {
       try {
-        await fetch('/api/users/status', {
+        await apiFetch(`/api/users/status`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
           body: JSON.stringify({ isOnline: online }),
         });
       } catch (error) {
@@ -166,11 +165,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         router.push("/auth-pages/login");
         return;
       }
-      const response = await fetch("/api/users/current_user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch(`/api/users/current_user`);
 
       if (!response.ok) throw new Error("Not authenticated");
 
@@ -187,11 +182,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const fetchChatDetails = async (id: string) => {
     if (!id || id === "[chatId]") return;
     try {
-      const response = await fetch(`/api/chat/${id}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/chat/${id}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -248,11 +239,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   const handleDeleteStory = async (storyId: string) => {
     try {
-      const response = await fetch(`/api/profile?storyId=${storyId}`, {
+      const response = await apiFetch(`/api/profile?storyId=${storyId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
       });
 
       if (response.ok) {
@@ -278,6 +266,45 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const handleStoryIndexChange = (index: number) => {
     if (viewingStory) {
       setViewingStory((prev) => (prev ? { ...prev, currentIndex: index } : null));
+    }
+  };
+  
+  const handleStoryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    if (!isImage && !isVideo) {
+      toast.error('Only images and videos are allowed');
+      return;
+    }
+
+    try {
+      setUploadingStory(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiFetch(`/api/stories`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        toast.success('Story posted!');
+        fetchStories(); 
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to upload story');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload story');
+    } finally {
+      setUploadingStory(false);
+      if (storyInputRef.current) {
+        storyInputRef.current.value = '';
+      }
     }
   };
 
@@ -457,15 +484,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           onClose={() => setShowStoryManagement(false)}
           stories={allStoriesUsers.find(su => su.user._id === currentUser._id)?.stories || []}
           onDeleteStory={handleDeleteStory}
-          onAddStory={() => {
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            if (fileInput) {
-              fileInput.click();
-            } else {
-              toast.success("Use the + icon in the story bar to add more!");
-            }
-          }}
-          uploading={false} 
+          onAddStory={() => storyInputRef.current?.click()}
+          uploading={uploadingStory} 
           onViewStory={(storyId) => {
             const myStoriesUser = allStoriesUsers.find(su => su.user._id === currentUser._id);
             if (myStoriesUser) {
@@ -491,6 +511,14 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           userId={viewingProfile.userId}
         />
       )}
+      
+      <input
+        type="file"
+        ref={storyInputRef}
+        onChange={handleStoryFileSelect}
+        accept="image/*,video/*"
+        className="hidden"
+      />
     </div>
   );
 }

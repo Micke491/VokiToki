@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { Phone, Video, Loader2 } from "lucide-react";
+"use client";
+
+import React from "react";
+import { Phone, Video } from "lucide-react";
 
 interface CallButtonProps {
   chatId: string;
@@ -14,47 +16,35 @@ interface CallButtonProps {
 
 export default function CallButton({
   chatId,
+  isGroup,
   onCallStart,
+  currentUserId,
   currentUserUsername,
   currentUserAvatar,
   isBlocked,
   isDeleted,
 }: CallButtonProps) {
-  const [loadingType, setLoadingType] = useState<"voice" | "video" | null>(null);
-
-  const startCall = (type: "voice" | "video") => {
+  const handleCall = (type: "voice" | "video") => {
     if (isBlocked || isDeleted) return;
     onCallStart(type);
   };
 
-  const isDisabled = isBlocked || isDeleted || !!loadingType;
-
   return (
     <div className="flex items-center gap-1">
       <button
-        onClick={() => startCall("voice")}
-        disabled={isDisabled}
+        onClick={() => handleCall("voice")}
+        disabled={isBlocked || isDeleted}
         className="p-2 text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-hover rounded-full transition-colors disabled:opacity-50"
-        title="Start Voice Call"
       >
-        {loadingType === "voice" ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
-        ) : (
-          <Phone className="w-5 h-5" />
-        )}
+        <Phone className="w-5 h-5" />
       </button>
 
       <button
-        onClick={() => startCall("video")}
-        disabled={isDisabled}
+        onClick={() => handleCall("video")}
+        disabled={isBlocked || isDeleted}
         className="p-2 text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-hover rounded-full transition-colors disabled:opacity-50"
-        title="Start Video Call"
       >
-        {loadingType === "video" ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
-        ) : (
-          <Video className="w-5 h-5" />
-        )}
+        <Video className="w-5 h-5" />
       </button>
     </div>
   );

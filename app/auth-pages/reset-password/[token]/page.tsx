@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Lock, Loader2, CheckCircle, MessageCircle, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { apiFetch } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 
 export default function ResetPasswordPage() {
@@ -20,10 +21,9 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/auth/forgot-reset/${token}`, {
+      const res = await apiFetch(`/api/auth/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword: password }),
+        body: JSON.stringify({ token, newPassword: password }),
       });
       if (!res.ok) throw new Error('Invalid token or expired');
       setSuccess(true);

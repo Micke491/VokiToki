@@ -1,0 +1,554 @@
+package handlers
+
+import (
+	"net/http"
+	"time"
+	"strconv"
+
+	"chat-app/internal/db"
+	"chat-app/internal/models"
+	"chat-app/internal/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+func SendMessage(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
+	var body struct {
+		ChatID        string         `json:"chatId"`
+		SenderID      string         `json:"senderId"`
+		Text          string         `json:"text"`
+		ReplyTo       *string        `json:"replyTo"`
+		MediaURL      string         `json:"mediaUrl"`
+		MediaType     string         `json:"mediaType"`
+		MediaPublicID string         `json:"mediaPublicId"`
+		IsForwarded   bool           `json:"isForwarded"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if currentUser.ID.Hex() != body.SenderID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized sender"})
+		return
+	}
+
+	chatID, _ := bson.ObjectIDFromHex(body.ChatID)
+	var chat models.Chat
+	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+
+	isPart := false
+	for _, p := range chat.Participants {
+		if p == currentUser.ID {
+			isPart = true
+			break
+		}
+	}
+	if !isPart {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this chat"})
+		return
+	}
+
+	if !chat.IsGroupChat {
+		var otherID bson.ObjectID
+		for _, p := range chat.Participants {
+			if p != currentUser.ID {
+				otherID = p
+				break
+			}
+		}
+		if !otherID.IsZero() {
+			var otherUser models.User
+			err := db.UserCollection.FindOne(c, bson.M{"_id": otherID}).Decode(&otherUser)
+			if err != nil {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Cannot send messages. User not found."})
+				return
+			}
+			for _, id := range currentUser.BlockedUsers {
+				if id == otherID {
+					c.JSON(http.StatusForbidden, gin.H{"error": "You cannot send messages to this user."})
+					return
+				}
+			}
+			for _, id := range otherUser.BlockedUsers {
+				if id == currentUser.ID {
+					c.JSON(http.StatusForbidden, gin.H{"error": "You cannot send messages to this user."})
+					return
+				}
+			}
+		}
+	}
+
+	var replyToID *bson.ObjectID
+	if body.ReplyTo != nil {
+		id, _ := bson.ObjectIDFromHex(*body.ReplyTo)
+		replyToID = &id
+	}
+
+	newMessage := models.Message{
+		ID:             bson.NewObjectID(),
+		ChatID:         chatID,
+		Sender:         currentUser.ID,
+		SenderUsername: currentUser.Username,
+		Text:           body.Text,
+		ReplyTo:        replyToID,
+		MediaURL:       body.MediaURL,
+		MediaType:      body.MediaType,
+		MediaPublicID:  body.MediaPublicID,
+		IsForwarded:    body.IsForwarded,
+		Status:         "sent",
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	_, err = db.MessageCollection.InsertOne(c, newMessage)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create message"})
+		return
+	}
+
+	db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
+		"$set": bson.M{
+			"lastMessage": newMessage.ID,
+			"updatedAt":   time.Now(),
+			"hiddenBy":    []bson.ObjectID{},
+		},
+	})
+
+	var populatedSender models.User
+	db.UserCollection.FindOne(c, bson.M{"_id": newMessage.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "email": 1, "avatar": 1})).Decode(&populatedSender)
+	
+	populatedMsg := gin.H{
+		"_id":            newMessage.ID,
+		"chatId":         newMessage.ChatID,
+		"sender":         populatedSender,
+		"senderUsername": newMessage.SenderUsername,
+		"text":           newMessage.Text,
+		"mediaUrl":       newMessage.MediaURL,
+		"mediaType":      newMessage.MediaType,
+		"status":         newMessage.Status,
+		"createdAt":      newMessage.CreatedAt,
+		"isForwarded":    newMessage.IsForwarded,
+	}
+
+	if newMessage.ReplyTo != nil {
+		var replyMsg models.Message
+		db.MessageCollection.FindOne(c, bson.M{"_id": newMessage.ReplyTo}).Decode(&replyMsg)
+		var replySender models.User
+		db.UserCollection.FindOne(c, bson.M{"_id": replyMsg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1})).Decode(&replySender)
+		populatedMsg["replyTo"] = gin.H{
+			"_id":    replyMsg.ID,
+			"text":   replyMsg.Text,
+			"sender": replySender,
+		}
+	}
+
+	utils.TriggerPusher("chat-"+body.ChatID, "receive-message", populatedMsg)
+	for _, pid := range chat.Participants {
+		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			"chatId":      body.ChatID,
+			"lastMessage": populatedMsg,
+			"unreadCount": 1, 
+		})
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": populatedMsg})
+}
+
+func GetMessages(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
+	chatIDStr := c.Query("chatId")
+	limitStr := c.DefaultQuery("limit", "30")
+	beforeStr := c.Query("before")
+
+	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	var chat models.Chat
+	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+	isPart := false
+	for _, p := range chat.Participants {
+		if p == currentUser.ID {
+			isPart = true
+			break
+		}
+	}
+	if !isPart {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	query := bson.M{
+		"chatId":    chatID,
+		"deletedBy": bson.M{"$ne": currentUser.ID},
+	}
+	if beforeStr != "" {
+		beforeTime, _ := time.Parse(time.RFC3339, beforeStr)
+		query["createdAt"] = bson.M{"$lt": beforeTime}
+	}
+
+	opts := options.Find().SetSort(bson.M{"createdAt": -1}).SetLimit(int64(limit + 1))
+	cursor, err := db.MessageCollection.Find(c, query, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
+		return
+	}
+	defer cursor.Close(c)
+
+	var messages []models.Message
+	cursor.All(c, &messages)
+
+	hasMore := len(messages) > limit
+	if hasMore {
+		messages = messages[:limit]
+	}
+
+	var unreadIDs []bson.ObjectID
+	for _, msg := range messages {
+		if msg.Sender != currentUser.ID {
+			isRead := false
+			for _, rb := range msg.ReadBy {
+				if rb.UserID == currentUser.ID {
+					isRead = true
+					break
+				}
+			}
+			if !isRead {
+				unreadIDs = append(unreadIDs, msg.ID)
+			}
+		}
+	}
+
+	if len(unreadIDs) > 0 {
+		db.MessageCollection.UpdateMany(c, bson.M{"_id": bson.M{"$in": unreadIDs}}, bson.M{
+			"$push": bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
+			"$set":  bson.M{"status": "seen", "read": true},
+			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
+		})
+	}
+
+	userCache := make(map[bson.ObjectID]models.User)
+	var populatedMessages []gin.H
+
+	for _, msg := range messages {
+		sender, ok := userCache[msg.Sender]
+		if !ok {
+			err := db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1, "name": 1})).Decode(&sender)
+			if err != nil {
+				sender.Username = "Deleted User"
+			}
+			userCache[msg.Sender] = sender
+		}
+
+		msgMap := gin.H{
+			"_id":                  msg.ID,
+			"chatId":               msg.ChatID,
+			"sender":               sender,
+			"senderUsername":       msg.SenderUsername,
+			"text":                 msg.Text,
+			"read":                 msg.Read,
+			"status":               msg.Status,
+			"deliveredTo":          msg.DeliveredTo,
+			"readBy":               msg.ReadBy,
+			"isEdited":             msg.IsEdited,
+			"editedAt":             msg.EditedAt,
+			"originalText":         msg.OriginalText,
+			"isDeletedForEveryone": msg.IsDeletedForEveryone,
+			"deletedForEveryoneAt": msg.DeletedForEveryoneAt,
+			"isPinned":             msg.IsPinned,
+			"mediaUrl":             msg.MediaURL,
+			"mediaType":            msg.MediaType,
+			"isForwarded":          msg.IsForwarded,
+			"isSystemMessage":      msg.IsSystemMessage,
+			"reactions":            msg.Reactions,
+			"createdAt":            msg.CreatedAt,
+			"updatedAt":            msg.UpdatedAt,
+		}
+
+		if msg.ReplyTo != nil {
+			var replyMsg models.Message
+			err := db.MessageCollection.FindOne(c, bson.M{"_id": msg.ReplyTo}).Decode(&replyMsg)
+			if err == nil {
+				replySender, ok := userCache[replyMsg.Sender]
+				if !ok {
+					err := db.UserCollection.FindOne(c, bson.M{"_id": replyMsg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})).Decode(&replySender)
+					if err != nil {
+						replySender.Username = "Deleted User"
+					}
+					userCache[replyMsg.Sender] = replySender
+				}
+				msgMap["replyTo"] = gin.H{
+					"_id":    replyMsg.ID,
+					"text":   replyMsg.Text,
+					"sender": replySender,
+				}
+			}
+		}
+
+		populatedMessages = append(populatedMessages, msgMap)
+	}
+
+	for i, j := 0, len(populatedMessages)-1; i < j; i, j = i+1, j-1 {
+		populatedMessages[i], populatedMessages[j] = populatedMessages[j], populatedMessages[i]
+	}
+
+	nextCursor := ""
+	if hasMore && len(messages) > 0 {
+		nextCursor = messages[0].CreatedAt.Format(time.RFC3339)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"messages":   populatedMessages,
+		"hasMore":    hasMore,
+		"nextCursor": nextCursor,
+	})
+}
+
+func UpdateMessageStatus(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
+	var body struct {
+		MessageIDs []string `json:"messageIds"`
+		Status     string   `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if body.Status != "delivered" && body.Status != "seen" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status"})
+		return
+	}
+
+	var objIDs []bson.ObjectID
+	for _, id := range body.MessageIDs {
+		oid, _ := bson.ObjectIDFromHex(id)
+		objIDs = append(objIDs, oid)
+	}
+
+	update := bson.M{}
+	if body.Status == "delivered" {
+		update = bson.M{
+			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
+			"$set":      bson.M{"status": "delivered"},
+		}
+	} else {
+		update = bson.M{
+			"$push": bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
+			"$set":  bson.M{"status": "seen", "read": true},
+			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
+		}
+	}
+
+	filter := bson.M{
+		"_id":    bson.M{"$in": objIDs},
+		"sender": bson.M{"$ne": currentUser.ID},
+	}
+
+	db.MessageCollection.UpdateMany(c, filter, update)
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "updated": len(objIDs)})
+}
+
+func ManageReaction(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+	messageIDStr := c.Param("messageId")
+	messageID, _ := bson.ObjectIDFromHex(messageIDStr)
+
+	if c.Request.Method == "POST" {
+		var body struct {
+			Emoji  string `json:"emoji"`
+			ChatID string `json:"chatId"`
+		}
+		c.ShouldBindJSON(&body)
+
+		reaction := models.Reaction{
+			UserID:    currentUser.ID,
+			Emoji:     body.Emoji,
+			CreatedAt: time.Now(),
+		}
+
+		_, err := db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
+			"$push": bson.M{"reactions": reaction},
+		})
+		if err == nil {
+			utils.TriggerPusher("chat-"+body.ChatID, "message-reaction-added", gin.H{
+				"chatId":    body.ChatID,
+				"messageId": messageIDStr,
+				"reaction": gin.H{
+					"userId":    currentUser.ID,
+					"emoji":     body.Emoji,
+					"createdAt": reaction.CreatedAt,
+					"user": gin.H{
+						"username": currentUser.Username,
+						"avatar":   currentUser.Avatar,
+					},
+				},
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true})
+	} else {
+		emoji := c.Query("emoji")
+		chatID := c.Query("chatId")
+
+		db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
+			"$pull": bson.M{"reactions": bson.M{"userId": currentUser.ID, "emoji": emoji}},
+		})
+		utils.TriggerPusher("chat-"+chatID, "message-reaction-removed", gin.H{
+			"chatId":    chatID,
+			"messageId": messageIDStr,
+			"userId":    currentUser.ID,
+			"emoji":     emoji,
+		})
+		c.JSON(http.StatusOK, gin.H{"success": true})
+	}
+}
+
+func EditMessage(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+	messageIDStr := c.Param("messageId")
+	messageID, _ := bson.ObjectIDFromHex(messageIDStr)
+
+	var body struct {
+		Text string `json:"text"`
+	}
+	c.ShouldBindJSON(&body)
+
+	var msg models.Message
+	err := db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	if msg.Sender != currentUser.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if time.Since(msg.CreatedAt) > 15*time.Minute {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message too old to edit"})
+		return
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"text":     body.Text,
+			"isEdited": true,
+			"editedAt": time.Now(),
+		},
+	}
+	if !msg.IsEdited {
+		update["$set"].(bson.M)["originalText"] = msg.Text
+	}
+
+	db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, update)
+	
+	db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", msg)
+
+	c.JSON(http.StatusOK, gin.H{"message": msg})
+}
+
+func DeleteMessage(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+	messageIDStr := c.Param("messageId")
+	messageID, _ := bson.ObjectIDFromHex(messageIDStr)
+
+	forEveryone := c.Query("forEveryone") == "true"
+
+	var msg models.Message
+	err := db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	if forEveryone {
+		if msg.Sender != currentUser.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only sender can delete for everyone"})
+			return
+		}
+		db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
+			"$set": bson.M{
+				"isDeletedForEveryone": true,
+				"deletedForEveryoneAt": time.Now(),
+				"text":                 "This message was deleted",
+				"mediaUrl":              "",
+				"mediaType":             "",
+				"mediaPublicId":         "",
+				"isPinned":              false,
+			},
+		})
+		utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-deleted", gin.H{"messageId": messageIDStr, "chatId": msg.ChatID.Hex()})
+	} else {
+		db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
+			"$addToSet": bson.M{"deletedBy": currentUser.ID},
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func GetPinnedMessages(c *gin.Context) {
+	chatIDStr := c.Param("chatId")
+	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+
+	var messages []models.Message
+	cursor, _ := db.MessageCollection.Find(c, bson.M{"chatId": chatID, "isPinned": true}, options.Find().SetSort(bson.M{"createdAt": -1}).SetLimit(1))
+	cursor.All(c, &messages)
+
+	c.JSON(http.StatusOK, messages)
+}
+
+func PinMessage(c *gin.Context) {
+	chatIDStr := c.Param("chatId")
+	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+
+	var body struct {
+		MessageID string `json:"messageId"`
+	}
+	c.ShouldBindJSON(&body)
+	msgID, _ := bson.ObjectIDFromHex(body.MessageID)
+
+	db.MessageCollection.UpdateMany(c, bson.M{"chatId": chatID, "isPinned": true}, bson.M{"$set": bson.M{"isPinned": false}})
+
+	db.MessageCollection.UpdateOne(c, bson.M{"_id": msgID}, bson.M{"$set": bson.M{"isPinned": true}})
+
+	var msg models.Message
+	db.MessageCollection.FindOne(c, bson.M{"_id": msgID}).Decode(&msg)
+	utils.TriggerPusher("chat-"+chatIDStr, "message-pinned", msg)
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+}
+
+func UnpinMessage(c *gin.Context) {
+	chatIDStr := c.Param("chatId")
+	msgIDStr := c.Query("messageId")
+	msgID, _ := bson.ObjectIDFromHex(msgIDStr)
+
+	db.MessageCollection.UpdateOne(c, bson.M{"_id": msgID}, bson.M{"$set": bson.M{"isPinned": false}})
+	utils.TriggerPusher("chat-"+chatIDStr, "message-unpinned", gin.H{"messageId": msgIDStr, "chatId": chatIDStr})
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}

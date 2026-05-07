@@ -5,7 +5,7 @@ import { X, MoreVertical, Volume2, VolumeX, Plus, Eye, ArrowLeft, ShieldAlert } 
 import ReportModal from '../ui/ReportModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Story } from '../../types/chat';
-import { getAuthToken } from '@/lib/storage';
+import { apiFetch } from '@/lib/api';
 
 interface StoryViewerProps {
   stories: Story[];
@@ -92,12 +92,8 @@ export default function StoryViewer({
   useEffect(() => {
     const isViewed = (currentStory?.viewedBy || []).some(v => v.userId === currentUserId);
     if (currentStory && !isViewed && currentUserId && userId !== currentUserId) {
-      fetch(`/api/stories/${userId}`, {
+      apiFetch(`/api/stories/${userId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ storyId: currentStory._id }),
       }).catch(console.error);
     }

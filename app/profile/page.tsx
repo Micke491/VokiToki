@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import SideBar from '@/components/layout/Sidebar';
 import {
   ArrowLeft, Camera, Save, Loader2, CheckCircle, AlertTriangle,
@@ -64,6 +64,7 @@ export default function ProfilePage() {
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const storyInputRef = useRef<HTMLInputElement>(null);
 
   const { 
     stories: allStories, 
@@ -91,11 +92,7 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const response = await fetch('/api/profile', {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/profile`);
       if (!response.ok) throw new Error('Not authenticated');
       const data = await response.json();
 
@@ -121,12 +118,8 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/profile', {
+      const response = await apiFetch(`/api/profile`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify(formData),
       });
 
@@ -153,11 +146,8 @@ export default function ProfilePage() {
     formDataUpload.append('file', file);
 
     try {
-      const response = await fetch('/api/users/profile/upload', {
+      const response = await apiFetch(`/api/users/profile/upload`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: formDataUpload,
       });
 
@@ -175,11 +165,8 @@ export default function ProfilePage() {
 
   const handleDeleteStoryFromModal = async (storyId: string) => {
     try {
-      const response = await fetch(`/api/profile?storyId=${storyId}`, {
+      const response = await apiFetch(`/api/profile?storyId=${storyId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
       });
 
       if (response.ok) {
@@ -195,7 +182,7 @@ export default function ProfilePage() {
   };
 
   const handleAddStory = () => {
-    fileInputRef.current?.click();
+    storyInputRef.current?.click();
   };
 
   const handleStoryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,11 +201,8 @@ export default function ProfilePage() {
     formDataStory.append('file', file);
 
     try {
-      const response = await fetch('/api/stories', {
+      const response = await apiFetch(`/api/stories`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: formDataStory,
       });
 
@@ -234,8 +218,8 @@ export default function ProfilePage() {
       setFeedback({ type: 'error', message: 'Failed to upload story' });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (storyInputRef.current) {
+        storyInputRef.current.value = '';
       }
     }
   };
@@ -381,6 +365,13 @@ export default function ProfilePage() {
                     </button>
                   </>
                 )}
+                <input
+                  type="file"
+                  ref={storyInputRef}
+                  className="hidden"
+                  accept="image/*,video/*"
+                  onChange={handleStoryFileSelect}
+                />
               </div>
               <h2 className="text-2xl font-bold text-chat-text-primary mt-4">
                 {formData.name || formData.username}

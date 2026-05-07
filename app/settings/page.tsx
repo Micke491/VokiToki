@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuthToken } from '@/lib/storage';
+import { apiFetch } from '@/lib/api';
 import SideBar from '@/components/layout/Sidebar';
 import BlockedUsersModal from '@/components/ui/BlockedUsersModal';
 import {
@@ -71,9 +71,7 @@ export default function SettingsPage() {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetch('/api/users/current_user', {
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
-      });
+      const response = await apiFetch(`/api/users/current_user`);
       if (!response.ok) throw new Error('Not authenticated');
       const data = await response.json();
 
@@ -100,12 +98,8 @@ export default function SettingsPage() {
 
   const handleUpdatePreferences = async (updates: Partial<User>) => {
     try {
-      const response = await fetch('/api/users/preferences', {
+      const response = await apiFetch(`/api/users/preferences`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify(updates),
       });
 
@@ -133,12 +127,8 @@ export default function SettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/users/current_user', {
+      const response = await apiFetch(`/api/users/current_user`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           username: editUsername,
           bio: bio,
@@ -168,9 +158,8 @@ export default function SettingsPage() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/users/profile/upload', {
+      const response = await apiFetch(`/api/users/profile/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
         body: formData,
       });
 
@@ -190,9 +179,8 @@ export default function SettingsPage() {
     setRequestingPassword(true);
 
     try {
-      const response = await fetch('/api/auth/password-reset-request', {
+      const response = await apiFetch(`/api/auth/password-reset-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: currentUser.email }),
       });
 
@@ -208,9 +196,8 @@ export default function SettingsPage() {
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
-      const response = await fetch('/api/users/current_user', {
+      const response = await apiFetch(`/api/users/current_user`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
       });
 
       if (!response.ok) throw new Error('Failed to delete account');

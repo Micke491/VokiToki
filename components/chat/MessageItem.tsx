@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import {
   Mic,
   Smile,
@@ -245,7 +245,7 @@ const MessageItem = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  sender.username.charAt(0).toUpperCase()
+                  (sender.username || "U").charAt(0).toUpperCase()
                 )}
               </div>
             )}
@@ -602,14 +602,10 @@ const MessageItem = ({
                                 if (userReacted) {
                                   onRemoveReaction(message._id, emoji);
                                 } else {
-                                  fetch(
+                                  apiFetch(
                                     `/api/chat/message/messages/${message._id}/reaction`,
                                     {
                                       method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                        Authorization: `Bearer ${getAuthToken()}`,
-                                      },
                                       body: JSON.stringify({ chatId, emoji }),
                                     },
                                   );

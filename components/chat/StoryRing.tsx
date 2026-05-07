@@ -79,7 +79,7 @@ const StoryRing = ({
                 />
               ) : (
                 <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-chat-accent/20 to-chat-accent-secondary/20 text-chat-accent font-bold uppercase transition-transform duration-500 group-hover:scale-110`}>
-                  {username.charAt(0)}
+                  {(username || "U").charAt(0)}
                 </div>
               )}
             </div>

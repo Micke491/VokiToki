@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Mail, ArrowLeft, Loader2, CheckCircle, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
@@ -14,9 +15,8 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await fetch('/api/auth/password-reset-request', {
+      await apiFetch(`/api/auth/password-reset-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
       setSuccess(true);

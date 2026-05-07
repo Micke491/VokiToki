@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 
 interface User {
   _id: string;
@@ -59,12 +59,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
   const searchUsers = async (query: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/users/search?username=${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/users/search?username=${encodeURIComponent(query)}`);
 
       if (!response.ok) throw new Error('Search failed');
 
@@ -88,12 +83,8 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
 
     try {
       setAdding(true);
-      const response = await fetch(`/api/chat/${chatId}/add`, { 
+      const response = await apiFetch(`/api/chat/${chatId}/add`, { 
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ 
           userIds: selectedUsers.map(u => u._id) 
         }),

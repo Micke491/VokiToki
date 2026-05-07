@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MessageCircle, Mail, Lock, User, AlertCircle, Loader2, CheckCircle, EyeOff, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
 import { setAuthToken, getAuthToken, removeAuthToken } from '@/lib/storage';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -25,11 +26,7 @@ export default function RegisterPage() {
       if (!token) return;
 
       try {
-        const response = await fetch("/api/users/current_user", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await apiFetch(`/api/users/current_user`);
 
         if (response.ok) {
           router.push('/chat');
@@ -71,9 +68,8 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await apiFetch(`/api/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
       });
 

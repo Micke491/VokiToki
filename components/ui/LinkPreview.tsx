@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import { ExternalLink } from "lucide-react";
 
 interface LinkPreviewData {
@@ -26,11 +26,7 @@ export default function LinkPreview({ url }: LinkPreviewProps) {
     const fetchMetadata = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/url-metadata?url=${encodeURIComponent(url)}`, {
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
-        });
+        const response = await apiFetch(`/api/url-metadata?url=${encodeURIComponent(url)}`);
 
         if (!response.ok) throw new Error("Failed to fetch metadata");
         const data = await response.json();

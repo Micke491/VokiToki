@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Users, MessageCircle } from 'lucide-react';
-import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 
 interface User {
   _id: string;
@@ -62,12 +62,7 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
   const searchUsers = async (query: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/users/search?username=${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/users/search?username=${encodeURIComponent(query)}`);
 
       if (!response.ok) throw new Error('Search failed');
 
@@ -92,12 +87,8 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
     try {
       setCreating(true);
-      const response = await fetch('/api/chats', {
+      const response = await apiFetch('/api/chats', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ recipientId }),
       });
 
@@ -122,12 +113,8 @@ export default function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
     try {
       setCreating(true);
-      const response = await fetch('/api/chats/GroupChat', {
+      const response = await apiFetch('/api/chats/GroupChat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({
           name: groupName,
           participants: selectedUsers.map(u => u._id)

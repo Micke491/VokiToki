@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Message } from "../../types/chat";
 import toast from "react-hot-toast";
 import { getAuthToken } from "@/lib/storage";
+import { apiFetch } from "@/lib/api";
 import AddParticipantModal from "./AddParticipantModal";
 import ConfirmModal from "../ui/ConfirmModal";
 
@@ -102,11 +103,7 @@ const ChatSidebar = ({
   const fetchMedia = async () => {
     try {
       setLoadingMedia(true);
-      const response = await fetch(`/api/chat/media/list?chatId=${chatId}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-      });
+      const response = await apiFetch(`/api/chat/media/list?chatId=${chatId}`);
       if (response.ok) {
         const data = await response.json();
         setSharedMedia(data);
@@ -122,12 +119,8 @@ const ChatSidebar = ({
     if (!editGroupName.trim() || !chatId) return;
     try {
       setIsSavingGroupInfo(true);
-      const res = await fetch(`/api/chat/${chatId}/update`, {
+      const res = await apiFetch(`/api/chat/${chatId}/update`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ name: editGroupName }),
       });
       if (res.ok) {
@@ -155,12 +148,8 @@ const ChatSidebar = ({
       type: "danger",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/chat/${chatId}/remove`, {
+          const res = await apiFetch(`/api/chat/${chatId}/remove`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
             body: JSON.stringify({ userId }),
           });
           if (res.ok) {
@@ -190,12 +179,8 @@ const ChatSidebar = ({
       type: "info",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/chat/${chatId}/update`, {
+          const res = await apiFetch(`/api/chat/${chatId}/update`, {
             method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
             body: JSON.stringify({ groupAdmin: userId }),
           });
           if (res.ok) {
@@ -231,11 +216,8 @@ const ChatSidebar = ({
           const endpoint = isGroup ? `/api/chat/${chatId}/leave` : `/api/chats/${chatId}`;
           const method = isGroup ? "POST" : "DELETE";
 
-          const res = await fetch(endpoint, {
+          const res = await apiFetch(endpoint, {
             method,
-            headers: {
-              Authorization: `Bearer ${getAuthToken()}`,
-            },
           });
           
           if (res.ok) {
@@ -270,23 +252,16 @@ const ChatSidebar = ({
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadRes = await fetch("/api/chat/media/upload", {
+      const uploadRes = await apiFetch("/api/chat/media/upload", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: formData,
       });
 
       if (!uploadRes.ok) throw new Error("Upload failed");
       const uploadData = await uploadRes.json();
 
-      const res = await fetch(`/api/chat/${chatId}/update`, {
+      const res = await apiFetch(`/api/chat/${chatId}/update`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
         body: JSON.stringify({ avatar: uploadData.url }),
       });
 
