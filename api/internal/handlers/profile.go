@@ -253,7 +253,39 @@ func DeleteMyStory(c *gin.Context) {
 		return
 	}
 
+	go notifyStoryDeleted(authUser.ID, storyOID)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Story deleted successfully"})
+}
+
+func notifyStoryDeleted(userID bson.ObjectID, storyID bson.ObjectID) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	chatCursor, err := db.ChatCollection.Find(ctx, bson.M{"participants": userID})
+	if err != nil {
+		return
+	}
+	var chats []models.Chat
+	chatCursor.All(ctx, &chats)
+
+	seen := map[string]bool{}
+	payload := gin.H{
+		"storyId": storyID.Hex(),
+		"userId":  userID.Hex(),
+	}
+
+	for _, chat := range chats {
+		for _, p := range chat.Participants {
+			id := p.Hex()
+			if id != userID.Hex() && !seen[id] {
+				seen[id] = true
+				utils.TriggerPusher("user-"+id, "story-deleted", payload)
+			}
+		}
+	}
+	// Also notify the user themselves for cross-tab sync
+	utils.TriggerPusher("user-"+userID.Hex(), "story-deleted", payload)
 }
 
 func GetUserProfile(c *gin.Context) {

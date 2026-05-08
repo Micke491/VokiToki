@@ -315,6 +315,7 @@ func notifyNewStory(userID bson.ObjectID, story models.Story, user models.User) 
 			}
 		}
 	}
+	utils.TriggerPusher("user-"+userID.Hex(), "story-new", payload)
 }
 
 func GetUserStories(c *gin.Context) {

@@ -360,8 +360,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               currentUserId={currentUser._id}
               currentUserAvatar={currentUser.avatar}
               currentUserUsername={currentUser.username}
+              stories={allStoriesUsers}
+              hasUnviewedStories={hasUnviewedStories}
               onStoryClick={handleStoryClick}
               onMyStoryClick={handleMyStoryClick}
+              onStoryUploaded={fetchStories}
             />
           )}
           <ChatList

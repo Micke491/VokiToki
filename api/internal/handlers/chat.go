@@ -368,8 +368,28 @@ func UpdateGroupChat(c *gin.Context) {
 		return
 	}
 
-	db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chat)
+	var updatedChat models.Chat
+	db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&updatedChat)
+
+	var participants []models.User
+	pCursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": updatedChat.Participants}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+	if pCursor != nil {
+		pCursor.All(c, &participants)
+	}
+
+	chatMap := gin.H{
+		"_id":                  updatedChat.ID,
+		"name":                 updatedChat.Name,
+		"isGroupChat":          updatedChat.IsGroupChat,
+		"groupAdmin":           updatedChat.GroupAdmin,
+		"avatar":               updatedChat.Avatar,
+		"participants":         participants,
+		"participantUsernames": updatedChat.ParticipantUsernames,
+		"createdAt":            updatedChat.CreatedAt,
+		"updatedAt":            updatedChat.UpdatedAt,
+	}
+
+	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
 
 	if systemMsg != "" {
 		newSysMsg := models.Message{
@@ -381,7 +401,20 @@ func UpdateGroupChat(c *gin.Context) {
 			CreatedAt:       time.Now(),
 		}
 		db.MessageCollection.InsertOne(c, newSysMsg)
-		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", newSysMsg)
+		
+		populatedSysMsg := gin.H{
+			"_id":             newSysMsg.ID,
+			"chatId":          chatIDStr,
+			"sender": gin.H{
+				"_id":      currentUser.ID.Hex(),
+				"username": currentUser.Username,
+				"avatar":   currentUser.Avatar,
+			},
+			"text":            newSysMsg.Text,
+			"isSystemMessage": true,
+			"createdAt":       newSysMsg.CreatedAt,
+		}
+		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 	}
 
 	c.JSON(http.StatusOK, chat)
@@ -441,8 +474,26 @@ func RemoveParticipant(c *gin.Context) {
 		},
 	})
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chat)
-	utils.TriggerPusher("user-"+body.UserID, "chat-removed", gin.H{"chatId": chatIDStr})
+	var updatedChat models.Chat
+	db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&updatedChat)
+
+	var participants []models.User
+	pCursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": updatedChat.Participants}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+	if pCursor != nil {
+		pCursor.All(c, &participants)
+	}
+
+	chatMap := gin.H{
+		"_id":                  updatedChat.ID,
+		"name":                 updatedChat.Name,
+		"isGroupChat":          updatedChat.IsGroupChat,
+		"groupAdmin":           updatedChat.GroupAdmin,
+		"avatar":               updatedChat.Avatar,
+		"participants":         participants,
+		"participantUsernames": updatedChat.ParticipantUsernames,
+		"createdAt":            updatedChat.CreatedAt,
+		"updatedAt":            updatedChat.UpdatedAt,
+	}
 
 	systemMsg := currentUser.Username + " removed " + targetUser.Username + " from the chat"
 	newSysMsg := models.Message{
@@ -452,9 +503,30 @@ func RemoveParticipant(c *gin.Context) {
 		Text:            systemMsg,
 		IsSystemMessage: true,
 		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 	db.MessageCollection.InsertOne(c, newSysMsg)
-	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", newSysMsg)
+
+	populatedSysMsg := gin.H{
+		"_id":             newSysMsg.ID.Hex(),
+		"chatId":          chatIDStr,
+		"sender": gin.H{
+			"_id":      currentUser.ID.Hex(),
+			"username": currentUser.Username,
+			"avatar":   currentUser.Avatar,
+			"email":    currentUser.Email,
+		},
+		"text":            newSysMsg.Text,
+		"isSystemMessage": true,
+		"createdAt":       newSysMsg.CreatedAt,
+		"updatedAt":       newSysMsg.UpdatedAt,
+		"status":          "sent",
+		"read":            false,
+	}
+	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+
+	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+	utils.TriggerPusher("user-"+body.UserID, "chat-removed", gin.H{"chatId": chatIDStr})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Participant removed"})
 }
@@ -587,9 +659,25 @@ func AddParticipant(c *gin.Context) {
 		},
 	})
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chat)
-	for _, id := range newObjIDs {
-		utils.TriggerPusher("user-"+id.Hex(), "chat-new", chat)
+	var updatedChat models.Chat
+	db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&updatedChat)
+
+	var participants []models.User
+	pCursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": updatedChat.Participants}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+	if pCursor != nil {
+		pCursor.All(c, &participants)
+	}
+
+	chatMap := gin.H{
+		"_id":                  updatedChat.ID,
+		"name":                 updatedChat.Name,
+		"isGroupChat":          updatedChat.IsGroupChat,
+		"groupAdmin":           updatedChat.GroupAdmin,
+		"avatar":               updatedChat.Avatar,
+		"participants":         participants,
+		"participantUsernames": updatedChat.ParticipantUsernames,
+		"createdAt":            updatedChat.CreatedAt,
+		"updatedAt":            updatedChat.UpdatedAt,
 	}
 
 	systemMsg := "@" + currentUser.Username + " added " + joinStrings(newUsernames) + " to the chat"
@@ -600,9 +688,32 @@ func AddParticipant(c *gin.Context) {
 		Text:            systemMsg,
 		IsSystemMessage: true,
 		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 	db.MessageCollection.InsertOne(c, newSysMsg)
-	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", newSysMsg)
+
+	populatedSysMsg := gin.H{
+		"_id":             newSysMsg.ID.Hex(),
+		"chatId":          chatIDStr,
+		"sender": gin.H{
+			"_id":      currentUser.ID.Hex(),
+			"username": currentUser.Username,
+			"avatar":   currentUser.Avatar,
+			"email":    currentUser.Email,
+		},
+		"text":            newSysMsg.Text,
+		"isSystemMessage": true,
+		"createdAt":       newSysMsg.CreatedAt,
+		"updatedAt":       newSysMsg.UpdatedAt,
+		"status":          "sent",
+		"read":            false,
+	}
+	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+
+	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+	for _, id := range newObjIDs {
+		utils.TriggerPusher("user-"+id.Hex(), "chat-new", chatMap)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Participants added"})
 }

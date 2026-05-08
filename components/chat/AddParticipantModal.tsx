@@ -65,12 +65,11 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
 
       const data = await response.json();
       
-      // Filter out users who are already in the chat OR already selected
-      const filteredUsers = data.users.filter((u: User) => 
+      const filteredUsers = (data.users || []).filter((u: User) => 
         !existingParticipantIds.includes(u._id) && 
         !selectedUsers.some(selected => selected._id === u._id)
       );
-      setUsers(filteredUsers || []);
+      setUsers(filteredUsers);
     } catch (error) {
       console.error('Error searching users:', error);
     } finally {

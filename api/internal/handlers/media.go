@@ -58,7 +58,7 @@ func ListMedia(c *gin.Context) {
 	}
 	defer cursor.Close(c)
 
-	var messages []bson.M
+	messages := []bson.M{}
 	cursor.All(c, &messages)
 
 	for i, msg := range messages {

@@ -22,5 +22,9 @@ func SearchUsers(c *gin.Context) {
 		return
 	}
 
+	if users == nil {
+		users = []models.User{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }

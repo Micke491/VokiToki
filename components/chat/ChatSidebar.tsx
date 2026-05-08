@@ -7,6 +7,7 @@ import { getAuthToken } from "@/lib/storage";
 import { apiFetch } from "@/lib/api";
 import AddParticipantModal from "./AddParticipantModal";
 import ConfirmModal from "../ui/ConfirmModal";
+import { pusherClient } from "@/lib/pusher-client";
 
 interface ChatSidebarProps {
   isOpen: boolean;
@@ -72,7 +73,37 @@ const ChatSidebar = ({
     type: "info",
   });
 
-  const isAdmin = currentUserId === groupAdminId;
+  const [localParticipants, setLocalParticipants] = useState(participants);
+  const [localGroupAdminId, setLocalGroupAdminId] = useState(groupAdminId);
+
+  useEffect(() => {
+    setLocalParticipants(participants);
+  }, [participants]);
+
+  useEffect(() => {
+    setLocalGroupAdminId(groupAdminId);
+  }, [groupAdminId]);
+
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = pusherClient.subscribe(`chat-${chatId}`);
+    
+    channel.bind('chat-updated', (data: any) => {
+      if (data.participants) {
+        setLocalParticipants(data.participants);
+      }
+      if (data.groupAdmin) {
+        setLocalGroupAdminId(data.groupAdmin);
+      }
+    });
+
+    return () => {
+      channel.unbind('chat-updated');
+    };
+  }, [chatId]);
+
+  const isAdmin = currentUserId === localGroupAdminId;
 
   useEffect(() => {
     if (isOpen && chatId) {
@@ -385,7 +416,7 @@ const ChatSidebar = ({
         </div>
 
         {/* Participants Section (Groups) */}
-        {isGroup && participants.length > 0 && (
+        {isGroup && localParticipants.length > 0 && (
           <div className="p-4 border-b border-chat-border">
             <div className="flex items-center justify-between mb-4">
                <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest flex items-center gap-2">
@@ -403,7 +434,7 @@ const ChatSidebar = ({
                )}
             </div>
             <div className="space-y-3">
-              {participants.map((user) => (
+              {localParticipants.map((user) => (
                 <div
                   key={user._id}
                   className={`flex items-center gap-3 group ${user._id !== currentUserId && onViewProfile ? 'cursor-pointer hover:bg-chat-hover rounded-xl p-2 -m-2 transition-colors' : ''}`}
@@ -428,13 +459,13 @@ const ChatSidebar = ({
                       {user._id === currentUserId && (
                         <span className="text-xs text-chat-text-tertiary font-normal">(you)</span>
                       )}
-                      {groupAdminId === user._id && (
+                      {localGroupAdminId === user._id && (
                         <span title="Admin">
                           <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
                         </span>
                       )}
                     </p>
-                    {isAdmin && groupAdminId !== user._id && (
+                    {isAdmin && localGroupAdminId !== user._id && (
                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                           <button
                              onClick={(e) => {
@@ -477,7 +508,7 @@ const ChatSidebar = ({
                 <Loader2 className="w-6 h-6 animate-spin mb-2" />
                 <p className="text-xs">Loading media...</p>
              </div>
-          ) : sharedMedia.length === 0 ? (
+          ) : !sharedMedia || sharedMedia.length === 0 ? (
             <div className="py-8 flex flex-col items-center justify-center text-chat-text-tertiary bg-chat-bg-secondary rounded-xl border border-dashed border-chat-border">
               <ImageIcon className="w-8 h-8 mb-2 opacity-20" />
               <p className="text-xs">No media or links shared yet</p>
@@ -533,50 +564,6 @@ const ChatSidebar = ({
             </div>
           )}
         </div>
-        {/* Wallpaper Section */}
-        {setWallpaper && !isBlocked && !isDeleted && (
-          <div className="p-4 border-t border-chat-border">
-            <h4 className="text-xs font-bold text-chat-text-tertiary uppercase tracking-widest mb-3 flex items-center gap-2">
-              <ImageIcon className="w-3.5 h-3.5" />
-              Chat Wallpaper
-            </h4>
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {[
-                "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=800",
-                "https://images.unsplash.com/photo-1557682250-33bd709cbe85?auto=format&fit=crop&q=80&w=800",
-                "https://images.unsplash.com/photo-1620121692029-d088224ddc74?auto=format&fit=crop&q=80&w=800",
-                "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=800",
-                "https://images.unsplash.com/photo-1553095066-5014bc7b7f2d?auto=format&fit=crop&q=80&w=800",
-                "https://images.unsplash.com/photo-1604079628040-94301bb21b91?auto=format&fit=crop&q=80&w=800",
-              ].map((url) => (
-                <button
-                  key={url}
-                  onClick={() => {
-                    if (chatId) localStorage.setItem(`chat-wallpaper-${chatId}`, url);
-                    setWallpaper(url);
-                  }}
-                  className={`h-14 rounded-lg bg-cover bg-center border-2 transition-all hover:scale-105 ${
-                    wallpaper === url
-                      ? "border-chat-accent shadow-md shadow-chat-accent/30"
-                      : "border-transparent hover:border-chat-border"
-                  }`}
-                  style={{ backgroundImage: `url(${url})` }}
-                />
-              ))}
-            </div>
-            {wallpaper && (
-              <button
-                onClick={() => {
-                  if (chatId) localStorage.removeItem(`chat-wallpaper-${chatId}`);
-                  setWallpaper(null);
-                }}
-                className="w-full py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              >
-                Remove Wallpaper
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Danger Zone */}
         <div className="p-4 border-t border-chat-border mt-auto">
@@ -611,7 +598,7 @@ const ChatSidebar = ({
         isOpen={showAddModal} 
         onClose={() => setShowAddModal(false)} 
         chatId={chatId} 
-        existingParticipantIds={participants.map(p => p._id)} 
+        existingParticipantIds={localParticipants.map(p => p._id)} 
       />
     )}
 

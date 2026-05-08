@@ -74,9 +74,22 @@ export function useStories(currentUserId: string) {
       fetchStories();
     });
 
+    channel.bind('story-deleted', (data: { storyId: string, userId: string }) => {
+      setStories(prev => prev.map(storyUser => {
+        if (storyUser.user._id === data.userId) {
+          return {
+            ...storyUser,
+            stories: storyUser.stories.filter(s => s._id !== data.storyId)
+          };
+        }
+        return storyUser;
+      }).filter(storyUser => storyUser.stories.length > 0));
+    });
+
     return () => {
       channel.unbind('story-viewed');
       channel.unbind('story-new');
+      channel.unbind('story-deleted');
       pusherClient.unsubscribe(`user-${currentUserId}`);
     };
   }, [currentUserId, fetchStories]);

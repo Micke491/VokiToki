@@ -60,10 +60,16 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
   const filteredChats = chats.filter((chat: Chat) => {
     if (chat._id === currentChatId) return false;
     
-    const chatName = chat.isGroupChat
-      ? chat.name
-      : chat.participants.find((p: any) => p._id !== currentUserId)?.username;
-    return chatName?.toLowerCase().includes(searchQuery.toLowerCase());
+    let chatName = "";
+    if (chat.isGroupChat) {
+      chatName = chat.name || "Group Chat";
+    } else {
+      const other = chat.participants?.find((p: any) => String(p._id) !== String(currentUserId));
+      chatName = other?.username || "Unknown User";
+    }
+
+    if (!searchQuery) return true;
+    return chatName.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
@@ -100,8 +106,8 @@ const ForwardMessageModal = ({ currentUserId, currentChatId, onForward, onClose 
           ) : (
             filteredChats.map((chat: Chat) => {
               const chatName = chat.isGroupChat
-                ? chat.name
-                : chat.participants.find((p: any) => p._id !== currentUserId)?.username || "Unknown";
+                ? chat.name || "Group Chat"
+                : chat.participants?.find((p: any) => String(p._id) !== String(currentUserId))?.username || "Unknown User";
               const avatar = chat.isGroupChat
                 ? chat.avatar
                 : chat.participants.find((p: any) => p._id !== currentUserId)?.avatar;

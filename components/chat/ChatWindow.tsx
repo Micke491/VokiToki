@@ -167,7 +167,7 @@ export default function ChatWindow({
     const channel = pusherClient.subscribe(`chat-${chatId}`);
 
     channel.bind("receive-message", (message: Message) => {
-      if (message.chatId !== chatId) return;
+      if (String(message.chatId) !== String(chatId)) return;
 
       setMessages((prev) => {
         const exists = prev.some((m) => String(m._id) === String(message._id));
@@ -347,7 +347,17 @@ export default function ChatWindow({
     });
 
     return () => {
-      pusherClient.unsubscribe(`chat-${chatId}`);
+      channel.unbind("receive-message");
+      channel.unbind("message-updated");
+      channel.unbind("message-deleted");
+      channel.unbind("messages-read");
+      channel.unbind("user-typing");
+      channel.unbind("user-stopped-typing");
+      channel.unbind("message-reaction-added");
+      channel.unbind("message-reaction-removed");
+      channel.unbind("message-pinned");
+      channel.unbind("message-unpinned");
+      channel.unbind("user-blocked");
     };
   }, [chatId, currentUserId]);
 
@@ -471,7 +481,13 @@ export default function ChatWindow({
     const { signal } = abortControllerRef.current;
 
     const highlightMessage = (el: HTMLElement) => {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const container = messagesContainerRef.current;
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const offset = elRect.top - containerRect.top - container.clientHeight / 2 + el.offsetHeight / 2;
+        container.scrollBy({ top: offset, behavior: "smooth" });
+      }
       const innerEl = document.getElementById(`message-${messageId}`);
       if (innerEl) {
         innerEl.classList.add(

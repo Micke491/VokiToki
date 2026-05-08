@@ -1,40 +1,40 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useRef, useState } from 'react';
 import StoryRing from './StoryRing';
-import { Camera, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Story, StoryUser } from '../../types/chat';
-import { pusherClient } from '@/lib/pusher-client';
-import StoryManagementModal from './StoryManagementModal';
-import { useStories } from '@/hooks/useStories';
 import { apiFetch } from '@/lib/api';
 
 interface StoryBarProps {
   currentUserId: string;
   currentUserAvatar?: string;
   currentUserUsername: string;
+  stories: StoryUser[];
+  hasUnviewedStories: (storyUser: StoryUser) => boolean;
   onStoryClick: (userId: string, stories: Story[], username: string, avatar?: string) => void;
   onMyStoryClick: () => void;
+  onStoryUploaded: () => void; // callback to refresh parent's stories
 }
 
 export default function StoryBar({
   currentUserId,
   currentUserAvatar,
   currentUserUsername,
+  stories,
+  hasUnviewedStories,
   onStoryClick,
   onMyStoryClick,
+  onStoryUploaded,
 }: StoryBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-
-  const { stories, loading, fetchStories, markStoryAsViewed, hasUnviewedStories, setStories } = useStories(currentUserId);
 
   const myStories = stories.find(su => su.user._id === currentUserId)?.stories || [];
   const otherStories = stories.filter(su => su.user._id !== currentUserId);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ... same as before
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -63,7 +63,7 @@ export default function StoryBar({
 
       if (uploadRes.ok) {
         toast.success('Story posted!');
-        fetchStories(); 
+        onStoryUploaded(); // notify parent to refresh its own stories state
       } else {
         const error = await uploadRes.json();
         toast.error(error.error || 'Failed to upload story');
@@ -78,15 +78,6 @@ export default function StoryBar({
       }
     }
   };
-
-  if (loading) {
-    return (
-      <div className="h-24 border-b border-chat-border px-4 flex items-center gap-3 overflow-x-auto">
-        <div className="w-14 h-14 rounded-full bg-chat-border animate-pulse" />
-        <div className="w-14 h-14 rounded-full bg-chat-border animate-pulse" />
-      </div>
-    );
-  }
 
   return (
     <div className="h-auto min-h-[90px] border-b border-chat-border px-4 py-3 flex items-center gap-3 overflow-x-auto custom-scrollbar">
@@ -175,4 +166,3 @@ export default function StoryBar({
     </div>
   );
 }
-

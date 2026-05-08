@@ -243,7 +243,7 @@ func GetMessages(c *gin.Context) {
 	}
 
 	userCache := make(map[bson.ObjectID]models.User)
-	var populatedMessages []gin.H
+	populatedMessages := []gin.H{}
 
 	for _, msg := range messages {
 		sender, ok := userCache[msg.Sender]
@@ -464,9 +464,31 @@ func EditMessage(c *gin.Context) {
 	db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, update)
 	
 	db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
-	utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", msg)
 
-	c.JSON(http.StatusOK, gin.H{"message": msg})
+	var sender models.User
+	db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})).Decode(&sender)
+
+	populatedMsg := gin.H{
+		"_id":            msg.ID,
+		"chatId":         msg.ChatID,
+		"sender":         sender,
+		"senderUsername": msg.SenderUsername,
+		"text":           msg.Text,
+		"mediaUrl":       msg.MediaURL,
+		"mediaType":      msg.MediaType,
+		"status":         msg.Status,
+		"isEdited":       msg.IsEdited,
+		"editedAt":       msg.EditedAt,
+		"originalText":   msg.OriginalText,
+		"isPinned":       msg.IsPinned,
+		"createdAt":      msg.CreatedAt,
+		"updatedAt":      msg.UpdatedAt,
+		"reactions":      msg.Reactions,
+	}
+
+	utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
+
+	c.JSON(http.StatusOK, gin.H{"message": populatedMsg})
 }
 
 func DeleteMessage(c *gin.Context) {
@@ -537,9 +559,28 @@ func PinMessage(c *gin.Context) {
 
 	var msg models.Message
 	db.MessageCollection.FindOne(c, bson.M{"_id": msgID}).Decode(&msg)
-	utils.TriggerPusher("chat-"+chatIDStr, "message-pinned", msg)
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+	var sender models.User
+	db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})).Decode(&sender)
+
+	populatedMsg := gin.H{
+		"_id":            msg.ID,
+		"chatId":         msg.ChatID,
+		"sender":         sender,
+		"senderUsername": msg.SenderUsername,
+		"text":           msg.Text,
+		"mediaUrl":       msg.MediaURL,
+		"mediaType":      msg.MediaType,
+		"status":         msg.Status,
+		"isPinned":       msg.IsPinned,
+		"createdAt":      msg.CreatedAt,
+		"updatedAt":      msg.UpdatedAt,
+		"reactions":      msg.Reactions,
+	}
+
+	utils.TriggerPusher("chat-"+chatIDStr, "message-pinned", populatedMsg)
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": populatedMsg})
 }
 
 func UnpinMessage(c *gin.Context) {

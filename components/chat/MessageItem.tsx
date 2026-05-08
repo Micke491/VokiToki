@@ -660,16 +660,16 @@ const MessageItem = ({
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <EmojiPicker
-                    onEmojiClick={(emojiData) =>
-                      onReaction(emojiData, message._id)
-                    }
-                    theme={Theme.AUTO}
-                    skinTonesDisabled
-                    searchDisabled
-                    width={320}
-                    height={400}
-                  />
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) =>
+                        onReaction(emojiData, message._id)
+                      }
+                      theme={Theme.AUTO}
+                      skinTonesDisabled
+                      searchDisabled
+                      width={320}
+                      height={400}
+                    />
                 </div>
               )}
 

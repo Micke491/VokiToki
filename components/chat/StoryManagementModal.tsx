@@ -37,7 +37,9 @@ export default function StoryManagementModal({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (stories.length > 0 && !selectedStoryId) {
+    if (selectedStoryId && !stories.some(s => s._id === selectedStoryId)) {
+      setSelectedStoryId(stories.length > 0 ? stories[0]._id : null);
+    } else if (stories.length > 0 && !selectedStoryId) {
       setSelectedStoryId(stories[0]._id);
     }
   }, [stories, selectedStoryId]);
