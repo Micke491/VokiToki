@@ -3,7 +3,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Phone, PhoneOff, Video } from "lucide-react";
-import Image from "next/image";
 
 interface IncomingCallModalProps {
   callData: {
@@ -33,11 +32,10 @@ export default function IncomingCallModal({ callData, onAccept, onDecline }: Inc
           <div className="absolute inset-0 bg-chat-accent rounded-full animate-ping opacity-20" />
           {callData.caller_avatar ? (
             <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-chat-bg-secondary relative z-10 shadow-lg">
-              <Image
+              <img
                 src={callData.caller_avatar}
                 alt={callData.caller_name}
-                fill
-                className="object-cover"
+                className="w-full h-full object-cover"
               />
             </div>
           ) : (

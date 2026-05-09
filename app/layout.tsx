@@ -25,7 +25,6 @@ export const metadata: Metadata = {
   description: "A modern real-time chat application",
 };
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -55,8 +54,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NotificationListener />
         {children}
+        <NotificationListener />
       </body>
     </html>
   );

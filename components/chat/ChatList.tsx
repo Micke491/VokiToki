@@ -67,7 +67,6 @@ export default function ChatList({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
-
   useEffect(() => {
     fetchChats();
   }, []);
@@ -93,9 +92,10 @@ export default function ChatList({
 
         const existingChat = prevChats[existingChatIndex];
         const isCurrentChat = data.chatId === selectedChatIdRef.current;
+        const amISender = data.lastMessage?.sender?._id === currentUserId || data.lastMessage?.sender === currentUserId;
 
         let newUnreadCount = 0;
-        if (isCurrentChat) {
+        if (isCurrentChat || amISender) {
           newUnreadCount = 0;
         } else if (data.unreadCount !== undefined && data.unreadCount > 0) {
           newUnreadCount = (existingChat.unreadCount || 0) + data.unreadCount;
@@ -265,7 +265,6 @@ export default function ChatList({
     }
   };
 
-
   const handleChatClick = (chatId: string) => {
     setChats(prev => prev.map(c =>
       c._id === chatId ? { ...c, unreadCount: 0 } : c
@@ -418,9 +417,6 @@ export default function ChatList({
                       ) : (
                         (chatName || "G").charAt(0).toUpperCase()
                       )}
-                      {isUnread && (
-                        <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full"></span>
-                      )}
                     </div>
                   ) : (
                     (() => {
@@ -443,9 +439,6 @@ export default function ChatList({
                                }
                              }}
                            />
-                           {isUnread && (
-                             <span className="absolute top-0 right-0 w-3 h-3 bg-chat-accent border-2 border-chat-bg-primary rounded-full z-[60]"></span>
-                           )}
                         </div>
                       );
                     })()

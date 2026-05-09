@@ -9,6 +9,7 @@ export interface Message {
     email: string;
     avatar?: string;
   };
+  senderUsername?: string;
   text: string;
   createdAt: string;
   updatedAt: string;

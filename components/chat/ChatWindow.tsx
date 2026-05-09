@@ -1298,7 +1298,7 @@ export default function ChatWindow({
                         groupAdminId={groupAdminId}
                         onJumpToMessage={jumpToMessage}
                         onPreviewImage={setPreviewImage}
-                        onCallAction={(type) => {
+                        onCallAction={(type, callId) => {
                           if (isRecipientDeleted) {
                             alert("You cannot call a deleted account.");
                             return;
@@ -1308,7 +1308,7 @@ export default function ChatWindow({
                             return;
                           }
                           const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
-                          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type, calleeId } }));
+                          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type, calleeId, callId } }));
                         }}
                         onReport={(msg) => setReportingMessage(msg)}
                       />

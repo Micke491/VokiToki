@@ -7,6 +7,9 @@ import { showNotification, isNotificationsEnabled, registerServiceWorker } from 
 import { usePathname } from "next/navigation";
 import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import CallModal from "@/components/chat/CallModal";
+import { getAuthToken } from "@/lib/storage";
+import { motion } from "framer-motion";
+import { Phone, PhoneOff, Video } from "lucide-react";
 
 interface User {
   _id: string;
@@ -16,21 +19,47 @@ interface User {
 
 export default function NotificationListener({ currentUser: propUser }: { currentUser?: User | null }) {
   const [internalUser, setInternalUser] = useState<User | null>(null);
-  
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+
+  const fetchUser = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setInternalUser(null);
+        return;
+      }
+      const response = await apiFetch(`/api/users/current_user`);
+      if (response.ok) {
+        const data = await response.json();
+        setInternalUser(data.user);
+      } else {
+        setInternalUser(null);
+      }
+    } catch (error) {
+      setInternalUser(null);
+    }
+  };
+
   useEffect(() => {
     if (propUser === undefined) {
-      const fetchUser = async () => {
-        try {
-          const response = await apiFetch(`/api/users/current_user`);
-          if (response.ok) {
-            const data = await response.json();
-            setInternalUser(data.user);
-          }
-        } catch (error) {}
-      };
       fetchUser();
+      
+      window.addEventListener("storage", fetchUser);
+      window.addEventListener("auth-update", fetchUser);
+      
+      return () => {
+        window.removeEventListener("storage", fetchUser);
+        window.removeEventListener("auth-update", fetchUser);
+      };
     }
   }, [propUser]);
+
+  useEffect(() => {
+    if (propUser === undefined && !internalUser) {
+      fetchUser();
+    }
+  }, [pathname, propUser, internalUser]);
 
   const currentUser = propUser !== undefined ? propUser : internalUser;
 
@@ -44,8 +73,6 @@ export default function NotificationListener({ currentUser: propUser }: { curren
   const [pendingCallId, setPendingCallId] = useState<string | null>(null);
   
   const activeCallRef = useRef(activeCall);
-  const pathname = usePathname();
-  const pathnameRef = useRef(pathname);
 
   useEffect(() => {
     activeCallRef.current = activeCall;
@@ -125,7 +152,6 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     };
 
     const handleCallAccepted = (data: any) => {
-      // The caller receives this when the callee accepts the call
       if (pendingCallId === data.call_id) {
         setActiveCall((prev) => ({
           ...prev!,
@@ -168,41 +194,63 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     const handleStartCall = async (e: Event) => {
       if (activeCallRef.current || !currentUser) return;
       
-      const { chatId, type, calleeId } = (e as CustomEvent).detail;
+      const { chatId, type, calleeId, callId: existingCallId } = (e as CustomEvent).detail;
       
-      if (!calleeId) {
+      if (!calleeId && !existingCallId && !chatId) {
         alert("Cannot determine who to call.");
         return;
       }
 
+      const newCallId = existingCallId || [...Array(24)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+
       setActiveCall({
-        callId: "",
+        callId: newCallId,
         type,
         token: "",
         username: "...",
       });
 
       try {
-        const res = await apiFetch("/api/call/initiate", {
-          method: "POST",
-          body: JSON.stringify({
-            caller_id: currentUser._id,
-            callee_id: calleeId,
-            call_type: type,
-            caller_name: currentUser.username,
-            caller_avatar: currentUser.avatar,
-            chat_id: chatId,
-          }),
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setPendingCallId(data.call_id);
-          // Wait for call_accepted pusher event to get the token
+        if (existingCallId) {
+          const res = await apiFetch("/api/call/accept", {
+            method: "POST",
+            body: JSON.stringify({ call_id: existingCallId, user_id: currentUser._id }),
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            setActiveCall({
+              callId: existingCallId,
+              type,
+              token: data.token,
+              username: "Active Call",
+            });
+          } else {
+            const err = await res.json();
+            alert(err.error || "Could not join call.");
+            setActiveCall(null);
+          }
         } else {
-          const err = await res.json();
-          alert(err.error || "Could not start call.");
-          setActiveCall(null);
+          setPendingCallId(newCallId);
+          const res = await apiFetch("/api/call/initiate", {
+            method: "POST",
+            body: JSON.stringify({
+              call_id: newCallId,
+              caller_id: currentUser._id,
+              callee_id: calleeId || "",
+              call_type: type,
+              caller_name: currentUser.username,
+              caller_avatar: currentUser.avatar,
+              chat_id: chatId,
+            }),
+          });
+          
+          if (!res.ok) {
+            const err = await res.json();
+            alert(err.error || "Could not start call.");
+            setActiveCall(null);
+            setPendingCallId(null);
+          }
         }
       } catch (err) {
         setActiveCall(null);
@@ -212,6 +260,39 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     window.addEventListener("start-call", handleStartCall);
     return () => window.removeEventListener("start-call", handleStartCall);
   }, [currentUser]);
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (pendingCallId && activeCall && !activeCall.token) {
+      timeout = setTimeout(() => {
+        apiFetch("/api/call/end", {
+          method: "POST",
+          body: JSON.stringify({ call_id: pendingCallId, user_id: currentUser?._id })
+        }).catch(() => {});
+        setActiveCall(null);
+        setPendingCallId(null);
+      }, 30000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [pendingCallId, activeCall, currentUser]);
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (incomingCall) {
+      timeout = setTimeout(() => {
+        apiFetch("/api/call/reject", {
+          method: "POST",
+          body: JSON.stringify({ call_id: incomingCall.call_id, user_id: currentUser?._id })
+        }).catch(() => {});
+        setIncomingCall(null);
+      }, 30000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [incomingCall, currentUser]);
 
   const leaveCall = () => {
     if (activeCall) {
@@ -271,10 +352,25 @@ export default function NotificationListener({ currentUser: propUser }: { curren
       )}
       
       {activeCall && !activeCall.token && (
-        <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center text-white backdrop-blur-md">
-          <div className="flex flex-col items-center">
-            <div className="w-12 h-12 border-4 border-chat-accent border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-xl font-medium animate-pulse">Calling...</p>
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="w-full max-w-sm bg-chat-bg-primary rounded-3xl p-6 shadow-2xl flex flex-col items-center border border-chat-border"
+          >
+            <div className="relative mb-6 mt-4">
+              <div className="absolute inset-0 bg-chat-accent rounded-full animate-ping opacity-20" />
+              <div className="w-24 h-24 rounded-full flex items-center justify-center border-4 border-chat-bg-secondary relative z-10 shadow-lg text-chat-accent text-3xl font-bold uppercase bg-chat-bg-secondary">
+                {activeCall.type === 'video' ? <Video className="w-10 h-10 animate-pulse" /> : <Phone className="w-10 h-10 animate-pulse" />}
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-chat-text-primary mb-1 text-center">
+              Calling...
+            </h2>
+            <p className="text-chat-text-secondary mb-8 text-sm flex items-center gap-2">
+              Waiting for answer
+            </p>
             <button 
               onClick={() => {
                 if (pendingCallId) {
@@ -286,11 +382,16 @@ export default function NotificationListener({ currentUser: propUser }: { curren
                 setActiveCall(null);
                 setPendingCallId(null);
               }}
-              className="mt-8 px-6 py-2 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
+              className="flex flex-col items-center gap-2 group"
             >
-              Cancel
+              <div className="w-14 h-14 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-md">
+                <PhoneOff className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-medium text-chat-text-secondary group-hover:text-red-500 transition-colors">
+                Cancel
+              </span>
             </button>
-          </div>
+          </motion.div>
         </div>
       )}
     </>

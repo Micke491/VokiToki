@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,6 +68,7 @@ type CallState struct {
 }
 
 type InitiateCallReq struct {
+	CallID       string `json:"call_id"`
 	CallerID     string `json:"caller_id"`
 	CalleeID     string `json:"callee_id"`
 	CallType     string `json:"call_type"`
@@ -87,13 +89,18 @@ func InitiateCall(c *gin.Context) {
 		return
 	}
 
-	isBusy, _ := getCache("user_status:" + req.CalleeID)
-	if isBusy == "busy" {
-		c.JSON(http.StatusConflict, gin.H{"error": "User is busy"})
+	callID := req.CallID
+	if callID == "" {
+		callID = uuid.New().String()
+	}
+
+	val, err := getCache("call:" + callID)
+	if err == nil && strings.Contains(val, "cancelled") {
+		c.JSON(http.StatusOK, gin.H{"message": "Call was cancelled before it started"})
 		return
 	}
 
-	callID := uuid.New().String()
+	isGroupCall := req.CalleeID == ""
 	state := CallState{
 		CallID:       callID,
 		CallerID:     req.CallerID,
@@ -109,16 +116,37 @@ func InitiateCall(c *gin.Context) {
 
 	setCache("call:"+callID, string(stateJSON), 60*time.Second)
 	setCache("user_status:"+req.CallerID, "busy", 60*time.Second)
-	setCache("user_status:"+req.CalleeID, "busy", 60*time.Second)
+	if !isGroupCall {
+		setCache("user_status:"+req.CalleeID, "busy", 60*time.Second)
+	}
 
-	utils.TriggerPusher("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
-		"call_id":       callID,
-		"caller_id":     req.CallerID,
-		"call_type":     req.CallType,
-		"caller_name":   req.CallerName,
-		"caller_avatar": req.CallerAvatar,
-		"chat_id":       req.ChatID,
-	})
+	if isGroupCall {
+		chatID, _ := bson.ObjectIDFromHex(req.ChatID)
+		var chat models.Chat
+		db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+		for _, pID := range chat.Participants {
+			if pID.Hex() == req.CallerID {
+				continue
+			}
+			utils.TriggerPusher("user-"+pID.Hex(), "incoming_call", map[string]interface{}{
+				"call_id":       callID,
+				"caller_id":     req.CallerID,
+				"call_type":     req.CallType,
+				"caller_name":   req.CallerName,
+				"caller_avatar": req.CallerAvatar,
+				"chat_id":       req.ChatID,
+			})
+		}
+	} else {
+		utils.TriggerPusher("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
+			"call_id":       callID,
+			"caller_id":     req.CallerID,
+			"call_type":     req.CallType,
+			"caller_name":   req.CallerName,
+			"caller_avatar": req.CallerAvatar,
+			"chat_id":       req.ChatID,
+		})
+	}
 
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
@@ -131,7 +159,7 @@ func InitiateCall(c *gin.Context) {
 				ChatID:          chatID,
 				Sender:          currentUser.ID,
 				SenderUsername:  currentUser.Username,
-				Text:            req.CallType + " call started",
+				Text:            fmt.Sprintf("%s started a %s call", currentUser.Username, req.CallType),
 				MediaType:       "call",
 				MediaPublicID:   callID,
 				IsSystemMessage: false,
@@ -152,13 +180,13 @@ func InitiateCall(c *gin.Context) {
 				populatedMsg := gin.H{
 					"_id":            callMsg.ID,
 					"chatId":         callMsg.ChatID,
-					"sender":         gin.H{"_id": currentUser.ID, "username": currentUser.Username, "avatar": req.CallerAvatar},
+					"sender":         gin.H{"_id": currentUser.ID, "username": currentUser.Username, "avatar": currentUser.Avatar},
 					"senderUsername": callMsg.SenderUsername,
 					"text":           callMsg.Text,
 					"mediaType":      callMsg.MediaType,
 					"mediaPublicId":  callMsg.MediaPublicID,
 					"status":         callMsg.Status,
-					"createdAt":      callMsg.CreatedAt,
+					"createdAt":      callMsg.CreatedAt.Format(time.RFC3339),
 				}
 				utils.TriggerPusher("chat-"+req.ChatID, "receive-message", populatedMsg)
 				utils.TriggerPusher("user-"+req.CalleeID, "chat-update", gin.H{
@@ -195,14 +223,11 @@ func AcceptCall(c *gin.Context) {
 	stateJSON, _ := json.Marshal(state)
 	setCache("call:"+req.CallID, string(stateJSON), 2*time.Hour)
 	setCache("user_status:"+state.CallerID, "busy", 2*time.Hour)
-	setCache("user_status:"+state.CalleeID, "busy", 2*time.Hour)
-
-	userObj, _ := c.Get("user")
-	calleeUser := userObj.(models.User)
-	calleeName := calleeUser.Username
+	if state.CalleeID != "" {
+		setCache("user_status:"+state.CalleeID, "busy", 2*time.Hour)
+	}
 
 	callerName := state.CallerName
-
 	if callerName == "" {
 		callerObjID, err := bson.ObjectIDFromHex(state.CallerID)
 		if err == nil {
@@ -215,29 +240,29 @@ func AcceptCall(c *gin.Context) {
 		}
 	}
 
-	if calleeName == "" {
-		calleeObjID, err := bson.ObjectIDFromHex(state.CalleeID)
-		if err == nil {
-			var callee models.User
-			db.UserCollection.FindOne(c, bson.M{"_id": calleeObjID}).Decode(&callee)
-			calleeName = callee.Username
-		}
-		if calleeName == "" {
-			calleeName = "Callee"
-		}
+	isCaller := req.UserID == state.CallerID
+
+	var participantName string
+	userObjID, _ := bson.ObjectIDFromHex(req.UserID)
+	var user models.User
+	db.UserCollection.FindOne(c, bson.M{"_id": userObjID}).Decode(&user)
+	participantName = user.Username
+	if participantName == "" {
+		participantName = "User"
 	}
 
-	callerToken := generateLiveKitToken(req.CallID, state.CallerID, callerName)
-	calleeToken := generateLiveKitToken(req.CallID, state.CalleeID, calleeName)
+	responseToken := generateLiveKitToken(req.CallID, req.UserID, participantName)
 
-	utils.TriggerPusher("user-"+state.CallerID, "call_accepted", map[string]interface{}{
-		"call_id": req.CallID,
-		"token":   callerToken,
-	})
+	if !isCaller {
+		utils.TriggerPusher("user-"+state.CallerID, "call_accepted", map[string]interface{}{
+			"call_id": req.CallID,
+			"token":   generateLiveKitToken(req.CallID, state.CallerID, state.CallerName),
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Call accepted",
-		"token":   calleeToken,
+		"token":   responseToken,
 	})
 }
 
@@ -271,12 +296,19 @@ func RejectCall(c *gin.Context) {
 				},
 			})
 			msg.Text = "Call Ended"
+			var sender models.User
+			db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}).Decode(&sender)
+
 			populatedMsg := gin.H{
-				"_id":           msg.ID,
-				"chatId":        msg.ChatID,
-				"text":          msg.Text,
-				"mediaType":     msg.MediaType,
-				"mediaPublicId": msg.MediaPublicID,
+				"_id":            msg.ID,
+				"chatId":         msg.ChatID,
+				"sender":         gin.H{"_id": sender.ID, "username": sender.Username, "avatar": sender.Avatar},
+				"senderUsername": msg.SenderUsername,
+				"text":           msg.Text,
+				"mediaType":      msg.MediaType,
+				"mediaPublicId":  msg.MediaPublicID,
+				"createdAt":      msg.CreatedAt,
+				"updatedAt":      time.Now(),
 			}
 			utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
 		}
@@ -320,15 +352,24 @@ func EndCall(c *gin.Context) {
 				},
 			})
 			msg.Text = "Call Ended"
+			var sender models.User
+			db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}).Decode(&sender)
+
 			populatedMsg := gin.H{
-				"_id":           msg.ID,
-				"chatId":        msg.ChatID,
-				"text":          msg.Text,
-				"mediaType":     msg.MediaType,
-				"mediaPublicId": msg.MediaPublicID,
+				"_id":            msg.ID,
+				"chatId":         msg.ChatID,
+				"sender":         gin.H{"_id": sender.ID, "username": sender.Username, "avatar": sender.Avatar},
+				"senderUsername": msg.SenderUsername,
+				"text":           msg.Text,
+				"mediaType":      msg.MediaType,
+				"mediaPublicId":  msg.MediaPublicID,
+				"createdAt":      msg.CreatedAt,
+				"updatedAt":      time.Now(),
 			}
 			utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
 		}
+	} else {
+		setCache("call:"+req.CallID, `{"status": "cancelled"}`, 60*time.Second)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Call ended"})

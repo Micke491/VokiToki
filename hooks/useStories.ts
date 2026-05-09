@@ -90,7 +90,6 @@ export function useStories(currentUserId: string) {
       channel.unbind('story-viewed');
       channel.unbind('story-new');
       channel.unbind('story-deleted');
-      pusherClient.unsubscribe(`user-${currentUserId}`);
     };
   }, [currentUserId, fetchStories]);
 

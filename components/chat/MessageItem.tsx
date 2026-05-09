@@ -52,7 +52,7 @@ interface MessageItemProps {
   groupAdminId?: string;
   onJumpToMessage?: (messageId: string) => Promise<void> | void;
   onPreviewImage: (url: string) => void;
-  onCallAction?: (callType: "voice" | "video") => void;
+  onCallAction?: (callType: "voice" | "video", callId?: string) => void;
   onReport: (message: Message) => void;
 }
 
@@ -86,11 +86,13 @@ const MessageItem = ({
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
-  const sender = message.sender || {
-    _id: "unknown",
-    username: "Unknown User",
-    avatar: "",
-  };
+  const sender = typeof message.sender === "object" && message.sender !== null 
+    ? message.sender 
+    : {
+        _id: typeof message.sender === "string" ? message.sender : "unknown",
+        username: message.senderUsername || "Unknown User",
+        avatar: "",
+      };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -444,9 +446,10 @@ const MessageItem = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onCallAction(isVideo ? "video" : "voice");
+                              const existingCallId = isEnded ? undefined : message.mediaPublicId;
+                              onCallAction(isVideo ? "video" : "voice", existingCallId);
                             }}
-                            className={`ml-auto px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 ${
+                            className={`ml-auto px-4 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 flex items-center gap-2 ${
                               isEnded
                                 ? "bg-chat-bg-primary hover:bg-chat-hover text-chat-text-primary border border-chat-border"
                                 : isOwn
