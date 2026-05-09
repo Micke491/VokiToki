@@ -107,6 +107,11 @@ func main() {
 
 		api.GET("/chat/media/list", handlers.ListMedia)
 		api.POST("/chat/media/upload", handlers.UploadMedia)
+
+		api.POST("/call/initiate", handlers.InitiateCall)
+		api.POST("/call/accept", handlers.AcceptCall)
+		api.POST("/call/reject", handlers.RejectCall)
+		api.POST("/call/end", handlers.EndCall)
 	}
 
 	go handlers.StartStoryCleanup()

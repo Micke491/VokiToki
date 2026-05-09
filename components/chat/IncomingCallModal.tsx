@@ -1,92 +1,86 @@
-import React, { useEffect } from "react";
-import { Phone, Video } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { IncomingCallData } from "../../types/chat";
+"use client";
+
+import React from "react";
+import { motion } from "framer-motion";
+import { Phone, PhoneOff, Video } from "lucide-react";
+import Image from "next/image";
 
 interface IncomingCallModalProps {
-  callData: IncomingCallData;
+  callData: {
+    call_id: string;
+    caller_id: string;
+    call_type: "voice" | "video";
+    caller_name: string;
+    caller_avatar?: string;
+    chat_id: string;
+  };
   onAccept: () => void;
   onDecline: () => void;
 }
 
 export default function IncomingCallModal({ callData, onAccept, onDecline }: IncomingCallModalProps) {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onDecline();
-    }, 30000);
-    return () => clearTimeout(timer);
-  }, [onDecline]);
-
-  useEffect(() => {
-    let audio: HTMLAudioElement | null = null;
-    try {
-      audio = new Audio('/ringtone.mp3'); 
-      audio.loop = true;
-      audio.play().catch(e => {
-        if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
-          console.warn('Ringtone could not be played (likely missing /ringtone.mp3)', e.message);
-        }
-      });
-    } catch(e) {
-      console.error('Audio initialization failed', e);
-    }
-
-    return () => {
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-    };
-  }, []);
+  const isVideo = callData.call_type === "video";
 
   return (
-    <AnimatePresence>
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, y: -50, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -50, scale: 0.9 }}
-        className="fixed top-6 left-1/2 -translate-x-1/2 z-[110] bg-chat-glass backdrop-blur-2xl rounded-2xl shadow-2xl border border-chat-border p-4 w-[90%] max-w-sm flex flex-col items-center"
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="w-full max-w-sm bg-chat-bg-primary rounded-3xl p-6 shadow-2xl flex flex-col items-center border border-chat-border"
       >
-        <div className="w-16 h-16 rounded-full overflow-hidden mb-3 bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center shadow-lg border-2 border-chat-bg-primary">
-          {callData.callerAvatar ? (
-            <img src={callData.callerAvatar} alt={callData.callerName} className="w-full h-full object-cover" />
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-chat-accent rounded-full animate-ping opacity-20" />
+          {callData.caller_avatar ? (
+            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-chat-bg-secondary relative z-10 shadow-lg">
+              <Image
+                src={callData.caller_avatar}
+                alt={callData.caller_name}
+                fill
+                className="object-cover"
+              />
+            </div>
           ) : (
-            <span className="text-2xl font-bold text-white">
-              {callData.callerName.charAt(0).toUpperCase()}
-            </span>
+            <div className="w-24 h-24 rounded-full bg-chat-accent/20 flex items-center justify-center border-4 border-chat-bg-secondary relative z-10 shadow-lg text-chat-accent text-3xl font-bold uppercase">
+              {callData.caller_name.charAt(0)}
+            </div>
           )}
         </div>
-        
-        <h3 className="text-lg font-semibold text-chat-text-primary mb-1 text-center">
-          {callData.callerName}
-        </h3>
-        <p className="text-sm text-chat-text-secondary mb-6 text-center flex items-center justify-center gap-2">
-          {callData.callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
-          Incoming {callData.callType} call...
+
+        <h2 className="text-2xl font-bold text-chat-text-primary mb-1 text-center">
+          {callData.caller_name}
+        </h2>
+        <p className="text-chat-text-secondary mb-8 text-sm flex items-center gap-2">
+          {isVideo ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+          Incoming {isVideo ? "Video" : "Voice"} Call...
         </p>
 
-        <div className="flex items-center justify-center gap-8 w-full">
+        <div className="flex items-center gap-8 w-full justify-center">
           <button
             onClick={onDecline}
             className="flex flex-col items-center gap-2 group"
           >
-            <div className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/20 group-hover:bg-red-600 transition-colors">
-              <Phone className="w-6 h-6 rotate-[135deg]" />
+            <div className="w-14 h-14 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-md">
+              <PhoneOff className="w-6 h-6" />
             </div>
-            <span className="text-xs font-medium text-chat-text-secondary">Decline</span>
+            <span className="text-xs font-medium text-chat-text-secondary group-hover:text-red-500 transition-colors">
+              Decline
+            </span>
           </button>
 
           <button
             onClick={onAccept}
-            className="flex flex-col items-center gap-2 group animate-bounce"
+            className="flex flex-col items-center gap-2 group"
           >
-            <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center text-white shadow-lg shadow-green-500/20 group-hover:bg-green-600 transition-colors">
-              {callData.callType === 'video' ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
+            <div className="w-14 h-14 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-md animate-pulse group-hover:animate-none">
+              {isVideo ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
             </div>
-            <span className="text-xs font-medium text-chat-text-secondary">Accept</span>
+            <span className="text-xs font-medium text-chat-text-secondary group-hover:text-green-500 transition-colors">
+              Accept
+            </span>
           </button>
         </div>
       </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }

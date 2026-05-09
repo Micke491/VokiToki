@@ -35,7 +35,13 @@ export default function NotificationListener({ currentUser: propUser }: { curren
   const currentUser = propUser !== undefined ? propUser : internalUser;
 
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
-  const [activeCall, setActiveCall] = useState<{ chatId: string; type: "voice" | "video" } | null>(null);
+  const [activeCall, setActiveCall] = useState<{ 
+    callId: string; 
+    type: "voice" | "video";
+    token: string;
+    username: string;
+  } | null>(null);
+  const [pendingCallId, setPendingCallId] = useState<string | null>(null);
   
   const activeCallRef = useRef(activeCall);
   const pathname = usePathname();
@@ -97,61 +103,107 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     };
 
     const handleIncomingCall = (data: any) => {
-      const callerId = data.callerId?.toString();
+      const callerId = data.caller_id?.toString();
       const myId = currentUser._id?.toString();
 
       if (callerId && myId && callerId !== myId) {
         setIncomingCall(data);
 
         if (isNotificationsEnabled()) {
-          const callerName = data.callerName || 'Someone';
-          const callType = data.callType === 'video' ? 'Video' : 'Voice';
+          const callerName = data.caller_name || 'Someone';
+          const callType = data.call_type === 'video' ? 'Video' : 'Voice';
           
           showNotification({
             title: `${callType} Call`,
             body: `${callerName} is calling you...`,
-            chatId: data.chatId,
+            chatId: data.chat_id,
             type: 'call',
-            icon: data.callerAvatar,
+            icon: data.caller_avatar,
           });
         }
       }
     };
 
+    const handleCallAccepted = (data: any) => {
+      // The caller receives this when the callee accepts the call
+      if (pendingCallId === data.call_id) {
+        setActiveCall((prev) => ({
+          ...prev!,
+          callId: data.call_id,
+          token: data.token,
+        }));
+        setPendingCallId(null);
+      }
+    };
+
+    const handleCallRejected = (data: any) => {
+      if (pendingCallId === data.call_id || activeCallRef.current?.callId === data.call_id) {
+        setActiveCall(null);
+        setPendingCallId(null);
+        alert("Call was declined.");
+      }
+    };
+
     const handleCallEnded = (data: any) => {
-      setIncomingCall((prev: any) => (prev?.chatId === data.chatId ? null : prev));
-      setActiveCall((prev: any) => (prev?.chatId === data.chatId ? null : prev));
+      setIncomingCall((prev: any) => (prev?.call_id === data.call_id ? null : prev));
+      setActiveCall((prev: any) => (prev?.callId === data.call_id ? null : prev));
     };
 
     userChannel.bind("chat-update", handleChatUpdate);
-    userChannel.bind("call:incoming", handleIncomingCall);
-    userChannel.bind("call:ended", handleCallEnded);
+    userChannel.bind("incoming_call", handleIncomingCall);
+    userChannel.bind("call_accepted", handleCallAccepted);
+    userChannel.bind("call_rejected", handleCallRejected);
+    userChannel.bind("call_ended", handleCallEnded);
 
     return () => {
       userChannel.unbind("chat-update", handleChatUpdate);
-      userChannel.unbind("call:incoming", handleIncomingCall);
-      userChannel.unbind("call:ended", handleCallEnded);
+      userChannel.unbind("incoming_call", handleIncomingCall);
+      userChannel.unbind("call_accepted", handleCallAccepted);
+      userChannel.unbind("call_rejected", handleCallRejected);
+      userChannel.unbind("call_ended", handleCallEnded);
     };
-  }, [currentUser]);
+  }, [currentUser, pendingCallId]);
 
   useEffect(() => {
     const handleStartCall = async (e: Event) => {
       if (activeCallRef.current || !currentUser) return;
       
-      const { chatId, type } = (e as CustomEvent).detail;
+      const { chatId, type, calleeId } = (e as CustomEvent).detail;
       
-      setActiveCall({ chatId, type });
+      if (!calleeId) {
+        alert("Cannot determine who to call.");
+        return;
+      }
+
+      setActiveCall({
+        callId: "",
+        type,
+        token: "",
+        username: "...",
+      });
 
       try {
-        await apiFetch("/api/calls/notify", {
+        const res = await apiFetch("/api/call/initiate", {
           method: "POST",
           body: JSON.stringify({
-            chatId,
-            callType: type,
-            callerName: currentUser.username,
-            callerAvatar: currentUser.avatar,
+            caller_id: currentUser._id,
+            callee_id: calleeId,
+            call_type: type,
+            caller_name: currentUser.username,
+            caller_avatar: currentUser.avatar,
+            chat_id: chatId,
           }),
         });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setPendingCallId(data.call_id);
+          // Wait for call_accepted pusher event to get the token
+        } else {
+          const err = await res.json();
+          alert(err.error || "Could not start call.");
+          setActiveCall(null);
+        }
       } catch (err) {
         setActiveCall(null);
       }
@@ -161,32 +213,85 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     return () => window.removeEventListener("start-call", handleStartCall);
   }, [currentUser]);
 
+  const leaveCall = () => {
+    if (activeCall) {
+      apiFetch("/api/call/end", {
+        method: "POST",
+        body: JSON.stringify({ call_id: activeCall.callId, user_id: currentUser?._id }),
+      }).catch(() => {});
+    }
+    setActiveCall(null);
+  };
+
   return (
     <>
       {incomingCall && (
         <IncomingCallModal
           callData={incomingCall}
-          onAccept={() => {
-            setActiveCall({ chatId: incomingCall.chatId, type: incomingCall.callType });
+          onAccept={async () => {
+            try {
+              const res = await apiFetch("/api/call/accept", {
+                method: "POST",
+                body: JSON.stringify({ call_id: incomingCall.call_id, user_id: currentUser?._id }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                setActiveCall({
+                  callId: incomingCall.call_id,
+                  type: incomingCall.call_type,
+                  token: data.token,
+                  username: incomingCall.caller_name,
+                });
+              } else {
+                alert("Failed to accept call.");
+              }
+            } catch (e) {
+              console.error(e);
+            }
             setIncomingCall(null);
           }}
           onDecline={() => {
-            apiFetch("/api/calls/end", {
+            apiFetch("/api/call/reject", {
               method: "POST",
-              body: JSON.stringify({ chatId: incomingCall.chatId, callType: incomingCall.callType }),
+              body: JSON.stringify({ call_id: incomingCall.call_id, user_id: currentUser?._id }),
             }).catch(() => {});
             setIncomingCall(null);
           }}
         />
       )}
 
-      {activeCall && currentUser && (
+      {activeCall && currentUser && activeCall.token && (
         <CallModal
-          chatId={activeCall.chatId}
+          roomName={activeCall.callId}
+          token={activeCall.token}
           callType={activeCall.type}
-          username={currentUser.username}
-          onLeave={() => setActiveCall(null)}
+          username={activeCall.username}
+          onLeave={leaveCall}
         />
+      )}
+      
+      {activeCall && !activeCall.token && (
+        <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center text-white backdrop-blur-md">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 border-4 border-chat-accent border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-xl font-medium animate-pulse">Calling...</p>
+            <button 
+              onClick={() => {
+                if (pendingCallId) {
+                  apiFetch("/api/call/end", {
+                    method: "POST",
+                    body: JSON.stringify({ call_id: pendingCallId, user_id: currentUser?._id })
+                  });
+                }
+                setActiveCall(null);
+                setPendingCallId(null);
+              }}
+              className="mt-8 px-6 py-2 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </>
   );

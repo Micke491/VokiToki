@@ -327,9 +327,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   return (
     <div className="flex h-screen-safe bg-background text-chat-text-primary overflow-hidden relative">
-
-      <NotificationListener currentUser={currentUser} />
-
       {/* Signature Ambient Gradient */}
       <div className="ambient-glow">
         <div className="ambient-glow-inner" />

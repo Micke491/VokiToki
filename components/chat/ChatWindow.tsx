@@ -1164,7 +1164,8 @@ export default function ChatWindow({
             alert("You cannot call this user. There is a block between you.");
             return;
           }
-          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type: callType } }));
+          const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
+          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type: callType, calleeId } }));
         }}
         isBlocked={isBlockedChat}
         isDeleted={isRecipientDeleted}
@@ -1306,8 +1307,8 @@ export default function ChatWindow({
                             alert("You cannot call this user. There is a block between you.");
                             return;
                           }
-                          // Triggers the active UI call locally/globally
-                          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type } }));
+                          const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
+                          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type, calleeId } }));
                         }}
                         onReport={(msg) => setReportingMessage(msg)}
                       />

@@ -674,7 +674,7 @@ const MessageItem = ({
               )}
 
               {/* Message Actions Menu */}
-              {!message.isDeletedForEveryone && (
+              {!message.isDeletedForEveryone && message.mediaType !== "call" && (
                 <>
                   {/* New Simplified Message Actions */}
                   <div
