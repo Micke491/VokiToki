@@ -30,6 +30,7 @@ import EmojiPicker from "emoji-picker-react";
 import ImagePreviewModal from "../ui/ImagePreviewModal";
 import UserProfileModal from "../ui/UserProfileModal";
 import ReportModal from "../ui/ReportModal";
+import StoryRing from "./StoryRing";
 
 export default function ChatWindow({
   chatId,
@@ -173,7 +174,8 @@ export default function ChatWindow({
         const exists = prev.some((m) => String(m._id) === String(message._id));
         if (exists) return prev;
 
-        if (message.sender && message.sender._id !== currentUserId) {
+        const senderId = typeof message.sender === "object" ? message.sender?._id : message.sender;
+        if (senderId && senderId !== currentUserId) {
           apiFetch(`/api/chat/message/messages/${message._id}/status`, {
             method: "PATCH",
             body: JSON.stringify({ status: "seen" }),
@@ -187,8 +189,13 @@ export default function ChatWindow({
         const { scrollTop, scrollHeight, clientHeight } =
           messagesContainerRef.current;
         const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-        if (isNearBottom) {
-          setTimeout(scrollToBottom, 100);
+        const senderId = typeof message.sender === "object" ? message.sender?._id : message.sender;
+        const isOwnMessage = senderId === currentUserId;
+
+        if (isOwnMessage) {
+          setTimeout(() => scrollToBottom(true), 100);
+        } else if (isNearBottom) {
+          setTimeout(() => scrollToBottom(false), 100);
         } else {
           setUnreadCountBelow((prev) => prev + 1);
         }
@@ -636,14 +643,23 @@ export default function ChatWindow({
 
   const scrollToBottom = (force: boolean | React.SyntheticEvent = false) => {
     if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        messagesContainerRef.current;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-      const shouldForce = force === true;
+      const performScroll = () => {
+        if (!messagesContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } =
+          messagesContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+        const shouldForce = force === true;
 
-      if (shouldForce || isNearBottom) {
-        messagesContainerRef.current.scrollTop =
-          messagesContainerRef.current.scrollHeight;
+        if (shouldForce || isNearBottom) {
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight;
+        }
+      };
+
+      performScroll();
+      if (force === true) {
+        requestAnimationFrame(performScroll);
+        setTimeout(performScroll, 100);
       }
     }
   };
@@ -1209,7 +1225,7 @@ export default function ChatWindow({
                     >
                       <div className="flex items-center gap-2 text-xs text-chat-text-tertiary">
                         <span className="font-semibold text-chat-text-primary">
-                          {msg.sender?.username || "Unknown User"}
+                          {msg.sender?.username || msg.senderUsername || "Unknown User"}
                         </span>
                       </div>
                       <div className="text-chat-text-secondary line-clamp-1 text-xs">
@@ -1257,6 +1273,67 @@ export default function ChatWindow({
               </div>
             ) : (
               <div className="p-4 md:p-6 space-y-6 min-h-full flex flex-col justify-end relative z-10">
+                {!hasMore && (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="relative mb-4">
+                      {isGroup ? (
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-3xl font-bold text-white shadow-xl overflow-hidden ring-4 ring-chat-bg-primary">
+                          {recipientAvatar ? (
+                            <img src={recipientAvatar} alt={recipientUsername} className="w-full h-full object-cover" />
+                          ) : (
+                            (recipientUsername || "G").charAt(0).toUpperCase()
+                          )}
+                        </div>
+                      ) : (
+                        <StoryRing
+                          size="xl"
+                          avatarUrl={recipientAvatar}
+                          username={recipientUsername || "?"}
+                          showLabel={false}
+                          hasUnviewedStory={false}
+                          onClick={() => {
+                            const otherUser = participants?.find(p => p._id !== currentUserId);
+                            if (recipientStoriesUser?.stories && recipientStoriesUser.stories.length > 0 && onStoryClick) {
+                              onStoryClick(recipientStoriesUser.user._id, recipientStoriesUser.stories, recipientStoriesUser.user.username, recipientStoriesUser.user.avatar);
+                            } else if (otherUser) {
+                              setViewingProfileUserId(otherUser._id);
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-chat-text-primary mb-1">
+                      {recipientUsername || (isGroup ? "Group Chat" : "Chat")}
+                    </h2>
+                    
+                    {!isGroup && recipientUsername && (
+                      <p className="text-sm text-chat-text-secondary mb-6 font-medium">
+                        {recipientUsername}
+                      </p>
+                    )}
+                    
+                    {isGroup && (
+                      <p className="text-sm text-chat-text-secondary mb-6 font-medium">
+                         Group Chat · {participants?.length || 0} participants
+                      </p>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        if (isGroup) {
+                          setShowSidebar(true);
+                        } else {
+                          const otherUser = participants?.find(p => p._id !== currentUserId);
+                          if (otherUser) setViewingProfileUserId(otherUser._id);
+                        }
+                      }}
+                      className="px-6 py-2 bg-chat-bg-secondary hover:bg-chat-bg-tertiary text-chat-text-primary text-sm font-semibold rounded-lg transition-all active:scale-95 shadow-sm border border-chat-border"
+                    >
+                      {isGroup ? "View Group Info" : "View Profile"}
+                    </button>
+                  </div>
+                )}
                 {loadingMore && (
                   <div className="flex justify-center py-2">
                     <div className="w-5 h-5 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
@@ -1288,7 +1365,7 @@ export default function ChatWindow({
                         onViewStatus={setViewingReceiptsFor}
                         onReaction={handleReaction}
                         onRemoveReaction={removeReaction}
-                        scrollToBottom={scrollToBottom}
+                        scrollToBottom={() => scrollToBottom(isOwn)}
                         showEmojiPicker={showEmojiPicker}
                         setShowEmojiPicker={setShowEmojiPicker}
                         showMoreMenu={showMoreMenu}

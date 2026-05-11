@@ -235,7 +235,7 @@ const MessageItem = ({
           )}
 
           <div
-            className={`flex items-end gap-2 max-w-[85%] md:max-w-[70%] min-w-0 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+            className={`flex items-end gap-2 max-w-[50%] md:max-w-[35%] min-w-0 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
           >
             {/* Avatar (Partner) */}
             {!isOwn && (
@@ -298,14 +298,14 @@ const MessageItem = ({
                 </div>
               )}
               <div
-                className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed shadow-sm relative min-w-0 [overflow-wrap:anywhere] [word-break:break-word]
+                className={`p-3 rounded-2xl text-[14px] leading-relaxed shadow-sm relative min-w-0 [overflow-wrap:anywhere] [word-break:break-word]
                       ${
                         isOwn
                           ? "bg-chat-accent text-white rounded-br-none"
                           : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                       }
                       ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
-                      ${(message.mediaUrl && !message.text) || message.mediaType === "call" ? "bg-transparent !p-0 shadow-none border-none" : "px-4 py-2.5 shadow-sm"}
+                      ${(message.mediaUrl && !message.text) || message.mediaType === "call" ? "bg-transparent !p-0 shadow-none border-none" : "p-3 shadow-sm"}
                   `}
               >
                 {!message.isDeletedForEveryone && message.replyTo && (
@@ -731,7 +731,7 @@ const MessageItem = ({
                           data-more-menu
                           className={`
                           absolute bottom-full mb-2 flex flex-col bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl py-1 min-w-[150px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200
-                          ${isOwn ? "left-0" : "right-0"}
+                          ${isOwn ? "right-0" : "left-0"}
                         `}
                         >
                           {isOwn &&

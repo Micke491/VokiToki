@@ -543,7 +543,29 @@ func GetPinnedMessages(c *gin.Context) {
 	cursor, _ := db.MessageCollection.Find(c, bson.M{"chatId": chatID, "isPinned": true}, options.Find().SetSort(bson.M{"createdAt": -1}).SetLimit(1))
 	cursor.All(c, &messages)
 
-	c.JSON(http.StatusOK, messages)
+	populatedMessages := []gin.H{}
+	for _, msg := range messages {
+		var sender models.User
+		db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})).Decode(&sender)
+
+		populatedMessages = append(populatedMessages, gin.H{
+			"_id":            msg.ID,
+			"chatId":         msg.ChatID,
+			"sender":         sender,
+			"senderUsername": msg.SenderUsername,
+			"text":           msg.Text,
+			"mediaUrl":       msg.MediaURL,
+			"mediaType":      msg.MediaType,
+			"mediaPublicId":  msg.MediaPublicID,
+			"status":         msg.Status,
+			"isPinned":       msg.IsPinned,
+			"createdAt":      msg.CreatedAt,
+			"updatedAt":      msg.UpdatedAt,
+			"reactions":      msg.Reactions,
+		})
+	}
+
+	c.JSON(http.StatusOK, populatedMessages)
 }
 
 func PinMessage(c *gin.Context) {
