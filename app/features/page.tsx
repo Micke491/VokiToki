@@ -15,7 +15,6 @@ import {
   CheckCircle2
 } from "lucide-react";
 
-// Desktop 3D scene
 function Scene() {
   return (
     <>
@@ -44,35 +43,7 @@ function Scene() {
   );
 }
 
-// Lightweight mobile 3D scene
-function SceneMobile() {
-  return (
-    <>
-      <ambientLight intensity={1.2} />
-      <pointLight position={[0, 0, 0]} color="#60a5fa" intensity={8} distance={6} />
-      <Float speed={1.5} rotationIntensity={0.3} floatIntensity={1}>
-        <Sphere args={[1.1, 28, 28]} position={[0, 0, 0]}>
-          <MeshDistortMaterial
-            color="#93c5fd"
-            emissive="#2563eb"
-            emissiveIntensity={1.5}
-            attach="material"
-            distort={0.35}
-            speed={1}
-            roughness={0.1}
-            metalness={1}
-            wireframe={true}
-            transparent
-            opacity={0.35}
-          />
-        </Sphere>
-      </Float>
-      <Sparkles count={40} scale={7} size={2} speed={0.3} opacity={0.35} color="#93c5fd" />
-    </>
-  );
-}
-
-const detailedFeatures = [
+const detailedFeatures =[
   {
     id: "instant-messaging",
     title: "Instant Messaging",
@@ -80,7 +51,7 @@ const detailedFeatures = [
     icon: Zap,
     color: "text-blue-400",
     bg: "bg-blue-400/10",
-    points: ["Real-time delivery status", "Typing indicators", "Message reactions & replies"]
+    points:["Real-time delivery status", "Typing indicators", "Message reactions & replies"]
   },
   {
     id: "end-to-end-security",
@@ -89,7 +60,7 @@ const detailedFeatures = [
     icon: ShieldCheck,
     color: "text-emerald-400",
     bg: "bg-emerald-400/10",
-    points: ["AES-256 end-to-end encryption", "Self-destructing messages", "Zero data harvesting or ads"]
+    points:["AES-256 end-to-end encryption", "Self-destructing messages", "Zero data harvesting or ads"]
   },
   {
     id: "rich-media-sharing",
@@ -98,7 +69,7 @@ const detailedFeatures = [
     icon: Share2,
     color: "text-purple-400",
     bg: "bg-purple-400/10",
-    points: ["Uncompressed photo & video", "Voice memos with waveform playback", "Large file transfers (up to 2 GB)"]
+    points:["Uncompressed photo & video", "Voice memos with waveform playback", "Large file transfers (up to 2 GB)"]
   },
   {
     id: "cross-platform-sync",
@@ -107,13 +78,13 @@ const detailedFeatures = [
     icon: Smartphone,
     color: "text-orange-400",
     bg: "bg-orange-400/10",
-    points: ["Instant cloud sync across devices", "Multi-device simultaneous login", "Full offline access & drafts"]
+    points:["Instant cloud sync across devices", "Multi-device simultaneous login", "Full offline access & drafts"]
   }
 ];
 
 export default function FeaturesPage() {
   const [isMounted, setIsMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const[isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -122,7 +93,7 @@ export default function FeaturesPage() {
     const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", listener);
     return () => mq.removeEventListener("change", listener);
-  }, []);
+  },[]);
 
   if (!isMounted) return null;
 
@@ -130,16 +101,8 @@ export default function FeaturesPage() {
     <div className="relative min-h-screen bg-[#09090b] text-zinc-100 font-sans selection:bg-blue-500/30 overflow-x-hidden">
 
       {/* --- Persistent Background --- */}
-      {isMobile ? (
-        <div
-          className="fixed top-8 right-[-1.5rem] z-0 pointer-events-none"
-          style={{ width: "180px", height: "180px", opacity: 0.45 }}
-        >
-          <Canvas camera={{ position: [0, 0, 3.5], fov: 50 }} dpr={[1, 1]} gl={{ powerPreference: "low-power", antialias: false }}>
-            <SceneMobile />
-          </Canvas>
-        </div>
-      ) : (
+      {/* Exclude 3D Canvas completely on mobile */}
+      {!isMobile && (
         <div className="fixed inset-0 z-0 pointer-events-none opacity-40">
           <Canvas camera={{ position: [0, 0, 6], fov: 45 }} dpr={[1, 1.5]} gl={{ powerPreference: "high-performance", antialias: true }}>
             <Scene />
@@ -157,7 +120,10 @@ export default function FeaturesPage() {
         <div className="flex gap-8 items-center">
           <Link href="/features" className="text-sm font-medium text-blue-400">Features</Link>
           <Link href="/about" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">About</Link>
-          <Link href="/auth-pages/login" className="text-sm font-medium bg-white text-black px-5 py-2 rounded-full hover:bg-zinc-200 transition-all">Login</Link>
+          {/* Hide Login on mobile */}
+          {!isMobile && (
+            <Link href="/auth-pages/login" className="text-sm font-medium bg-white text-black px-5 py-2 rounded-full hover:bg-zinc-200 transition-all">Login</Link>
+          )}
         </div>
       </nav>
 
@@ -246,12 +212,21 @@ export default function FeaturesPage() {
         <div className="mt-32 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to experience it?</h2>
           <p className="text-zinc-400 mb-8 max-w-md mx-auto">Join thousands of people who chose privacy without sacrificing experience</p>
-          <Link
-            href="/auth-pages/register"
-            className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium text-white bg-blue-600 rounded-full hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_-10px_rgba(37,99,235,0.5)]"
-          >
-            Create Your Account
-          </Link>
+          {isMobile ? (
+            <button
+              onClick={() => alert("Feature coming")}
+              className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium text-white bg-blue-600 rounded-full hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_-10px_rgba(37,99,235,0.5)]"
+            >
+              Download
+            </button>
+          ) : (
+            <Link
+              href="/auth-pages/register"
+              className="inline-flex items-center justify-center px-10 py-4 text-lg font-medium text-white bg-blue-600 rounded-full hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_-10px_rgba(37,99,235,0.5)]"
+            >
+              Create Your Account
+            </Link>
+          )}
         </div>
 
       </main>

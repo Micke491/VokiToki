@@ -62,46 +62,19 @@ function Scene() {
   );
 }
 
-function SceneMobile() {
-  return (
-    <>
-      <ambientLight intensity={1.2} color="#ffffff" />
-      <pointLight position={[0, 0, 0]} color="#60a5fa" intensity={10} distance={8} />
-      <Float speed={1.5} rotationIntensity={0.3} floatIntensity={1}>
-        <Sphere args={[1.2, 32, 32]} position={[0, 0, 0]}>
-          <MeshDistortMaterial
-            color="#93c5fd"
-            emissive="#2563eb"
-            emissiveIntensity={1.5}
-            attach="material"
-            distort={0.35}
-            speed={1}
-            roughness={0.1}
-            metalness={1}
-            wireframe={true}
-            transparent
-            opacity={0.4}
-          />
-        </Sphere>
-      </Float>
-      <Sparkles count={50} scale={8} size={2} speed={0.3} opacity={0.4} color="#93c5fd" />
-    </>
-  );
-}
-
 function StaticBackground() {
   return (
     <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#09090b] to-[#09090b]" />
   );
 }
 
-const navItems = [
+const navItems =[
   { label: "Features", href: "/features" },
   { label: "About", href: "/about" },
   { label: "Login", href: "/auth-pages/login" },
 ];
 
-const features = [
+const features =[
   {
     id: "instant-messaging",
     title: "Instant Messaging",
@@ -146,7 +119,7 @@ export default function LandingPage() {
       mediaQuery.removeEventListener("change", listener);
       mq.removeEventListener("change", mobileListener);
     };
-  }, []);
+  },[]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -163,7 +136,7 @@ export default function LandingPage() {
       }
     };
     checkSession();
-  }, [router]);
+  },[router]);
 
   if (!isMounted) return null;
 
@@ -177,28 +150,17 @@ export default function LandingPage() {
         Skip to main content
       </a>
 
-      {/* 3D Canvas — desktop: full screen, mobile: smaller top-right bubble */}
-      {!prefersReducedMotion ? (
-        isMobile ? (
-          <div
-            className="absolute top-10 right-[-2rem] z-0 pointer-events-none"
-            style={{ width: "220px", height: "220px", opacity: 0.55 }}
+      {/* 3D Canvas — Desktop only, Static Background for mobile or reduced motion */}
+      {!prefersReducedMotion && !isMobile ? (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Canvas
+            camera={{ position: [0, 0, 6], fov: 45 }}
+            dpr={[1, 1.5]}
+            gl={{ powerPreference: "high-performance", antialias: true }}
           >
-            <Canvas camera={{ position: [0, 0, 4], fov: 50 }} dpr={[1, 1.5]} gl={{ powerPreference: "low-power", antialias: false }}>
-              <SceneMobile />
-            </Canvas>
-          </div>
-        ) : (
-          <div className="absolute inset-0 z-0 pointer-events-none">
-            <Canvas
-              camera={{ position: [0, 0, 6], fov: 45 }}
-              dpr={[1, 1.5]}
-              gl={{ powerPreference: "high-performance", antialias: true }}
-            >
-              <Scene />
-            </Canvas>
-          </div>
-        )
+            <Scene />
+          </Canvas>
+        </div>
       ) : (
         <StaticBackground />
       )}
@@ -217,6 +179,9 @@ export default function LandingPage() {
 
         <ul className="flex items-center gap-6 md:gap-8">
           {navItems.map((item) => {
+            // Hide Login on mobile
+            if (isMobile && item.label === "Login") return null;
+
             const isActive = pathname === item.href;
             return (
               <li key={item.href} className="hidden sm:block">
@@ -234,14 +199,17 @@ export default function LandingPage() {
               </li>
             );
           })}
-          <li>
-            <Link
-              href="/auth-pages/register"
-              className="text-sm font-medium bg-white text-[#09090b] px-5 py-2.5 rounded-full hover:bg-blue-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] motion-reduce:transition-none motion-reduce:hover:scale-100"
-            >
-              Sign Up
-            </Link>
-          </li>
+          {/* Hide Sign Up on mobile */}
+          {!isMobile && (
+            <li>
+              <Link
+                href="/auth-pages/register"
+                className="text-sm font-medium bg-white text-[#09090b] px-5 py-2.5 rounded-full hover:bg-blue-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] motion-reduce:transition-none motion-reduce:hover:scale-100"
+              >
+                Sign Up
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
 
@@ -263,12 +231,21 @@ export default function LandingPage() {
           </p>
 
           <div className="flex justify-center pt-8">
-            <Link
-              href="/auth-pages/register"
-              className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100"
-            >
-              Start Chatting Now
-            </Link>
+            {isMobile ? (
+              <button
+                onClick={() => alert("Feature coming")}
+                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100"
+              >
+                Download
+              </button>
+            ) : (
+              <Link
+                href="/auth-pages/register"
+                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100"
+              >
+                Start Chatting Now
+              </Link>
+            )}
           </div>
         </section>
 

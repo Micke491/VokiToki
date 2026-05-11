@@ -13,7 +13,6 @@ import {
   Github,
 } from "lucide-react";
 
-// Desktop 3D scene
 function Scene() {
   return (
     <>
@@ -42,35 +41,7 @@ function Scene() {
   );
 }
 
-// Lightweight mobile 3D scene
-function SceneMobile() {
-  return (
-    <>
-      <ambientLight intensity={1.2} />
-      <pointLight position={[0, 0, 0]} color="#60a5fa" intensity={8} distance={6} />
-      <Float speed={1.5} rotationIntensity={0.3} floatIntensity={1}>
-        <Sphere args={[1.1, 28, 28]} position={[0, 0, 0]}>
-          <MeshDistortMaterial
-            color="#93c5fd"
-            emissive="#2563eb"
-            emissiveIntensity={1.5}
-            attach="material"
-            distort={0.35}
-            speed={1}
-            roughness={0.1}
-            metalness={1}
-            wireframe={true}
-            transparent
-            opacity={0.35}
-          />
-        </Sphere>
-      </Float>
-      <Sparkles count={40} scale={7} size={2} speed={0.3} opacity={0.35} color="#93c5fd" />
-    </>
-  );
-}
-
-const values = [
+const values =[
   {
     title: "Privacy First",
     description: "We believe privacy is a fundamental human right, not a selling point. We architect every system so that even we cannot read your messages because we never should",
@@ -102,7 +73,7 @@ export default function AboutPage() {
     const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", listener);
     return () => mq.removeEventListener("change", listener);
-  }, []);
+  },[]);
 
   if (!isMounted) return null;
 
@@ -110,16 +81,8 @@ export default function AboutPage() {
     <div className="relative min-h-screen bg-[#09090b] text-zinc-100 font-sans selection:bg-blue-500/30 overflow-x-hidden">
 
       {/* --- Persistent Background --- */}
-      {isMobile ? (
-        <div
-          className="fixed top-8 right-[-1.5rem] z-0 pointer-events-none"
-          style={{ width: "180px", height: "180px", opacity: 0.45 }}
-        >
-          <Canvas camera={{ position: [0, 0, 3.5], fov: 50 }} dpr={[1, 1]} gl={{ powerPreference: "low-power", antialias: false }}>
-            <SceneMobile />
-          </Canvas>
-        </div>
-      ) : (
+      {/* Exclude 3D Canvas completely on mobile */}
+      {!isMobile && (
         <div className="fixed inset-0 z-0 pointer-events-none opacity-40">
           <Canvas camera={{ position: [0, 0, 6], fov: 45 }} dpr={[1, 1.5]} gl={{ powerPreference: "high-performance", antialias: true }}>
             <Scene />
@@ -137,7 +100,10 @@ export default function AboutPage() {
         <div className="flex gap-8 items-center">
           <Link href="/features" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">Features</Link>
           <Link href="/about" className="text-sm font-medium text-blue-400">About</Link>
-          <Link href="/auth-pages/login" className="text-sm font-medium bg-white text-black px-5 py-2 rounded-full hover:bg-zinc-200 transition-all">Login</Link>
+          {/* Hide Login on mobile */}
+          {!isMobile && (
+            <Link href="/auth-pages/login" className="text-sm font-medium bg-white text-black px-5 py-2 rounded-full hover:bg-zinc-200 transition-all">Login</Link>
+          )}
         </div>
       </nav>
 
