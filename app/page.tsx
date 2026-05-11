@@ -99,7 +99,7 @@ export default function LandingPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const[isMounted, setIsMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -168,6 +168,7 @@ export default function LandingPage() {
       <div className="pointer-events-none absolute inset-0 flex justify-center z-0">
         <div className="h-[50rem] w-[100%] max-w-[70rem] bg-blue-500/20 blur-[100px] md:blur-[140px] rounded-full translate-y-[-15%] mix-blend-screen transform-gpu motion-safe:will-change-transform"></div>
       </div>
+      
       <nav
         aria-label="Main navigation"
         className="w-full bg-[#09090b]/40 backdrop-blur-lg flex items-center justify-between px-6 py-5 fixed top-0 left-0 right-0 z-50 border-b border-white/10"
@@ -230,22 +231,38 @@ export default function LandingPage() {
             Chat with friends, share moments, and stay connected — no ads, no noise, no compromises. Just clean, fast, encrypted communication built around you.
           </p>
 
-          <div className="flex justify-center pt-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 w-full max-w-md sm:max-w-none mx-auto">
             {isMobile ? (
               <button
                 onClick={() => alert("Feature coming")}
-                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100"
+                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100 w-full sm:w-auto"
               >
                 Download
               </button>
             ) : (
               <Link
                 href="/auth-pages/register"
-                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100"
+                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100 w-full sm:w-auto"
               >
                 Start Chatting Now
               </Link>
             )}
+
+            <div className="flex w-full sm:w-auto gap-4">
+              <Link
+                href="/features"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3.5 text-base font-medium text-zinc-300 bg-white/5 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:text-white border border-white/10 hover:border-white/20 hover:scale-[1.03] active:scale-[0.97]"
+              >
+                Features
+              </Link>
+              
+              <Link
+                href="/about"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3.5 text-base font-medium text-zinc-300 bg-white/5 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:text-white border border-white/10 hover:border-white/20 hover:scale-[1.03] active:scale-[0.97]"
+              >
+                About Us
+              </Link>
+            </div>
           </div>
         </section>
 
