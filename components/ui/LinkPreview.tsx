@@ -15,12 +15,16 @@ interface LinkPreviewProps {
   url: string;
 }
 
+const previewCache = new Map<string, LinkPreviewData>();
+
 export default function LinkPreview({ url }: LinkPreviewProps) {
-  const [metadata, setMetadata] = useState<LinkPreviewData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [metadata, setMetadata] = useState<LinkPreviewData | null>(previewCache.get(url) || null);
+  const [loading, setLoading] = useState(!previewCache.has(url));
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (previewCache.has(url)) return;
+    
     let isMounted = true;
 
     const fetchMetadata = async () => {
@@ -32,6 +36,7 @@ export default function LinkPreview({ url }: LinkPreviewProps) {
         const data = await response.json();
 
         if (isMounted) {
+          previewCache.set(url, data);
           setMetadata(data);
           setLoading(false);
         }

@@ -340,15 +340,6 @@ export default function ChatList({
             >
               <Plus className="w-6 h-6" />
             </button>
-            <div className="md:hidden">
-              <button
-                onClick={onMenuClick}
-                className="p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
-                title="Menu"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-            </div>
           </div>
         </div>
         <div className="relative">

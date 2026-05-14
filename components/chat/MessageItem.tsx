@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, memo } from "react";
 import { apiFetch } from "@/lib/api";
 import {
   Mic,
@@ -94,62 +94,8 @@ const MessageItem = ({
         avatar: "",
       };
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(event.target as Node)
-      ) {
-        setShowEmojiPicker(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [setShowEmojiPicker]);
-
-  const bind = useDrag(
-    ({ down, movement: [mx, my], velocity: [vx, vy], direction: [dx, dy] }) => {
-      // Only enable on mobile
-      if (typeof window !== "undefined" && window.innerWidth >= 768) return;
-
-      const triggerDistance = 60;
-      const isSwipingCorrectDirection = isOwn ? mx < 0 : mx > 0;
-
-      if (!isSwipingCorrectDirection) {
-        if (!down)
-          controls.start({
-            x: 0,
-            transition: { type: "spring", stiffness: 300, damping: 30 },
-          });
-        return;
-      }
-
-      if (down) {
-        controls.start({
-          x: mx,
-          transition: { type: "spring", stiffness: 400, damping: 40 },
-        });
-      } else {
-        controls.start({
-          x: 0,
-          transition: { type: "spring", stiffness: 300, damping: 30 },
-        });
-        if (
-          Math.abs(mx) > triggerDistance ||
-          (Math.abs(vx) > 0.5 && Math.abs(mx) > 20)
-        ) {
-          onReply(message);
-        }
-      }
-    },
-    { axis: "x", filterTaps: true },
-  );
-
-  useEffect(() => {
-    controls.set({ x: 0 });
-  }, [controls]);
+  // Removed redundant global click listener from MessageItem.
+  // The parent ChatWindow already manages this to avoid N listeners for N messages.
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
@@ -185,13 +131,11 @@ const MessageItem = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.3,
-        type: "spring",
-        stiffness: 300,
-        damping: 25,
+        duration: 0.2,
+        ease: "easeOut"
       }}
       key={message._id}
       className="relative"
@@ -215,7 +159,6 @@ const MessageItem = ({
           id={`message-${message._id}`}
           className={`group flex flex-col ${isOwn ? "items-end" : "items-start"} mb-2 transition-all duration-300 relative touch-pan-y`}
           style={{ zIndex: showEmojiPicker === message._id ? 1000 : 10 }}
-          {...(bind() as any)}
           animate={controls}
         >
           {/* Reply Context */}
@@ -235,7 +178,7 @@ const MessageItem = ({
           )}
 
           <div
-            className={`flex items-end gap-2 max-w-[50%] md:max-w-[35%] min-w-0 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+            className={`flex items-end gap-2 max-w-[35%] min-w-0 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
           >
             {/* Avatar (Partner) */}
             {!isOwn && (
@@ -643,12 +586,7 @@ const MessageItem = ({
                   onClick={(e) => e.stopPropagation()}
                   className={`
                     fixed z-[99999] shadow-2xl rounded-xl overflow-hidden
-                    ${
-                      isOwn
-                        ? "right-4 sm:right-auto sm:translate-x-0"
-                        : "left-4 sm:left-auto sm:translate-x-0"
-                    }
-                    bottom-20 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2
+                    left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2
                     animate-in zoom-in duration-200
                   `}
                 >
@@ -858,4 +796,4 @@ const MessageItem = ({
   );
 };
 
-export default MessageItem;
+export default memo(MessageItem);

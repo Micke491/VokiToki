@@ -333,11 +333,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       </div>
 
       {/* 1. Global Navigation Sidebar */}
-      <div className={`${chatId && !showSidebarDrawer ? "hidden md:block" : "block"} relative z-[100]`}>
+      <div className="relative z-[100]">
         <SideBar
           currentUser={currentUser || undefined}
-          isMobileDrawerOpen={showSidebarDrawer}
-          onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
+          isMobileDrawerOpen={false}
+          onCloseMobileDrawer={() => {}}
         />
       </div>
 
@@ -347,8 +347,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           className={`
           relative flex-shrink-0 border-r border-chat-border bg-chat-glass backdrop-blur-md
           transition-all duration-300 ease-in-out
-          w-full md:w-[320px] lg:w-[360px]
-          ${chatId ? "hidden md:block" : "block"}
+          w-[320px] lg:w-[360px]
+          block
         `}
         >
           {/* StoryBar - horizontal scroll row at top of ChatList */}
@@ -369,7 +369,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             selectedChatId={chatId}
             onChatSelect={(id) => router.push(`/chat/${id}`)}
             onNewChat={() => setShowNewChatModal(true)}
-            onMenuClick={() => setShowSidebarDrawer(true)}
+            onMenuClick={() => {}}
             onViewProfile={(userId) => setViewingProfile({ isOpen: true, userId })}
             storiesUsers={allStoriesUsers}
             onStoryClick={handleStoryClick}
@@ -379,8 +379,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
         {/* 3. Chat Window Panel */}
         <div
           className={`
-          flex-1 flex flex-col min-w-0 bg-transparent
-          ${!chatId ? "hidden md:flex" : "flex"}
+          flex-1 flex flex-col min-w-[400px] bg-transparent
         `}
         >
           {chatId && currentUser ? (
@@ -393,7 +392,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               isGroup={chatMetadata.isGroup}
               groupAdminId={selectedChat?.groupAdmin}
               participants={selectedChat?.participants}
-              onMenuClick={() => setShowSidebarDrawer(true)}
+              onMenuClick={() => {}}
               recipientStoriesUser={allStoriesUsers.find(u => u.user._id === selectedChat?.participants.find(p => p._id !== currentUser?._id)?._id)}
               onStoryClick={handleStoryClick}
             />

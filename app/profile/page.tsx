@@ -256,11 +256,11 @@ export default function ProfilePage() {
       </div>
 
       {/* Sidebar */}
-      <div className={`${!showSidebarDrawer ? 'hidden md:block' : 'block'} relative z-[100]`}>
+      <div className="relative z-[100]">
         <SideBar
           currentUser={currentUser || undefined}
-          isMobileDrawerOpen={showSidebarDrawer}
-          onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
+          isMobileDrawerOpen={false}
+          onCloseMobileDrawer={() => {}}
         />
       </div>
 
@@ -294,9 +294,9 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-y-auto pb-20 md:pb-0 relative z-10 w-full">
+      <div className="flex-1 overflow-y-auto pb-0 relative z-10 w-full">
         {/* Header */}
-        <header className="px-6 py-8 md:px-10 max-w-5xl mx-auto border-b border-chat-border/50 mb-8">
+        <header className="px-10 py-8 max-w-5xl mx-auto border-b border-chat-border/50 mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/chat')}
@@ -310,22 +310,16 @@ export default function ProfilePage() {
                 Manage your public profile and stories
               </p>
             </div>
-            <button
-              onClick={() => setShowSidebarDrawer(true)}
-              className="md:hidden p-3 bg-chat-bg-secondary hover:bg-chat-hover border border-chat-border rounded-2xl text-chat-text-primary transition-all ml-auto"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
           </div>
         </header>
 
-        <div className="max-w-5xl px-6 md:px-10 mx-auto pb-12">
+        <div className="max-w-5xl px-10 mx-auto pb-12">
           {/* Profile Card - Glassmorphic Design */}
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10 mb-8"
+            className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10 mb-8"
           >
             {/* Avatar Section */}
             <div className="flex flex-col items-center mb-8">
@@ -625,7 +619,7 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.1 }}
-            className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
+            className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10"
           >
             <div className="flex items-center justify-between mb-6">
               <button
@@ -664,7 +658,7 @@ export default function ProfilePage() {
                 <p className="text-sm mt-1">Add a photo or video to share with your contacts</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 {stories.map((story) => (
                   <motion.div
                     key={story._id}

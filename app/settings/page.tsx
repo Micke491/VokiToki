@@ -282,11 +282,11 @@ export default function SettingsPage() {
         <div className="ambient-glow-inner" />
       </div>
 
-      <div className={`${!showSidebarDrawer ? "hidden md:block" : "block"} relative z-[100]`}>
+      <div className="relative z-[100]">
         <SideBar 
           currentUser={currentUser || undefined} 
-          isMobileDrawerOpen={showSidebarDrawer}
-          onCloseMobileDrawer={() => setShowSidebarDrawer(false)}
+          isMobileDrawerOpen={false}
+          onCloseMobileDrawer={() => {}}
         />
       </div>
 
@@ -310,9 +310,9 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-y-auto pb-20 md:pb-0 relative z-10 w-full">
+      <div className="flex-1 overflow-y-auto pb-0 relative z-10 w-full">
         {/* Header */}
-        <header className="px-6 py-8 md:px-10 max-w-6xl mx-auto border-b border-chat-border/50 mb-8">
+        <header className="px-10 py-8 max-w-6xl mx-auto border-b border-chat-border/50 mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/chat')}
@@ -324,19 +324,13 @@ export default function SettingsPage() {
               <h1 className="text-3xl font-black text-chat-text-primary tracking-tight">Settings</h1>
               <p className="text-chat-text-secondary font-medium mt-1">Manage your preferences and account</p>
             </div>
-            <button
-              onClick={() => setShowSidebarDrawer(true)}
-              className="md:hidden p-3 bg-chat-bg-secondary hover:bg-chat-hover border border-chat-border rounded-2xl text-chat-text-primary transition-all ml-auto"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
           </div>
         </header>
 
-        <div className="max-w-6xl px-6 md:px-10 mx-auto flex flex-col md:flex-row gap-8 pb-12">
+        <div className="max-w-6xl px-10 mx-auto flex flex-row gap-8 pb-12">
 
           {/* Settings Sub-Sidebar Menu */}
-          <aside className="w-full md:w-64 shrink-0 space-y-2">
+          <aside className="w-64 shrink-0 space-y-2">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -387,7 +381,7 @@ export default function SettingsPage() {
                 <motion.section
                   key="privacy"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10 space-y-10"
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10 space-y-10"
                 >
                   {/* Privacy Section */}
                   <div>
@@ -445,7 +439,7 @@ export default function SettingsPage() {
 
                     <div className="space-y-4">
                       {/* Password Reset */}
-                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-row items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base">Account Password</h3>
                           <p className="text-sm text-chat-text-secondary mt-1">Request a password change via your registered email address.</p>
@@ -453,7 +447,7 @@ export default function SettingsPage() {
                         <button
                           onClick={handlePasswordResetRequest}
                           disabled={requestingPassword}
-                          className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap w-full sm:w-auto"
+                          className="px-5 py-2.5 bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm whitespace-nowrap w-auto"
                         >
                           {requestingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                           {requestingPassword ? 'Sending...' : 'Change Password'}
@@ -461,7 +455,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Two-Factor Authentication (2FA) */}
-                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-row items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
                             <Smartphone className="w-4 h-4 text-chat-accent"/>
@@ -473,7 +467,7 @@ export default function SettingsPage() {
                         </div>
                         <button
                           onClick={() => {/* Implement 2FA setup route */}}
-                          className={`px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-full sm:w-auto ${
+                          className={`px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-auto ${
                             twoFactor
                               ? 'bg-green-500/10 text-green-500 border border-green-500/20'
                               : 'bg-chat-accent text-white hover:bg-chat-accent-hover shadow-lg shadow-chat-accent/20'
@@ -492,7 +486,7 @@ export default function SettingsPage() {
                 <motion.section
                   key="notifications"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10 space-y-10"
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10 space-y-10"
                 >
                   <div>
                     <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
@@ -579,13 +573,13 @@ export default function SettingsPage() {
                 <motion.section
                   key="appearance"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-8 md:p-10"
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10"
                 >
                   <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
                     <Palette className="w-6 h-6 text-chat-accent" />
                     Appearance Preference
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <button
                       onClick={() => handleThemeChange('light')}
                       className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all ${theme === 'light' ? 'border-chat-accent bg-chat-accent/10 shadow-lg shadow-chat-accent/10' : 'border-chat-border bg-chat-input hover:bg-chat-hover'}`}
@@ -610,13 +604,13 @@ export default function SettingsPage() {
                 <motion.section
                   key="danger"
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                  className="bg-red-500/5 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-red-500/20 p-8 md:p-10"
+                  className="bg-red-500/5 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-red-500/20 p-10"
                 >
                   <h2 className="text-xl font-bold text-red-500 mb-6 flex items-center gap-3">
                     <AlertTriangle className="w-6 h-6 text-red-500" />
                     Danger Zone
                   </h2>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+                  <div className="flex flex-row items-center justify-between gap-6 bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
                     <div>
                       <p className="font-bold text-red-600 text-lg">Delete Account</p>
                       <p className="text-sm text-red-600/80 font-medium mt-1">Permanently remove all your data, messages, and chats</p>

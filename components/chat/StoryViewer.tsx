@@ -262,8 +262,8 @@ export default function StoryViewer({
            />
         )}
 
-        {/* Story Container (Phone aspect ratio look on desktop) */}
-        <div className="relative w-full max-w-lg h-full max-h-screen md:h-[90vh] md:rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center bg-black">
+        {/* Story Container (Always Desktop View) */}
+        <div className="relative w-full max-w-lg h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center bg-black">
           
           {/* Progress bars */}
           <div className="absolute top-0 left-0 right-0 z-30 flex gap-1.5 px-4 pt-4">
@@ -290,7 +290,7 @@ export default function StoryViewer({
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-30 pt-8 pb-16 px-4 bg-gradient-to-b from-black/60 to-transparent flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 md:w-9 md:h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
+              <div className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
                 <div className="w-full h-full rounded-full bg-chat-bg-primary p-[1.5px]">
                   <div className="w-full h-full rounded-full overflow-hidden bg-chat-bg-primary">
                     {userAvatar ? (
@@ -308,8 +308,8 @@ export default function StoryViewer({
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="text-white font-bold text-[13px] md:text-sm leading-none drop-shadow-md">{username}</span>
-                <span className="text-white/70 text-[9px] md:text-[10px] drop-shadow-md mt-0.5">
+                <span className="text-white font-bold text-sm leading-none drop-shadow-md">{username}</span>
+                <span className="text-white/70 text-[10px] drop-shadow-md mt-0.5">
                   {new Date(currentStory.createdAt).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -325,10 +325,10 @@ export default function StoryViewer({
                     setShowReportModal(true);
                     setIsPaused(true);
                   }}
-                  className="p-1.5 md:p-2 text-amber-500/90 hover:text-amber-500 transition-colors"
+                  className="p-2 text-amber-500/90 hover:text-amber-500 transition-colors"
                   title="Report Story"
                 >
-                  <ShieldAlert className="w-4 h-4 md:w-5 md:h-5 shadow-sm" />
+                  <ShieldAlert className="w-5 h-5 shadow-sm" />
                 </button>
               )}
               {isVideo && (
@@ -337,9 +337,9 @@ export default function StoryViewer({
                     e.stopPropagation();
                     setIsMuted((prev) => !prev);
                   }}
-                  className="p-1.5 md:p-2 text-white/90 hover:text-white transition-colors"
+                  className="p-2 text-white/90 hover:text-white transition-colors"
                 >
-                  {isMuted ? <VolumeX className="w-4 h-4 md:w-5 md:h-5 shadow-sm" /> : <Volume2 className="w-4 h-4 md:w-5 md:h-5 shadow-sm" />}
+                  {isMuted ? <VolumeX className="w-5 h-5 shadow-sm" /> : <Volume2 className="w-5 h-5 shadow-sm" />}
                 </button>
               )}
               <button
@@ -347,9 +347,9 @@ export default function StoryViewer({
                   e.stopPropagation();
                   onClose();
                 }}
-                className="p-1.5 md:p-2 text-white/90 hover:text-white transition-colors"
+                className="p-2 text-white/90 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5 md:w-6 md:h-6 shadow-sm" />
+                <X className="w-6 h-6 shadow-sm" />
               </button>
             </div>
           </div>
@@ -382,25 +382,25 @@ export default function StoryViewer({
             {/* Loading indicator */}
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
-                <div className="w-8 h-8 md:w-10 md:h-10 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
+                <div className="w-10 h-10 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
               </div>
             )}
 
             {/* Video indication */}
             {isVideo && showVideoIndicator && !isLoading && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 transition-opacity duration-300">
-                <div className="p-3 md:p-4 rounded-full bg-black/40 backdrop-blur-md">
-                   {isMuted ? <VolumeX className="w-6 h-6 md:w-8 md:h-8 text-white" /> : <Volume2 className="w-6 h-6 md:w-8 md:h-8 text-white" />}
+                <div className="p-4 rounded-full bg-black/40 backdrop-blur-md">
+                   {isMuted ? <VolumeX className="w-8 h-8 text-white" /> : <Volume2 className="w-8 h-8 text-white" />}
                 </div>
               </div>
             )}
 
             {/* Caption & View Count */}
             {(currentStory.caption || isOwner) && (
-              <div className="absolute bottom-0 left-0 right-0 px-6 py-8 md:py-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30">
-                <div className="flex flex-col items-center gap-3 md:gap-4">
+              <div className="absolute bottom-0 left-0 right-0 px-6 py-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30">
+                <div className="flex flex-col items-center gap-4">
                   {currentStory.caption && (
-                    <p className="text-white text-center text-[13px] md:text-[15px] font-medium leading-relaxed drop-shadow-md max-w-[90%]">
+                    <p className="text-white text-center text-[15px] font-medium leading-relaxed drop-shadow-md max-w-[90%]">
                       {currentStory.caption}
                     </p>
                   )}
@@ -436,7 +436,7 @@ export default function StoryViewer({
                       )}
                       
                       <Eye className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-                      <span className="text-white text-[12px] md:text-[14px] font-bold tracking-tight">
+                      <span className="text-white text-[14px] font-bold tracking-tight">
                          {Array.from(new Set(currentStory.viewedBy?.map(v => v.userId) || [])).length} views
                       </span>
                     </button>
@@ -447,8 +447,8 @@ export default function StoryViewer({
           </div>
         </div>
 
-        {/* Side Controls (Desktop Only) */}
-        <div className="hidden md:flex absolute inset-y-0 left-0 right-0 pointer-events-none items-center justify-between px-10 z-40">
+        {/* Side Controls (Always Desktop View) */}
+        <div className="flex absolute inset-y-0 left-0 right-0 pointer-events-none items-center justify-between px-10 z-40">
           <button 
             type="button"
             onClick={(e) => { 

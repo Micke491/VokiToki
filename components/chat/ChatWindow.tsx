@@ -573,26 +573,37 @@ export default function ChatWindow({
     }
   };
 
+  const scrollThrottleRef = useRef<boolean>(false);
   const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        messagesContainerRef.current;
-      if (scrollTop < 50 && hasMore && !loadingMore) {
-        loadMore();
-      }
+    if (messagesContainerRef.current && !scrollThrottleRef.current) {
+      scrollThrottleRef.current = true;
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+          if (scrollTop < 50 && hasMore && !loadingMore) {
+            loadMore();
+          }
 
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollBadge(!isNearBottom);
-      if (isNearBottom) {
-        setUnreadCountBelow(0);
-      }
+          const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+          setShowScrollBadge(!isNearBottom);
+          if (isNearBottom) {
+            setUnreadCountBelow(0);
+          }
+        }
+        scrollThrottleRef.current = false;
+      });
     }
   };
 
-  const markAllAsRead = useCallback(async () => {
-    if (!pusherClient || !currentUserId || messages.length === 0) return;
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
-    const unreadMessageIds = messages
+  const markAllAsRead = useCallback(async () => {
+    if (!pusherClient || !currentUserId || messagesRef.current.length === 0) return;
+
+    const unreadMessageIds = messagesRef.current
       .filter(
         (m) =>
           m.sender?._id !== currentUserId && 
@@ -612,28 +623,43 @@ export default function ChatWindow({
             }),
           },
         );
+        
+        setMessages((prev) =>
+          prev.map((m) =>
+            unreadMessageIds.includes(m._id)
+              ? {
+                  ...m,
+                  status: "seen",
+                  read: true,
+                  readBy: [
+                    ...(m.readBy?.filter((r) => r.userId !== currentUserId) ||
+                      []),
+                    { userId: currentUserId, readAt: new Date().toISOString() },
+                  ],
+                }
+              : m,
+          ),
+        );
       } catch (error) {
         console.error("Error marking messages as read:", error);
       }
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          unreadMessageIds.includes(m._id)
-            ? {
-                ...m,
-                status: "seen",
-                read: true,
-                readBy: [
-                  ...(m.readBy?.filter((r) => r.userId !== currentUserId) ||
-                    []),
-                  { userId: currentUserId, readAt: new Date().toISOString() },
-                ],
-              }
-            : m,
-        ),
-      );
     }
-  }, [pusherClient, currentUserId, messages, chatId]);
+  }, [pusherClient, currentUserId, chatId]);
+
+  const isRecipientDeleted = !isGroup && (recipientUsername === "Unknown User" || !recipientUsername);
+
+  const handleCallAction = useCallback((type: "voice" | "video", callId?: string) => {
+    if (isRecipientDeleted) {
+      alert("You cannot call a deleted account.");
+      return;
+    }
+    if (isBlockedChat) {
+      alert("You cannot call this user. There is a block between you.");
+      return;
+    }
+    const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
+    window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type, calleeId, callId } }));
+  }, [chatId, isRecipientDeleted, isBlockedChat, isGroup, participants, currentUserId]);
 
   useEffect(() => {
     if (!loading && messages.length > 0) {
@@ -641,7 +667,7 @@ export default function ChatWindow({
     }
   }, [loading, chatId, messages.length, markAllAsRead]);
 
-  const scrollToBottom = (force: boolean | React.SyntheticEvent = false) => {
+  const scrollToBottom = useCallback((force: boolean | React.SyntheticEvent = false) => {
     if (messagesContainerRef.current) {
       const performScroll = () => {
         if (!messagesContainerRef.current) return;
@@ -662,7 +688,7 @@ export default function ChatWindow({
         setTimeout(performScroll, 100);
       }
     }
-  };
+  }, []);
 
   const startRecording = async () => {
     try {
@@ -1131,7 +1157,7 @@ export default function ChatWindow({
       )
     : messages;
 
-  const isRecipientDeleted = !isGroup && (recipientUsername === "Unknown User" || !recipientUsername);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative transition-colors duration-300">
       {forwardingMessage && (
@@ -1272,7 +1298,7 @@ export default function ChatWindow({
                 </p>
               </div>
             ) : (
-              <div className="p-4 md:p-6 space-y-6 min-h-full flex flex-col justify-end relative z-10">
+              <div className="p-6 space-y-6 min-h-full flex flex-col justify-end relative z-10">
                 {!hasMore && (
                   <div className="flex flex-col items-center justify-center py-12 px-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
                     <div className="relative mb-4">
@@ -1365,7 +1391,7 @@ export default function ChatWindow({
                         onViewStatus={setViewingReceiptsFor}
                         onReaction={handleReaction}
                         onRemoveReaction={removeReaction}
-                        scrollToBottom={() => scrollToBottom(isOwn)}
+                        scrollToBottom={scrollToBottom}
                         showEmojiPicker={showEmojiPicker}
                         setShowEmojiPicker={setShowEmojiPicker}
                         showMoreMenu={showMoreMenu}
@@ -1375,19 +1401,8 @@ export default function ChatWindow({
                         groupAdminId={groupAdminId}
                         onJumpToMessage={jumpToMessage}
                         onPreviewImage={setPreviewImage}
-                        onCallAction={(type, callId) => {
-                          if (isRecipientDeleted) {
-                            alert("You cannot call a deleted account.");
-                            return;
-                          }
-                          if (isBlockedChat) {
-                            alert("You cannot call this user. There is a block between you.");
-                            return;
-                          }
-                          const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
-                          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type, calleeId, callId } }));
-                        }}
-                        onReport={(msg) => setReportingMessage(msg)}
+                        onCallAction={handleCallAction}
+                        onReport={setReportingMessage}
                       />
                     </div>
                   );

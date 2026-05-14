@@ -281,6 +281,7 @@ textarea {
   filter: blur(120px);
   border-radius: 9999px;
   transform: translateY(-20%);
+  will-change: transform;
 }
 
 /* Hide scrollbar utility */

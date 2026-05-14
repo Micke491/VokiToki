@@ -63,18 +63,11 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
 
   return (
     <>
-      {/* Mobile Overlay */}
-      <div
-        className={`md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isMobileDrawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onCloseMobileDrawer}
-      />
-
-      {/* Sidebar (Desktop & Mobile Drawer) */}
+      {/* Sidebar (Always Desktop View) */}
       <aside
         className={`
-          fixed md:sticky top-0 left-0 h-screen z-[101] bg-chat-glass backdrop-blur-xl border-r border-chat-border flex flex-col transition-all duration-300
-          w-[280px] md:w-[72px] lg:md:w-[280px]
-          ${isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          sticky top-0 left-0 h-screen z-[101] bg-chat-glass backdrop-blur-xl border-r border-chat-border flex flex-col transition-all duration-300
+          w-[280px]
         `}
       >
         {/* Sidebar Header */}
@@ -85,18 +78,10 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
                 <path d="M16 8L8 16L16 24M16 8L24 16L16 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="md:hidden lg:md:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-chat-text-primary to-chat-text-secondary tracking-tight">
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-chat-text-primary to-chat-text-secondary tracking-tight">
               ChatApp
             </span>
           </div>
-          <button
-            className="md:hidden p-2 text-chat-text-tertiary hover:bg-chat-hover rounded-full transition-colors"
-            onClick={onCloseMobileDrawer}
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
 
         {/* Navigation */}
@@ -104,7 +89,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
           {navItems.map((item) => (
             <button
               key={item.path}
-              onClick={() => { router.push(item.path); onCloseMobileDrawer?.(); }}
+              onClick={() => { router.push(item.path); }}
               className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all group ${
                 isActive(item.path)
                 ? 'bg-chat-accent text-white shadow-md shadow-chat-accent/30 font-bold'
@@ -114,13 +99,13 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
               <div className={isActive(item.path) ? 'text-white' : 'text-chat-accent'}>
                 {item.icon}
               </div>
-              <span className="md:hidden lg:md:block font-medium">{item.label}</span>
+              <span className="font-medium">{item.label}</span>
             </button>
           ))}
         </nav>
 
         {/* Profile Section */}
-        <div className="p-4 border-t border-chat-border pb-safe mb-2 md:mb-0">
+        <div className="p-4 border-t border-chat-border pb-safe mb-0">
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -133,12 +118,12 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
                   currentUser?.username?.charAt(0).toUpperCase() || 'U'
                 )}
               </div>
-              <div className="md:hidden lg:md:flex flex-1 flex-col items-start min-w-0">
+              <div className="flex flex-1 flex-col items-start min-w-0">
                 <span className="text-sm font-semibold text-chat-text-primary truncate w-full text-left">
                   {currentUser?.username || 'User'}
                 </span>
               </div>
-              <svg className={`md:hidden lg:md:block w-4 h-4 text-chat-text-tertiary transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className={`w-4 h-4 text-chat-text-tertiary transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -147,7 +132,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
             {showProfileMenu && (
               <div className="absolute bottom-full left-0 w-full mb-3 bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[110]">
                 <button
-                  onClick={() => { router.push('/profile'); setShowProfileMenu(false); onCloseMobileDrawer?.(); }}
+                  onClick={() => { router.push('/profile'); setShowProfileMenu(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-chat-text-secondary hover:bg-chat-hover transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,7 +142,7 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
                 </button>
                 <div className="h-px bg-chat-border mx-2" />
                 <button
-                  onClick={() => { router.push('/settings'); setShowProfileMenu(false); onCloseMobileDrawer?.(); }}
+                  onClick={() => { router.push('/settings'); setShowProfileMenu(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-chat-text-secondary hover:bg-chat-hover transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
