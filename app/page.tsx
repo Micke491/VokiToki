@@ -1,298 +1,439 @@
 "use client";
 
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { apiFetch } from "@/lib/api";
-import { getAuthToken, removeAuthToken } from "@/lib/storage";
-import { Canvas, useFrame } from "@react-three/fiber";
-import {
-  Float,
-  MeshDistortMaterial,
-  Sphere,
-  Sparkles,
-} from "@react-three/drei";
-import * as THREE from "three";
+import { 
+  MessageSquare, 
+  Video, 
+  Image as ImageIcon, 
+  Lock, 
+  Users, 
+  Palette, 
+  Rocket, 
+  Download, 
+  Github, 
+  ArrowRight,
+  ShieldCheck,
+  Zap
+} from "lucide-react";
 
-function AbstractNetworkShape() {
-  const meshRef = useRef<THREE.Mesh>(null);
+const Logo = () => (
+  <div className="flex items-center gap-2.5">
+    <div className="shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center shadow-lg shadow-blue-600/20">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+        <path d="M16 8L8 16L16 24M16 8L24 16L16 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+    <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 to-zinc-400 tracking-tight">
+      ChatApp
+    </span>
+  </div>
+);
 
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.getElapsedTime() * 0.1;
-      meshRef.current.rotation.y = state.clock.getElapsedTime() * 0.15;
-    }
-  });
+function useIsMobile() {
+  const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("desktop");
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth;
+      const ua = navigator.userAgent;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      if (w < 768 || (isMobileUA && w < 1024)) {
+        setDevice(w < 768 ? "mobile" : "tablet");
+      } else {
+        setDevice("desktop");
+      }
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return device;
+}
 
+function ComingSoonModal({ onClose, isDesktop }: { onClose: () => void; isDesktop: boolean }) {
   return (
-    <Float speed={2} rotationIntensity={0.5} floatIntensity={2}>
-      <Sphere ref={meshRef} args={[2.2, 48, 48]} position={[0, 0, -1]}>
-        <MeshDistortMaterial
-          color="#93c5fd"
-          emissive="#2563eb"
-          emissiveIntensity={2}
-          attach="material"
-          distort={0.4}
-          speed={1.5}
-          roughness={0.1}
-          metalness={1}
-          wireframe={true}
-          transparent
-          opacity={0.45}
-        />
-      </Sphere>
-    </Float>
+    <div
+      className="fixed inset-0 z-[1000] bg-black/70 backdrop-blur-lg flex items-center justify-center p-6 animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#111113] border border-zinc-800 rounded-2xl p-10 text-center max-w-sm w-full shadow-[0_0_80px_-20px_rgba(37,99,235,0.3)] animate-modalPop"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-center mb-6 text-blue-500">
+          <Rocket size={48} />
+        </div>
+        <h2 className="text-2xl font-extrabold text-zinc-50 mb-3">Coming Soon</h2>
+        <p className="text-zinc-500 text-sm leading-relaxed mb-7">
+          {isDesktop
+            ? "The desktop app is currently in development. Stay tuned!"
+            : "The mobile app is currently in development. Stay tuned it's going to be great!"}
+        </p>
+        <button
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+          onClick={onClose}
+        >
+          Got it
+        </button>
+      </div>
+    </div>
   );
 }
 
-function Scene() {
-  return (
-    <>
-      <ambientLight intensity={1.5} color="#ffffff" />
-      <directionalLight position={[10, 10, 5]} intensity={3} color="#ffffff" />
-      <pointLight position={[0, 0, 0]} color="#60a5fa" intensity={15} distance={10} />
-      <pointLight position={[-5, -5, -5]} color="#3b82f6" intensity={10} />
-      <pointLight position={[5, 5, 5]} color="#8b5cf6" intensity={10} />
-
-      <AbstractNetworkShape />
-
-      <Sparkles count={120} scale={14} size={3} speed={0.4} opacity={0.6} color="#93c5fd" />
-      <Sparkles count={60} scale={14} size={2} speed={0.2} opacity={0.4} color="#ffffff" />
-    </>
-  );
-}
-
-function StaticBackground() {
-  return (
-    <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#09090b] to-[#09090b]" />
-  );
-}
-
-const navItems =[
-  { label: "Features", href: "/features" },
-  { label: "About", href: "/about" },
-  { label: "Login", href: "/auth-pages/login" },
+const FEATURES = [
+  {
+    icon: <MessageSquare className="text-blue-500" />,
+    title: "Real-Time Messaging",
+    desc: "Instant delivery via WebSocket channels. No refresh needed, messages appear the moment they're sent.",
+  },
+  {
+    icon: <Video className="text-blue-500" />,
+    title: "Voice & Video Calls",
+    desc: "Crystal-clear WebRTC-powered calls built with LiveKit. One-on-one or group, your choice.",
+  },
+  {
+    icon: <ImageIcon className="text-blue-500" />,
+    title: "Rich Media Sharing",
+    desc: "Images, videos, audio, GIFs, stickers and voice messages, all with cloud storage via Cloudinary.",
+  },
+  {
+    icon: <Lock className="text-blue-500" />,
+    title: "Security First",
+    desc: "JWT sessions, bcrypt hashing, 2FA, email-based password reset and user blocking built in.",
+  },
+  {
+    icon: <Users className="text-blue-500" />,
+    title: "Groups & DMs",
+    desc: "One-on-one chats and group conversations with pinning, reactions, replies and edit/delete.",
+  },
+  {
+    icon: <Palette className="text-blue-500" />,
+    title: "Dark & Light Themes",
+    desc: "Premium Zinc/Blue design system with smooth theme switching and system preference detection.",
+  },
 ];
 
-const features =[
-  {
-    id: "instant-messaging",
-    title: "Instant Messaging",
-    desc: "Real time, zero lag messaging that keeps your conversations flowing whether you're sending a quick note or a long message, delivery is instant and reliable",
-    iconColor: "bg-blue-500",
-  },
-  {
-    id: "rich-media-sharing",
-    title: "Rich Media Sharing",
-    desc: "Send high-resolution photos, voice memos, video clips, and large files without compression or quality loss your memories stay sharp",
-    iconColor: "bg-purple-500",
-  },
-  {
-    id: "end-to-end-security",
-    title: "Secure by Default",
-    desc: "Every message is encrypted end-to-end before it leaves your device. No ads, no data harvesting your private conversations stay private",
-    iconColor: "bg-emerald-500",
-  },
+const STATS = [
+  { value: "< 100ms", label: "Message Latency" },
+  { value: "2FA", label: "Auth Security" },
+  { value: "WebRTC", label: "Call Technology" },
+  { value: "100%", label: "Open Source" },
+];
+
+const TECH = [
+  "Next.js 16", "React 19", "TypeScript", "MongoDB", "Pusher",
+  "LiveKit", "Cloudinary", "Tailwind CSS 4", "Framer Motion", "Nodemailer",
 ];
 
 export default function LandingPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const[isMounted, setIsMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const device = useIsMobile();
+  const isMobileOrTablet = device === "mobile" || device === "tablet";
+  const [showModal, setShowModal] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mediaQuery.matches);
-
-    const mq = window.matchMedia("(max-width: 768px)");
-    setIsMobile(mq.matches);
-
-    const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    const mobileListener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mediaQuery.addEventListener("change", listener);
-    mq.addEventListener("change", mobileListener);
-
-    return () => {
-      mediaQuery.removeEventListener("change", listener);
-      mq.removeEventListener("change", mobileListener);
-    };
-  },[]);
-
-  useEffect(() => {
-    const checkSession = async () => {
-      const token = getAuthToken();
-      if (!token) return;
-
-      try {
-        const response = await apiFetch(`/api/users/current_user`);
-
-        if (response.ok) router.push("/chat");
-        else if (response.status === 401 || response.status === 404) removeAuthToken();
-      } catch (err) {
-        console.error("Session verification failed:", err);
-      }
-    };
-    checkSession();
-  },[router]);
-
-  if (!isMounted) return null;
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <div className="relative min-h-screen bg-[#09090b] text-zinc-100 font-sans flex flex-col selection:bg-blue-500/30 overflow-hidden">
+    <>
+      <style>{`
+        @keyframes fadeSlideDown {
+          from { opacity: 0; transform: translateY(-12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes modalPop {
+          from { opacity: 0; transform: scale(0.85); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.4; }
+        }
+        .animate-fadeSlideDown { animation: fadeSlideDown 0.6s ease both; }
+        .animate-fadeSlideUp-1 { animation: fadeSlideUp 0.7s 0.15s ease both; }
+        .animate-fadeSlideUp-2 { animation: fadeSlideUp 0.7s 0.25s ease both; }
+        .animate-fadeSlideUp-3 { animation: fadeSlideUp 0.7s 0.35s ease both; }
+        .animate-fadeIn        { animation: fadeIn 0.2s ease; }
+        .animate-modalPop      { animation: modalPop 0.25s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .animate-pulse-dot     { animation: pulse 2s infinite; }
+        .gradient-text {
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .btn-download-gradient {
+          background: linear-gradient(135deg, #2563eb, #7c3aed);
+        }
+      `}</style>
 
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-white"
-      >
-        Skip to main content
-      </a>
+      <div className="font-sans bg-[#09090b] text-zinc-100 min-h-screen overflow-x-hidden">
+        {showModal && (
+          <ComingSoonModal onClose={() => setShowModal(false)} isDesktop={!isMobileOrTablet} />
+        )}
 
-      {/* 3D Canvas — Desktop only, Static Background for mobile or reduced motion */}
-      {!prefersReducedMotion && !isMobile ? (
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <Canvas
-            camera={{ position: [0, 0, 6], fov: 45 }}
-            dpr={[1, 1.5]}
-            gl={{ powerPreference: "high-performance", antialias: true }}
-          >
-            <Scene />
-          </Canvas>
-        </div>
-      ) : (
-        <StaticBackground />
-      )}
-
-      <div className="pointer-events-none absolute inset-0 flex justify-center z-0">
-        <div className="h-[50rem] w-[100%] max-w-[70rem] bg-blue-500/20 blur-[100px] md:blur-[140px] rounded-full translate-y-[-15%] mix-blend-screen transform-gpu motion-safe:will-change-transform"></div>
-      </div>
-      
-      <nav
-        aria-label="Main navigation"
-        className="w-full bg-[#09090b]/40 backdrop-blur-lg flex items-center justify-between px-6 py-5 fixed top-0 left-0 right-0 z-50 border-b border-white/10"
-      >
-        <div className="text-xl font-bold tracking-tighter text-zinc-100 flex items-center gap-2 drop-shadow-md">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,1)] motion-safe:animate-pulse"></span>
-          ChatApp
-        </div>
-
-        <ul className="flex items-center gap-6 md:gap-8">
-          {navItems.map((item) => {
-            // Hide Login on mobile
-            if (isMobile && item.label === "Login") return null;
-
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.href} className="hidden sm:block">
-                <Link
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`relative text-sm font-medium transition-colors duration-300 drop-shadow-sm pb-1
-                    ${isActive ? "text-blue-400" : "text-zinc-300 hover:text-white"}
-                    after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-blue-400 after:transition-all after:duration-300
-                    ${isActive ? "after:w-full" : "after:w-0 hover:after:w-full"}
-                  `}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-          {/* Hide Sign Up on mobile */}
-          {!isMobile && (
-            <li>
-              <Link
-                href="/auth-pages/register"
-                className="text-sm font-medium bg-white text-[#09090b] px-5 py-2.5 rounded-full hover:bg-blue-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] motion-reduce:transition-none motion-reduce:hover:scale-100"
-              >
-                Sign Up
-              </Link>
-            </li>
-          )}
-        </ul>
-      </nav>
-
-      <main id="main-content" className="relative z-10 flex-grow flex flex-col items-center justify-center pt-32 pb-16 px-4 sm:px-6 lg:px-8">
-
-        <section
-          aria-labelledby="hero-heading"
-          className="text-center max-w-4xl mx-auto mb-32 space-y-8 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-8 duration-1000"
+        {/* NAV */}
+        <nav
+          className={`fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-8 h-16 transition-all duration-300 ${
+            scrolled ? "bg-[#09090b]/85 backdrop-blur-xl border-b border-zinc-800" : ""
+          }`}
         >
-          <h1 id="hero-heading" className="text-5xl md:text-7xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-400 leading-[1.1] drop-shadow-sm">
-            Connect in real-time
-            <span className="block mt-3 text-2xl md:text-4xl font-normal text-zinc-400 tracking-normal drop-shadow-none bg-none">
-              Simple and secure
-            </span>
-          </h1>
+          <a href="#" className="no-underline">
+            <Logo />
+          </a>
 
-          <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mx-auto leading-relaxed text-balance font-light drop-shadow-md">
-            Chat with friends, share moments, and stay connected — no ads, no noise, no compromises. Just clean, fast, encrypted communication built around you.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 w-full max-w-md sm:max-w-none mx-auto">
-            {isMobile ? (
+          <div className="flex items-center gap-3">
+            {isMobileOrTablet ? (
               <button
-                onClick={() => alert("Feature coming")}
-                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100 w-full sm:w-auto"
+                className="btn-download-gradient text-white px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer flex items-center gap-2 shadow-[0_0_24px_-6px_rgba(124,58,237,0.5)] hover:opacity-90 transition-all hover:-translate-y-px"
+                onClick={() => setShowModal(true)}
               >
-                Download
+                <Download size={16} /> Download
               </button>
             ) : (
-              <Link
-                href="/auth-pages/register"
-                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-blue-600 rounded-full overflow-hidden transition-all hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-[0_0_40px_0px_rgba(59,130,246,0.6)] hover:shadow-[0_0_60px_5px_rgba(96,165,250,0.8)] border border-blue-400/50 motion-reduce:transition-none motion-reduce:hover:scale-100 w-full sm:w-auto"
-              >
-                Start Chatting Now
-              </Link>
+              <>
+                <button
+                  className="btn-download-gradient text-white px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer flex items-center gap-2 shadow-[0_0_24px_-6px_rgba(124,58,237,0.5)] hover:opacity-90 transition-all hover:-translate-y-px"
+                  onClick={() => setShowModal(true)}
+                >
+                  <Download size={16} /> Download
+                </button>
+                <Link
+                  href="/auth-pages/login"
+                  className="bg-transparent border border-zinc-700 text-zinc-400 px-5 py-2 rounded-lg text-sm font-medium no-underline flex items-center hover:border-zinc-500 hover:text-zinc-100 hover:bg-zinc-900 transition-all"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/auth-pages/register"
+                  className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold no-underline flex items-center gap-2 shadow-[0_0_24px_-6px_rgba(37,99,235,0.6)] hover:bg-blue-700 hover:-translate-y-px transition-all"
+                >
+                  Sign up <ArrowRight size={16} />
+                </Link>
+              </>
             )}
+          </div>
+        </nav>
 
-            <div className="flex w-full sm:w-auto gap-4">
-              <Link
-                href="/features"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3.5 text-base font-medium text-zinc-300 bg-white/5 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:text-white border border-white/10 hover:border-white/20 hover:scale-[1.03] active:scale-[0.97]"
-              >
-                Features
-              </Link>
-              
-              <Link
-                href="/about"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3.5 text-base font-medium text-zinc-300 bg-white/5 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:text-white border border-white/10 hover:border-white/20 hover:scale-[1.03] active:scale-[0.97]"
-              >
-                About Us
-              </Link>
-            </div>
+        {/* HERO */}
+        <section
+          ref={heroRef}
+          className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 pt-24 pb-16 overflow-hidden"
+        >
+          {/* Glows */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse at center top, rgba(37,99,235,0.18) 0%, transparent 70%)" }}
+          />
+          <div className="absolute bottom-0 right-[10%] w-[400px] h-[400px] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 70%)" }}
+          />
+
+          <div className="animate-fadeSlideDown inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/30 text-blue-300 text-xs font-medium px-4 py-1.5 rounded-full mb-7">
+            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse-dot" />
+            Real-time messaging, now live
+          </div>
+
+          <h1 className="animate-fadeSlideUp-1 text-[clamp(2.5rem,7vw,5rem)] font-black leading-[1.05] tracking-[-0.03em] mb-5">
+            The chat app<br />built for <span className="gradient-text">real people</span>
+          </h1>
+
+          <p className="animate-fadeSlideUp-2 text-[clamp(1rem,2.5vw,1.25rem)] text-zinc-400 max-w-[560px] leading-relaxed mb-10">
+            Instant messages, crystal-clear calls, rich media sharing and bulletproof security, all in one beautifully designed platform.
+          </p>
+
+          <div className="animate-fadeSlideUp-3 flex flex-wrap gap-3.5 justify-center">
+            {isMobileOrTablet ? (
+              <>
+                <button
+                  className="btn-download-gradient text-white px-8 py-3.5 rounded-xl text-base font-bold cursor-pointer flex items-center gap-2 shadow-[0_0_40px_-8px_rgba(124,58,237,0.6)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+                  onClick={() => setShowModal(true)}
+                >
+                  <Download size={20} /> Download App
+                </button>
+                <a
+                  href="https://github.com/Micke491/chat-app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-zinc-900 text-zinc-100 border border-zinc-700 px-8 py-3.5 rounded-xl text-base font-semibold no-underline flex items-center gap-2 hover:border-zinc-500 hover:bg-zinc-800 hover:-translate-y-0.5 transition-all"
+                >
+                  <Github size={20} /> GitHub
+                </a>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth-pages/register"
+                  className="bg-blue-600 text-white px-8 py-3.5 rounded-xl text-base font-bold no-underline flex items-center gap-2 shadow-[0_0_40px_-8px_rgba(37,99,235,0.7)] hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
+                >
+                  Get started free <ArrowRight size={20} />
+                </Link>
+                <button
+                  className="btn-download-gradient text-white px-8 py-3.5 rounded-xl text-base font-bold cursor-pointer flex items-center gap-2 shadow-[0_0_40px_-8px_rgba(124,58,237,0.6)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+                  onClick={() => setShowModal(true)}
+                >
+                  <Download size={20} /> Download App
+                </button>
+                <a
+                  href="https://github.com/Micke491/chat-app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-zinc-900 text-zinc-100 border border-zinc-700 px-8 py-3.5 rounded-xl text-base font-semibold no-underline flex items-center gap-2 hover:border-zinc-500 hover:bg-zinc-800 hover:-translate-y-0.5 transition-all"
+                >
+                  <Github size={20} /> View on GitHub
+                </a>
+              </>
+            )}
           </div>
         </section>
 
-        <ul className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 py-12">
-          {features.map((feature, idx) => (
-            <li
-              key={idx}
-              className="group relative p-8 rounded-2xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:-translate-y-1 hover:border-white/10 motion-reduce:hover:-translate-y-0 text-left"
-            >
-              <div className={`absolute -top-3 left-6 w-10 h-10 rounded-full ${feature.iconColor}/20 group-hover:${feature.iconColor}/40 transition-colors blur-md`} />
-
-              <h3 className="relative text-xl font-semibold text-white mb-4 tracking-tight group-hover:text-blue-300 transition-colors duration-300 drop-shadow-md z-10">
-                {feature.title}
-              </h3>
-
-              <p className="relative text-zinc-400 leading-relaxed font-light text-base z-10 group-hover:text-zinc-300 transition-colors">
-                {feature.desc}
-              </p>
-
-              <Link
-                href={`/features#${feature.id}`}
-                className="mt-6 font-medium text-sm text-blue-400 opacity-0 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10 relative flex items-center gap-1 hover:text-blue-300"
-                aria-label={`Learn more about ${feature.title}`}
-              >
-                Learn more <span className="inline-block group-hover:translate-x-1 transition-transform">→</span>
-              </Link>
-            </li>
+        {/* STATS */}
+        <div className="flex flex-wrap justify-center gap-8 px-6 py-12 border-t border-b border-zinc-900 bg-[#0d0d10]">
+          {STATS.map((s) => (
+            <div key={s.label} className="text-center">
+              <div className="text-3xl font-extrabold text-zinc-50">{s.value}</div>
+              <div className="text-xs text-zinc-500 mt-1 font-medium uppercase tracking-widest">{s.label}</div>
+            </div>
           ))}
-        </ul>
-      </main>
-    </div>
+        </div>
+
+        {/* FEATURES */}
+        <div className="px-6 py-20 max-w-[1100px] mx-auto">
+          <p className="text-xs font-semibold text-blue-500 uppercase tracking-widest text-center mb-3">Features</p>
+          <h2 className="text-[clamp(1.75rem,4vw,2.75rem)] font-extrabold text-center leading-tight mb-3">
+            Everything you need to connect
+          </h2>
+          <p className="text-center text-zinc-500 max-w-[480px] mx-auto mb-12 leading-relaxed text-sm">
+            From instant DMs to group calls, ChatApp packs a full production-grade feature set into a fast, beautiful interface.
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="bg-[#111113] border border-zinc-800/60 rounded-2xl p-7 relative overflow-hidden transition-all duration-300 hover:border-blue-600/30 hover:-translate-y-1 hover:shadow-[0_8px_32px_-8px_rgba(37,99,235,0.15)] group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="text-blue-500 mb-4 block">
+                  {typeof f.icon === 'string' ? f.icon : f.icon}
+                </div>
+                <div className="text-base font-bold text-zinc-50 mb-2">{f.title}</div>
+                <div className="text-sm text-zinc-500 leading-relaxed">{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* TECH STACK */}
+        <div className="px-6 py-16 border-t border-zinc-900">
+          <p className="text-xs font-semibold text-blue-500 uppercase tracking-widest text-center mb-3">Tech Stack</p>
+          <h2 className="text-2xl font-extrabold text-center mb-0">Built with modern tools</h2>
+          <div className="flex flex-wrap gap-3 justify-center max-w-[700px] mx-auto mt-8">
+            {TECH.map((t) => (
+              <span
+                key={t}
+                className="bg-[#111113] border border-zinc-800 text-zinc-400 text-xs font-medium px-3.5 py-1.5 rounded-full transition-all hover:border-blue-500 hover:text-blue-300 hover:bg-blue-600/10"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div
+          className="px-6 py-20 text-center relative overflow-hidden"
+          style={{ background: "linear-gradient(180deg, #09090b 0%, #0d1220 50%, #09090b 100%)" }}
+        >
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse, rgba(37,99,235,0.12) 0%, transparent 70%)" }}
+          />
+          <h2 className="relative text-[clamp(1.75rem,4vw,2.75rem)] font-extrabold mb-4">
+            Ready to start chatting?
+          </h2>
+          <p className="relative text-zinc-500 max-w-[480px] mx-auto mb-10 leading-relaxed">
+            Join the platform built for speed, privacy, and great design. No credit card required.
+          </p>
+          <div className="relative flex flex-wrap gap-4 justify-center">
+            {isMobileOrTablet ? (
+              <button
+                className="btn-download-gradient text-white px-8 py-3.5 rounded-xl text-base font-bold cursor-pointer flex items-center gap-2 shadow-[0_0_40px_-8px_rgba(124,58,237,0.6)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+                onClick={() => setShowModal(true)}
+              >
+                <Download size={20} /> Download App
+              </button>
+            ) : (
+              <>
+                <Link
+                  href="/auth-pages/register"
+                  className="bg-blue-600 text-white px-8 py-3.5 rounded-xl text-base font-bold no-underline flex items-center gap-2 shadow-[0_0_40px_-8px_rgba(37,99,235,0.7)] hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
+                >
+                  Create free account <ArrowRight size={20} />
+                </Link>
+                <button
+                  className="btn-download-gradient text-white px-8 py-3.5 rounded-xl text-base font-bold cursor-pointer flex items-center gap-2 shadow-[0_0_40px_-8px_rgba(124,58,237,0.6)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+                  onClick={() => setShowModal(true)}
+                >
+                  <Download size={20} /> Download App
+                </button>
+                <Link
+                  href="/auth-pages/login"
+                  className="bg-zinc-900 text-zinc-100 border border-zinc-700 px-8 py-3.5 rounded-xl text-base font-semibold no-underline flex items-center gap-2 hover:border-zinc-500 hover:bg-zinc-800 hover:-translate-y-0.5 transition-all"
+                >
+                  Log in
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+
+        <footer>
+          <div className="px-6 pt-16 pb-8 border-t border-zinc-900 max-w-[1100px] mx-auto">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
+              <Logo />
+              <div className="flex flex-wrap gap-x-10 gap-y-4 max-sm:justify-center">
+                <a
+                  href="https://github.com/Micke491/chat-app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-zinc-500 no-underline hover:text-zinc-100 transition-colors"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="https://chat-app-gules-six-81.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-zinc-500 no-underline hover:text-zinc-100 transition-colors"
+                >
+                  Live Demo
+                </a>
+                {!isMobileOrTablet && (
+                  <>
+                    <Link href="/auth-pages/login" className="text-sm text-zinc-500 no-underline hover:text-zinc-100 transition-colors">Login</Link>
+                    <Link href="/auth-pages/register" className="text-sm text-zinc-500 no-underline hover:text-zinc-100 transition-colors">Sign up</Link>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="pt-8 border-t border-zinc-800/50 flex flex-wrap items-center justify-between gap-4 max-sm:justify-center max-sm:text-center">
+              <span className="text-xs text-zinc-600">© 2026 ChatApp · Built with Next.js & MongoDB</span>
+              <span className="text-xs text-zinc-600 italic">MIT License</span>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }
