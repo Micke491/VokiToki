@@ -74,6 +74,10 @@ export interface Story {
   viewedBy: {
     userId: string;
     viewedAt: string;
+    user?: {
+      username: string;
+      avatar?: string;
+    };
   }[];
 }
 

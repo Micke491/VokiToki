@@ -454,11 +454,18 @@ func MarkStoryViewed(c *gin.Context) {
 		return
 	}
 
-	go utils.TriggerPusher("user-"+targetID.Hex(), "story-viewed", gin.H{
+	payload := gin.H{
 		"storyId":  storyOID.Hex(),
 		"viewedBy": viewerID,
 		"viewedAt": viewedAt,
-	})
+		"user": gin.H{
+			"username": authUser.Username,
+			"avatar":   authUser.Avatar,
+		},
+	}
+
+	go utils.TriggerPusher("user-"+targetID.Hex(), "story-viewed", payload)
+	go utils.TriggerPusher("user-"+viewerID, "story-viewed", payload)
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

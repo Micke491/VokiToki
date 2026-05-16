@@ -1292,7 +1292,8 @@ export default function ChatWindow({
                           avatarUrl={recipientAvatar}
                           username={recipientUsername || "?"}
                           showLabel={false}
-                          hasUnviewedStory={false}
+                          hasStory={(recipientStoriesUser?.stories?.length || 0) > 0}
+                          hasUnviewedStory={(recipientStoriesUser?.stories?.length || 0) > 0 && (recipientStoriesUser?.stories || []).some((s: any) => !(s.viewedBy || []).some((v: any) => v.userId === currentUserId))}
                           onClick={() => {
                             const otherUser = participants?.find(p => p._id !== currentUserId);
                             if (recipientStoriesUser?.stories && recipientStoriesUser.stories.length > 0 && onStoryClick) {

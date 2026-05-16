@@ -5,6 +5,7 @@ import React from 'react';
 interface StoryRingProps {
   avatarUrl?: string;
   username: string;
+  hasStory?: boolean;
   hasUnviewedStory: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   onClick?: (e: React.MouseEvent) => void;
@@ -14,12 +15,15 @@ interface StoryRingProps {
 const StoryRing = ({
   avatarUrl,
   username,
+  hasStory = false,
   hasUnviewedStory,
   size = 'md',
   onClick,
   showLabel = true,
 }: StoryRingProps) => {
-  const ringColorClasses = hasUnviewedStory
+  const ringColorClasses = !hasStory
+    ? 'bg-transparent'
+    : hasUnviewedStory
     ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600'
     : 'bg-chat-border';
 
@@ -59,26 +63,29 @@ const StoryRing = ({
   return (
     <div className="flex flex-col items-center gap-1.5 scroll-ml-6">
       <button
-        onClick={onClick}
-        className={`relative rounded-full transition-all duration-300 active:scale-95 group ${
-          hasUnviewedStory ? 'hover:scale-105' : 'hover:opacity-80'
+        onClick={hasStory ? onClick : undefined}
+        className={`relative rounded-full transition-all duration-300 ${
+          hasStory ? 'cursor-pointer active:scale-95 group' : 'cursor-default'
+        } ${
+          hasStory && hasUnviewedStory ? 'hover:scale-105' : hasStory ? 'hover:opacity-80' : ''
         }`}
         type="button"
+        disabled={!hasStory}
       >
         {/* The Ring */}
-        <div className={`rounded-full ${ringColorClasses} ${config.ring}`}>
+        <div className={`rounded-full ${ringColorClasses} ${config.ring} ${!hasStory ? '!p-0' : ''}`}>
           {/* Internal Gap (Instagram look) */}
-          <div className={`w-full h-full rounded-full bg-chat-bg-primary ${config.gap}`}>
+          <div className={`w-full h-full rounded-full ${hasStory ? 'bg-chat-bg-primary' : 'bg-transparent'} ${config.gap} ${!hasStory ? '!p-0' : ''}`}>
             {/* The Image */}
             <div className={`w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-chat-bg-secondary`}>
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt={username}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  className={`w-full h-full object-cover transition-transform duration-500 ${hasStory ? 'group-hover:scale-110' : ''}`}
                 />
               ) : (
-                <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-chat-accent/20 to-chat-accent-secondary/20 text-chat-accent font-bold uppercase transition-transform duration-500 group-hover:scale-110`}>
+                <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-chat-accent/20 to-chat-accent-secondary/20 text-chat-accent font-bold uppercase transition-transform duration-500 ${hasStory ? 'group-hover:scale-110' : ''}`}>
                   {(username || "U").charAt(0)}
                 </div>
               )}

@@ -18,6 +18,7 @@ interface StoryViewerProps {
   currentUserId?: string;
   onAddStory?: () => void;
   onShowViewers?: (storyId: string) => void;
+  onStoryViewed?: (userId: string, storyId: string) => void;
 }
 
 const PROGRESS_INTERVAL = 50;
@@ -35,6 +36,7 @@ export default function StoryViewer({
   currentUserId,
   onAddStory,
   onShowViewers,
+  onStoryViewed,
 }: StoryViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
@@ -95,9 +97,11 @@ export default function StoryViewer({
       apiFetch(`/api/stories/${userId}`, {
         method: 'POST',
         body: JSON.stringify({ storyId: currentStory._id }),
+      }).then(() => {
+        onStoryViewed?.(userId, currentStory._id);
       }).catch(console.error);
     }
-  }, [currentIndex, userId, stories, currentUserId]);
+  }, [currentIndex, userId, stories, currentUserId, onStoryViewed]);
 
   useEffect(() => {
     setProgress(0);
@@ -290,22 +294,18 @@ export default function StoryViewer({
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-30 pt-8 pb-16 px-4 bg-gradient-to-b from-black/60 to-transparent flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
-                <div className="w-full h-full rounded-full bg-chat-bg-primary p-[1.5px]">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-chat-bg-primary">
-                    {userAvatar ? (
-                      <img
-                        src={userAvatar}
-                        alt={username}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-chat-accent text-[10px] text-white font-bold uppercase">
-                        {username.charAt(0)}
-                      </div>
-                    )}
+              <div className="w-9 h-9 rounded-full overflow-hidden bg-chat-bg-secondary border border-white/10">
+                {userAvatar ? (
+                  <img
+                    src={userAvatar}
+                    alt={username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-chat-accent text-[10px] text-white font-bold uppercase">
+                    {username.charAt(0)}
                   </div>
-                </div>
+                )}
               </div>
               <div className="flex flex-col">
                 <span className="text-white font-bold text-sm leading-none drop-shadow-md">{username}</span>

@@ -94,6 +94,7 @@ const ChatHeader = ({
                   avatarUrl={recipientAvatar}
                   username={recipientUsername || "?"}
                   showLabel={false}
+                  hasStory={hasStories}
                   hasUnviewedStory={hasUnviewedStories}
                   onClick={() => {
                     if (hasStories && onStoryClick) {

@@ -445,6 +445,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
             handleStoryViewerClose();
             setShowStoryManagement(true);
           }}
+          onStoryViewed={markStoryAsViewed}
         />
       )}
 

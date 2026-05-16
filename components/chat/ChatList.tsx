@@ -441,6 +441,7 @@ export default function ChatList({
                              avatarUrl={otherUser.avatar}
                              username={otherUser.username}
                              showLabel={false}
+                             hasStory={hasStories}
                              hasUnviewedStory={hasUnviewed}
                              onClick={(e) => {
                                if (hasStories && onStoryClick) {

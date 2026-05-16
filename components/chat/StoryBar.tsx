@@ -159,6 +159,7 @@ export default function StoryBar({
           key={storyUser.user._id}
           username={storyUser.user.username}
           avatarUrl={storyUser.user.avatar}
+          hasStory={true}
           hasUnviewedStory={hasUnviewedStories(storyUser)}
           onClick={() => onStoryClick(storyUser.user._id, storyUser.stories, storyUser.user.username, storyUser.user.avatar)}
         />

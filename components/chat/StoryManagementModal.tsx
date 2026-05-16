@@ -3,16 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, Eye, Clock, Image as ImageIcon, Video, Plus, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Story } from '@/types/chat';
 
-interface Story {
-  _id: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
-  caption?: string;
-  viewedBy?: { userId: string; viewedAt: string }[];
-  createdAt: string;
-  expiresAt: string;
-}
+
 
 interface StoryManagementModalProps {
   isOpen: boolean;
@@ -74,7 +67,6 @@ export default function StoryManagementModal({
 
   const formatViewCount = (viewedBy?: { userId: string; viewedAt: string }[]) => {
     if (!viewedBy) return 0;
-    // Count unique user IDs
     const uniqueIds = new Set(viewedBy.map(v => v.userId));
     return uniqueIds.size;
   };

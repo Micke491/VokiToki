@@ -52,18 +52,29 @@ export function useStories(currentUserId: string) {
 
     const channel = pusherClient.subscribe(`user-${currentUserId}`);
 
-    channel.bind('story-viewed', (data: { storyId: string, viewedBy: string }) => {
+    channel.bind('story-viewed', (data: { storyId: string, viewedBy: string, user?: { username: string, avatar?: string } }) => {
       setStories(prev => prev.map(storyUser => ({
         ...storyUser,
         stories: storyUser.stories.map(s => {
           if (s._id === data.storyId) {
             const viewedBy = s.viewedBy || [];
-            if (!viewedBy.some(v => v.userId === data.viewedBy)) {
+            const exists = viewedBy.some(v => v.userId === data.viewedBy);
+            if (exists) {
               return {
                 ...s,
-                viewedBy: [...viewedBy, { userId: data.viewedBy, viewedAt: new Date().toISOString() }]
+                viewedBy: viewedBy.map(v => 
+                  v.userId === data.viewedBy ? { ...v, user: data.user || v.user } : v
+                )
               };
             }
+            return {
+              ...s,
+              viewedBy: [...viewedBy, { 
+                userId: data.viewedBy, 
+                viewedAt: new Date().toISOString(),
+                user: data.user 
+              }]
+            };
           }
           return s;
         })
