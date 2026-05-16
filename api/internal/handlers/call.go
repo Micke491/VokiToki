@@ -164,6 +164,11 @@ func InitiateCall(c *gin.Context) {
 				MediaPublicID:   callID,
 				IsSystemMessage: false,
 				Status:          "sent",
+				Read:            false,
+				ReadBy:          []models.ReadByEntry{},
+				DeliveredTo:     []bson.ObjectID{},
+				Reactions:       []models.Reaction{},
+				DeletedBy:       []bson.ObjectID{},
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
 			}
