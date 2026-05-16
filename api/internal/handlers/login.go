@@ -62,8 +62,7 @@ func Login(c *gin.Context) {
 
 	db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
 		"$set": bson.M{
-			"isOnline": true,
-			"lastSeen": time.Now(),
+			"updatedAt": time.Now(),
 		},
 	})
 

@@ -25,7 +25,6 @@ interface User {
   avatar?: string;
   links?: { label: string; url: string }[];
   location?: string;
-  status?: string;
   readReceipts: boolean;
   theme: 'light' | 'dark' | 'system';
 }
@@ -56,7 +55,6 @@ export default function ProfilePage() {
     bio: '',
     avatar: '',
     location: '',
-    status: '',
     links: [] as { label: string; url: string }[],
   });
   const [showStoryModal, setShowStoryModal] = useState(false);
@@ -104,7 +102,6 @@ export default function ProfilePage() {
         bio: data.user.bio || '',
         avatar: data.user.avatar || '',
         location: data.user.location || '',
-        status: data.user.status || 'Hey there!',
         links: data.user.links || [],
       });
     } catch (error) {
@@ -394,7 +391,6 @@ export default function ProfilePage() {
                         bio: currentUser?.bio || '',
                         avatar: currentUser?.avatar || '',
                         location: currentUser?.location || '',
-                        status: currentUser?.status || 'Hey there!',
                         links: currentUser?.links || [],
                       });
                     }}
@@ -421,28 +417,7 @@ export default function ProfilePage() {
 
             {/* Form Fields */}
             <div className="grid gap-6 max-w-2xl mx-auto">
-              {/* Status */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-chat-accent rounded-full" />
-                  Status
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.status}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, status: e.target.value }))
-                    }
-                    placeholder="Hey there!"
-                    className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
-                  />
-                ) : (
-                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                    {formData.status || 'Hey there!'}
-                  </div>
-                )}
-              </div>
+
 
               {/* Name */}
               <div className="space-y-2">

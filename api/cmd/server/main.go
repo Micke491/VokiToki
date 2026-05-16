@@ -56,8 +56,7 @@ func main() {
 
 		api.GET("/users/search", handlers.SearchUsers)
 
-		api.GET("/users/status", handlers.GetStatus)
-		api.POST("/users/status", handlers.UpdateStatus)
+
 
 		api.GET("/users/block/check", handlers.CheckBlockStatus)
 

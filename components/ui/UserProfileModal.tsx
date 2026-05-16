@@ -49,21 +49,7 @@ export default function UserProfileModal({
     }
   };
 
-  const formatLastSeen = (lastSeen?: string) => {
-    if (!lastSeen) return '';
-    const date = new Date(lastSeen);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  };
 
   const formatJoinDate = (createdAt: string) => {
     const date = new Date(createdAt);
@@ -117,10 +103,7 @@ export default function UserProfileModal({
                     </div>
                   )}
                 </div>
-                {profile?.isOnline && (
-                  <div className="absolute bottom-2 right-1/2 translate-x-20 w-5 h-5 bg-green-500 border-4 border-chat-bg-primary rounded-full" />
-                )}
-              </div>
+                </div>
 
               {/* Content */}
               {loading ? (
@@ -148,12 +131,7 @@ export default function UserProfileModal({
                     <p className="text-chat-text-tertiary text-sm">@{profile.username}</p>
                   </div>
 
-                  {/* Status */}
-                  {profile.status && (
-                    <div className="text-center mb-4 p-3 bg-chat-bg-secondary rounded-xl">
-                      <p className="text-chat-text-secondary text-sm">{profile.status}</p>
-                    </div>
-                  )}
+
 
                   {/* Bio */}
                   {profile.bio && (
@@ -187,12 +165,7 @@ export default function UserProfileModal({
                       <Calendar className="w-4 h-4" />
                       <span>Joined {formatJoinDate(profile.createdAt)}</span>
                     </div>
-                    {profile.lastSeen && (
-                      <div className="flex items-center gap-2 text-chat-text-tertiary text-sm">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Active {formatLastSeen(profile.lastSeen)}</span>
-                      </div>
-                    )}
+
                   </div>
 
                   {/* Stories count */}

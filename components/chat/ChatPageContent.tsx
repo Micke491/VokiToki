@@ -78,34 +78,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [uploadingStory, setUploadingStory] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    const updateStatus = async (online: boolean) => {
-      try {
-        await apiFetch(`/api/users/status`, {
-          method: 'POST',
-          body: JSON.stringify({ isOnline: online }),
-        });
-      } catch (error) {
-        console.error('Status update failed:', error);
-      }
-    };
-
-    updateStatus(true);
-
-    heartbeatIntervalRef.current = setInterval(() => {
-      updateStatus(true);
-    }, 30000);
-
-    return () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
-      updateStatus(false);
-    };
-  }, [currentUser]);
-
-  useEffect(() => {
     fetchCurrentUser();
   }, []);
 

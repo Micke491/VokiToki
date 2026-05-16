@@ -190,7 +190,10 @@ export default function ChatList({
       }
 
       const data = await response.json();
-      setChats(data);
+      const processedData = data.map((c: Chat) => 
+        c._id === selectedChatIdRef.current ? { ...c, unreadCount: 0 } : c
+      );
+      setChats(processedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chats');
     } finally {
@@ -280,6 +283,22 @@ export default function ChatList({
   const getOtherParticipant = (chat: Chat) => {
     const other = chat.participants.find(p => p._id !== currentUserId);
     return other || { _id: '', username: 'Unknown', avatar: '' };
+  };
+
+  const renderMessagePreview = (msg: any) => {
+    if (!msg) return 'No messages yet';
+    if (msg.text) return msg.text;
+    switch (msg.mediaType) {
+      case 'image': return 'Image';
+      case 'video': return 'Video';
+      case 'audio': return 'Voice message';
+      case 'gif': return 'GIF';
+      case 'sticker': return 'Sticker';
+      case 'call': return 'Call';
+      default:
+        if (msg.mediaUrl) return 'Attachment';
+        return 'Sent a message';
+    }
   };
 
   const formatTime = (dateString: string) => {
@@ -466,7 +485,7 @@ export default function ChatList({
                          isGroup ? `${chat.lastMessage.sender?.username || 'Unknown User'}: ` : ''}
                       </span>
                     )}
-                    {chat.lastMessage?.text || (!chat.lastMessage && 'No messages yet')}
+                    {renderMessagePreview(chat.lastMessage)}
                   </div>
                 </div>
 

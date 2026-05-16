@@ -114,30 +114,6 @@ export default function ChatWindow({
     checkBlockStatus();
   }, [chatId, isGroup]);
 
-  // Fetch recipient online status for 1v1 chats
-  useEffect(() => {
-    if (isGroup || !participants) return;
-    const otherUser = participants.find(p => p._id !== currentUserId);
-    if (!otherUser) return;
-
-    const fetchStatus = async () => {
-      try {
-        const res = await apiFetch(`/api/profile/${otherUser._id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setRecipientOnline(data.user?.isOnline || false);
-          setRecipientLastSeen(data.user?.lastSeen);
-        }
-      } catch (err) {
-        console.error('Error fetching recipient status:', err);
-      }
-    };
-
-    fetchStatus();
-    // Refresh every 30s
-    const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
-  }, [chatId, isGroup, participants, currentUserId]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -178,7 +154,7 @@ export default function ChatWindow({
         if (senderId && senderId !== currentUserId) {
           apiFetch(`/api/chat/message/messages/${message._id}/status`, {
             method: "PATCH",
-            body: JSON.stringify({ status: "seen" }),
+            body: JSON.stringify({ messageIds: [message._id], status: "seen" }),
           });
         }
 

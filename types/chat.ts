@@ -94,9 +94,6 @@ export interface UserProfile {
   avatar?: string;
   links: { label: string; url: string }[];
   location?: string;
-  status?: string;
-  lastSeen?: string;
-  isOnline: boolean;
   createdAt: string;
   activeStoriesCount: number;
 }

@@ -72,21 +72,7 @@ const ChatHeader = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDropdown]);
 
-  const formatLastSeen = (lastSeen?: string) => {
-    if (!lastSeen) return '';
-    const date = new Date(lastSeen);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'last seen just now';
-    if (diffMins < 60) return `last seen ${diffMins}m ago`;
-    if (diffHours < 24) return `last seen ${diffHours}h ago`;
-    if (diffDays < 7) return `last seen ${diffDays}d ago`;
-    return `last seen ${date.toLocaleDateString()}`;
-  };
 
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-transparent shrink-0 z-10">
@@ -122,21 +108,7 @@ const ChatHeader = ({
                   <h3 className="text-base font-semibold text-chat-text-primary leading-tight truncate">
                     {recipientUsername || "Chat"}
                   </h3>
-                  {recipientOnline && !isGroup && (
-                    <span className="w-2 h-2 bg-green-500 rounded-full shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                  )}
                </div>
-               {/* Last seen text */}
-              {!isGroup && !recipientOnline && (
-                <p className="text-[11px] text-chat-text-tertiary truncate leading-none mt-1">
-                  {formatLastSeen(recipientLastSeen)}
-                </p>
-              )}
-               {!isGroup && recipientOnline && (
-                <p className="text-[11px] text-green-500/80 font-medium truncate leading-none mt-1">
-                  Online
-                </p>
-              )}
             </div>
           </>
         ) : (

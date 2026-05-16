@@ -86,9 +86,6 @@ func GetMyProfile(c *gin.Context) {
 			"avatar":           user.Avatar,
 			"links":            user.Links,
 			"location":         user.Location,
-			"status":           user.Status,
-			"lastSeen":         user.LastSeen,
-			"isOnline":         user.IsOnline,
 			"readReceipts":     user.ReadReceipts,
 			"theme":            user.Theme,
 			"twoFactorEnabled": user.TwoFactorEnabled,
@@ -104,7 +101,6 @@ type UpdateProfileFullRequest struct {
 	Bio      string             `json:"bio"`
 	Avatar   string             `json:"avatar"`
 	Location string             `json:"location"`
-	Status   string             `json:"status"`
 	Links    []models.UserLink  `json:"links"`
 }
 
@@ -147,9 +143,7 @@ func UpdateMyProfile(c *gin.Context) {
 	if req.Location != "" {
 		setFields["location"] = req.Location
 	}
-	if req.Status != "" {
-		setFields["status"] = req.Status
-	}
+
 	if req.Links != nil {
 		setFields["links"] = req.Links
 	}
@@ -183,7 +177,6 @@ func UpdateMyProfile(c *gin.Context) {
 			"avatar":           updatedUser.Avatar,
 			"links":            updatedUser.Links,
 			"location":         updatedUser.Location,
-			"status":           updatedUser.Status,
 			"readReceipts":     updatedUser.ReadReceipts,
 			"theme":            updatedUser.Theme,
 			"twoFactorEnabled": updatedUser.TwoFactorEnabled,
@@ -208,7 +201,6 @@ func notifyProfileUpdated(userID bson.ObjectID, user models.User) {
 		"username": user.Username,
 		"name":     user.Name,
 		"avatar":   user.Avatar,
-		"status":   user.Status,
 	}
 
 	for _, chat := range chats {
@@ -332,9 +324,6 @@ func GetUserProfile(c *gin.Context) {
 			"avatar":             user.Avatar,
 			"location":           user.Location,
 			"links":              user.Links,
-			"status":             user.Status,
-			"lastSeen":           user.LastSeen,
-			"isOnline":           user.IsOnline,
 			"createdAt":          user.CreatedAt,
 			"activeStoriesCount": activeStoriesCount,
 		},
