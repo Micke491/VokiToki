@@ -15,6 +15,7 @@ import StoryManagementModal from '@/components/chat/StoryManagementModal';
 import StoryRing from '@/components/chat/StoryRing';
 import StoryViewer from '@/components/chat/StoryViewer';
 import { useStories } from '@/hooks/useStories';
+import { Story } from '@/types/chat';
 
 interface User {
   _id: string;
@@ -27,16 +28,6 @@ interface User {
   location?: string;
   readReceipts: boolean;
   theme: 'light' | 'dark' | 'system';
-}
-
-interface Story {
-  _id: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
-  caption?: string;
-  viewedBy?: { userId: string; viewedAt: string }[];
-  createdAt: string;
-  expiresAt: string;
 }
 
 export default function ProfilePage() {
@@ -69,7 +60,7 @@ export default function ProfilePage() {
     loading: storiesLoading, 
     markStoryAsViewed, 
     hasUnviewedStories 
-  } = useStories(currentUser?._id || '');
+  } = useStories(currentUser);
 
   const myStoryUser = allStories.find(su => su.user._id === currentUser?._id);
   const userHasStories = (myStoryUser?.stories.length || 0) > 0;

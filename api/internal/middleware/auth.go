@@ -56,6 +56,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		opts := options.FindOne().SetProjection(bson.M{
 			"_id":          1,
 			"username":     1,
+			"avatar":       1,
 			"isBanned":     1,
 			"blockedUsers": 1, 
 		})

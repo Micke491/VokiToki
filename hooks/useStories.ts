@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api';
 import { pusherClient } from '@/lib/pusher-client';
 import { Story, StoryUser } from '@/types/chat';
 
-export function useStories(currentUserId: string) {
+export function useStories(currentUser: { _id: string, username: string, avatar?: string } | null) {
   const [stories, setStories] = useState<StoryUser[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,6 +26,8 @@ export function useStories(currentUserId: string) {
   }, []);
 
   const markStoryAsViewed = useCallback(async (userId: string, storyId: string) => {
+    if (!currentUser) return;
+    
     try {
       const response = await apiFetch(`/api/stories/${userId}`, {
         method: 'POST',
@@ -36,44 +38,60 @@ export function useStories(currentUserId: string) {
         setStories(prev => prev.map(storyUser => ({
           ...storyUser,
           stories: storyUser.stories.map(s => 
-            s._id === storyId ? { ...s, viewedBy: [...(s.viewedBy || []), { userId: currentUserId, viewedAt: new Date().toISOString() }] } : s
+            s._id === storyId ? { 
+              ...s, 
+              viewedBy: [
+                ...(s.viewedBy || []).filter(v => v.userId !== currentUser._id), 
+                { 
+                  userId: currentUser._id, 
+                  viewedAt: new Date().toISOString(),
+                  user: {
+                    username: currentUser.username,
+                    avatar: currentUser.avatar
+                  }
+                }
+              ] 
+            } : s
           )
         })));
       }
     } catch (error) {
       console.error('Error marking story as viewed:', error);
     }
-  }, [currentUserId]);
+  }, [currentUser]);
 
   useEffect(() => {
     fetchStories();
 
-    if (!currentUserId) return;
+    if (!currentUser?._id) return;
 
-    const channel = pusherClient.subscribe(`user-${currentUserId}`);
+    const channel = pusherClient.subscribe(`user-${currentUser._id}`);
 
-    channel.bind('story-viewed', (data: { storyId: string, viewedBy: string, user?: { username: string, avatar?: string } }) => {
+    channel.bind('story-viewed', (data: { storyId: string, viewedBy: string, viewedAt?: string, user?: { username: string, avatar?: string } }) => {
       setStories(prev => prev.map(storyUser => ({
         ...storyUser,
         stories: storyUser.stories.map(s => {
           if (s._id === data.storyId) {
             const viewedBy = s.viewedBy || [];
             const exists = viewedBy.some(v => v.userId === data.viewedBy);
+            
+            const newViewerEntry = { 
+              userId: data.viewedBy, 
+              viewedAt: data.viewedAt || new Date().toISOString(),
+              user: data.user 
+            };
+
             if (exists) {
               return {
                 ...s,
                 viewedBy: viewedBy.map(v => 
-                  v.userId === data.viewedBy ? { ...v, user: data.user || v.user } : v
+                  v.userId === data.viewedBy ? { ...v, ...newViewerEntry, user: data.user || v.user } : v
                 )
               };
             }
             return {
               ...s,
-              viewedBy: [...viewedBy, { 
-                userId: data.viewedBy, 
-                viewedAt: new Date().toISOString(),
-                user: data.user 
-              }]
+              viewedBy: [...viewedBy, newViewerEntry]
             };
           }
           return s;
@@ -102,14 +120,14 @@ export function useStories(currentUserId: string) {
       channel.unbind('story-new');
       channel.unbind('story-deleted');
     };
-  }, [currentUserId, fetchStories]);
+  }, [currentUser?._id, fetchStories]);
 
   const hasUnviewedStories = useCallback((storyUser: StoryUser) => {
     return storyUser.stories.some((s) => {
       const viewedBy = s.viewedBy || [];
-      return !viewedBy.some(v => v.userId === currentUserId);
+      return !viewedBy.some(v => v.userId === currentUser?._id);
     });
-  }, [currentUserId]);
+  }, [currentUser?._id]);
 
   return {
     stories,

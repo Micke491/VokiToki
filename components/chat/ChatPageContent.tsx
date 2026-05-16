@@ -58,7 +58,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     hasUnviewedStories,
     setStories,
     fetchStories
-  } = useStories(currentUser?._id || '');
+  } = useStories(currentUser);
 
   const [showStoryManagement, setShowStoryManagement] = useState(false);
 
