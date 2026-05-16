@@ -106,6 +106,11 @@ func SendMessage(c *gin.Context) {
 		MediaPublicID:  body.MediaPublicID,
 		IsForwarded:    body.IsForwarded,
 		Status:         "sent",
+		Read:           false,
+		ReadBy:         []models.ReadByEntry{},
+		DeliveredTo:    []bson.ObjectID{},
+		Reactions:      []models.Reaction{},
+		DeletedBy:      []bson.ObjectID{},
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
@@ -158,7 +163,6 @@ func SendMessage(c *gin.Context) {
 		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
 			"chatId":      body.ChatID,
 			"lastMessage": populatedMsg,
-			"unreadCount": 1, 
 		})
 	}
 
@@ -236,11 +240,28 @@ func GetMessages(c *gin.Context) {
 	}
 
 	if len(unreadIDs) > 0 {
-		db.MessageCollection.UpdateMany(c, bson.M{"_id": bson.M{"$in": unreadIDs}}, bson.M{
+		_, err := db.MessageCollection.UpdateMany(c, bson.M{"_id": bson.M{"$in": unreadIDs}}, bson.M{
 			"$push": bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
 			"$set":  bson.M{"status": "seen", "read": true},
 			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
 		})
+		if err == nil {
+			utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-update", gin.H{
+				"chatId":      chatID.Hex(),
+				"unreadCount": 0,
+			})
+			
+			var unreadIDStrs []string
+			for _, id := range unreadIDs {
+				unreadIDStrs = append(unreadIDStrs, id.Hex())
+			}
+			
+			utils.TriggerPusher("chat-"+chatID.Hex(), "messages-read", gin.H{
+				"chatId":     chatID.Hex(),
+				"messageIds": unreadIDStrs,
+				"userId":     currentUser.ID.Hex(),
+			})
+		}
 	}
 
 	userCache := make(map[bson.ObjectID]models.User)
@@ -326,6 +347,7 @@ func UpdateMessageStatus(c *gin.Context) {
 	currentUser := userObj.(models.User)
 
 	var body struct {
+		ChatID     string   `json:"chatId"`
 		MessageIDs []string `json:"messageIds"`
 		Status     string   `json:"status"`
 	}
@@ -364,7 +386,28 @@ func UpdateMessageStatus(c *gin.Context) {
 		"sender": bson.M{"$ne": currentUser.ID},
 	}
 
-	db.MessageCollection.UpdateMany(c, filter, update)
+	_, err := db.MessageCollection.UpdateMany(c, filter, update)
+
+	if err == nil && body.ChatID != "" {
+		switch body.Status {
+		case "seen":
+			utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-update", gin.H{
+				"chatId":      body.ChatID,
+				"unreadCount": 0,
+			})
+			utils.TriggerPusher("chat-"+body.ChatID, "messages-read", gin.H{
+				"chatId":     body.ChatID,
+				"messageIds": body.MessageIDs,
+				"userId":     currentUser.ID.Hex(),
+			})
+		case "delivered":
+			utils.TriggerPusher("chat-"+body.ChatID, "messages-delivered", gin.H{
+				"chatId":     body.ChatID,
+				"messageIds": body.MessageIDs,
+				"userId":     currentUser.ID.Hex(),
+			})
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "updated": len(objIDs)})
 }

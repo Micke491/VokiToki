@@ -45,6 +45,7 @@ export default function ChatWindow({
   onMenuClick,
   recipientStoriesUser,
   onStoryClick,
+  onChatUpdated,
 }: ChatWindowProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -154,7 +155,7 @@ export default function ChatWindow({
         if (senderId && senderId !== currentUserId) {
           apiFetch(`/api/chat/message/messages/${message._id}/status`, {
             method: "PATCH",
-            body: JSON.stringify({ messageIds: [message._id], status: "seen" }),
+            body: JSON.stringify({ chatId, messageIds: [message._id], status: "seen" }),
           });
         }
 
@@ -213,6 +214,29 @@ export default function ChatWindow({
                 readBy: [
                   ...(m.readBy?.filter((r) => r.userId !== data.userId) || []),
                   { userId: data.userId, readAt: new Date().toISOString() },
+                ],
+              };
+            }
+            return m;
+          }),
+        );
+      },
+    );
+    
+    channel.bind(
+      "messages-delivered",
+      (data: { messageIds: string[]; userId: string }) => {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (data.messageIds.includes(m._id) && m.status !== "seen") {
+              return {
+                ...m,
+                status: "delivered",
+                deliveredTo: [
+                  ...(m.deliveredTo?.filter((id: any) => 
+                    (typeof id === 'string' ? id : id.toString()) !== data.userId
+                  ) || []),
+                  data.userId,
                 ],
               };
             }
@@ -334,6 +358,7 @@ export default function ChatWindow({
       channel.unbind("message-updated");
       channel.unbind("message-deleted");
       channel.unbind("messages-read");
+      channel.unbind("messages-delivered");
       channel.unbind("user-typing");
       channel.unbind("user-stopped-typing");
       channel.unbind("message-reaction-added");
@@ -594,6 +619,7 @@ export default function ChatWindow({
           {
             method: "POST",
             body: JSON.stringify({
+              chatId,
               messageIds: unreadMessageIds,
               status: "seen",
             }),
@@ -1550,6 +1576,7 @@ export default function ChatWindow({
             onViewProfile={(userId) => setViewingProfileUserId(userId)}
             isBlocked={isBlockedChat}
             isDeleted={isRecipientDeleted}
+            onChatUpdated={onChatUpdated}
           />
         )}
       </div>

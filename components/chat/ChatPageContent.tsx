@@ -88,7 +88,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   }, [chatId]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || chatId === "[chatId]") return;
     const token = getAuthToken();
     if (!token) return;
 
@@ -100,8 +100,13 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
     return () => {
       channel.unbind('chat-updated');
+      pusherClient.unsubscribe(`chat-${chatId}`);
     };
   }, [chatId]);
+
+  const handleChatUpdated = (updatedChat: Chat) => {
+    setSelectedChat(updatedChat);
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -182,7 +187,8 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       };
     }
 
-    const otherMember = selectedChat.participants.find((p) => p._id !== currentUser._id);
+    const participants = selectedChat.participants || [];
+    const otherMember = participants.find((p) => p._id !== currentUser._id);
     return {
       name: otherMember?.username || 'Unknown User',
       avatar: otherMember?.avatar,
@@ -367,6 +373,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               onMenuClick={() => {}}
               recipientStoriesUser={allStoriesUsers.find(u => u.user._id === selectedChat?.participants.find(p => p._id !== currentUser?._id)?._id)}
               onStoryClick={handleStoryClick}
+              onChatUpdated={handleChatUpdated}
             />
           ) : (
             /* Empty State */

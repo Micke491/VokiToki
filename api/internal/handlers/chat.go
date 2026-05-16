@@ -294,7 +294,7 @@ func GetChatById(c *gin.Context) {
 		"isGroupChat":          chat.IsGroupChat,
 		"groupAdmin":           chat.GroupAdmin,
 		"avatar":               chat.Avatar,
-		"participants":         participants,
+		"participants":         formatParticipants(participants),
 		"participantUsernames": chat.ParticipantUsernames,
 		"createdAt":            chat.CreatedAt,
 		"updatedAt":            chat.UpdatedAt,
@@ -378,19 +378,23 @@ func UpdateGroupChat(c *gin.Context) {
 	}
 
 	chatMap := gin.H{
-		"_id":                  updatedChat.ID,
+		"_id":                  updatedChat.ID.Hex(),
 		"name":                 updatedChat.Name,
 		"isGroupChat":          updatedChat.IsGroupChat,
-		"groupAdmin":           updatedChat.GroupAdmin,
+		"groupAdmin":           nil,
 		"avatar":               updatedChat.Avatar,
-		"participants":         participants,
+		"participants":         formatParticipants(participants),
 		"participantUsernames": updatedChat.ParticipantUsernames,
 		"createdAt":            updatedChat.CreatedAt,
 		"updatedAt":            updatedChat.UpdatedAt,
 	}
+	if updatedChat.GroupAdmin != nil {
+		chatMap["groupAdmin"] = updatedChat.GroupAdmin.Hex()
+	}
 
 	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
 
+	var populatedSysMsg gin.H
 	if systemMsg != "" {
 		newSysMsg := models.Message{
 			ID:              bson.NewObjectID(),
@@ -402,8 +406,8 @@ func UpdateGroupChat(c *gin.Context) {
 		}
 		db.MessageCollection.InsertOne(c, newSysMsg)
 		
-		populatedSysMsg := gin.H{
-			"_id":             newSysMsg.ID,
+		populatedSysMsg = gin.H{
+			"_id":             newSysMsg.ID.Hex(),
 			"chatId":          chatIDStr,
 			"sender": gin.H{
 				"_id":      currentUser.ID.Hex(),
@@ -417,7 +421,17 @@ func UpdateGroupChat(c *gin.Context) {
 		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 	}
 
-	c.JSON(http.StatusOK, chat)
+	for _, pid := range updatedChat.Participants {
+		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			"chatId":       chatIDStr,
+			"name":         updatedChat.Name,
+			"avatar":       updatedChat.Avatar,
+			"participants": formatParticipants(participants),
+			"lastMessage":  populatedSysMsg,
+		})
+	}
+
+	c.JSON(http.StatusOK, chatMap)
 }
 
 func RemoveParticipant(c *gin.Context) {
@@ -444,10 +458,10 @@ func RemoveParticipant(c *gin.Context) {
 		return
 	}
 
-	if targetID == currentUser.ID {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Admin cannot remove themselves"})
-		return
-	}
+	var targetUser models.User
+	db.UserCollection.FindOne(c, bson.M{"_id": targetID}).Decode(&targetUser)
+
+	systemMsg := currentUser.Username + " removed " + targetUser.Username + " from the chat"
 
 	newParticipants := []bson.ObjectID{}
 	for _, p := range chat.Participants {
@@ -455,9 +469,6 @@ func RemoveParticipant(c *gin.Context) {
 			newParticipants = append(newParticipants, p)
 		}
 	}
-
-	var targetUser models.User
-	db.UserCollection.FindOne(c, bson.M{"_id": targetID}).Decode(&targetUser)
 
 	newUsernames := []string{}
 	for _, u := range chat.ParticipantUsernames {
@@ -484,18 +495,21 @@ func RemoveParticipant(c *gin.Context) {
 	}
 
 	chatMap := gin.H{
-		"_id":                  updatedChat.ID,
+		"_id":                  updatedChat.ID.Hex(),
 		"name":                 updatedChat.Name,
 		"isGroupChat":          updatedChat.IsGroupChat,
-		"groupAdmin":           updatedChat.GroupAdmin,
+		"groupAdmin":           nil,
 		"avatar":               updatedChat.Avatar,
-		"participants":         participants,
+		"participants":         formatParticipants(participants),
 		"participantUsernames": updatedChat.ParticipantUsernames,
 		"createdAt":            updatedChat.CreatedAt,
 		"updatedAt":            updatedChat.UpdatedAt,
 	}
+	if updatedChat.GroupAdmin != nil {
+		chatMap["groupAdmin"] = updatedChat.GroupAdmin.Hex()
+	}
 
-	systemMsg := currentUser.Username + " removed " + targetUser.Username + " from the chat"
+	systemMsg = currentUser.Username + " removed " + targetUser.Username + " from the chat"
 	newSysMsg := models.Message{
 		ID:              bson.NewObjectID(),
 		ChatID:          chatID,
@@ -526,9 +540,18 @@ func RemoveParticipant(c *gin.Context) {
 	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 
 	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+	for _, pid := range updatedChat.Participants {
+		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			"chatId":       chatIDStr,
+			"name":         updatedChat.Name,
+			"avatar":       updatedChat.Avatar,
+			"participants": formatParticipants(participants),
+			"lastMessage":  populatedSysMsg,
+		})
+	}
 	utils.TriggerPusher("user-"+body.UserID, "chat-removed", gin.H{"chatId": chatIDStr})
 
-	c.JSON(http.StatusOK, gin.H{"message": "Participant removed"})
+	c.JSON(http.StatusOK, chatMap)
 }
 
 func LeaveChat(c *gin.Context) {
@@ -669,15 +692,18 @@ func AddParticipant(c *gin.Context) {
 	}
 
 	chatMap := gin.H{
-		"_id":                  updatedChat.ID,
+		"_id":                  updatedChat.ID.Hex(),
 		"name":                 updatedChat.Name,
 		"isGroupChat":          updatedChat.IsGroupChat,
-		"groupAdmin":           updatedChat.GroupAdmin,
+		"groupAdmin":           nil,
 		"avatar":               updatedChat.Avatar,
-		"participants":         participants,
+		"participants":         formatParticipants(participants),
 		"participantUsernames": updatedChat.ParticipantUsernames,
 		"createdAt":            updatedChat.CreatedAt,
 		"updatedAt":            updatedChat.UpdatedAt,
+	}
+	if updatedChat.GroupAdmin != nil {
+		chatMap["groupAdmin"] = updatedChat.GroupAdmin.Hex()
 	}
 
 	systemMsg := "@" + currentUser.Username + " added " + joinStrings(newUsernames) + " to the chat"
@@ -711,11 +737,17 @@ func AddParticipant(c *gin.Context) {
 	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 
 	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
-	for _, id := range newObjIDs {
-		utils.TriggerPusher("user-"+id.Hex(), "chat-new", chatMap)
+	for _, pid := range updatedChat.Participants {
+		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			"chatId":       chatIDStr,
+			"name":         updatedChat.Name,
+			"avatar":       updatedChat.Avatar,
+			"participants": formatParticipants(participants),
+			"lastMessage":  populatedSysMsg,
+		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Participants added"})
+	c.JSON(http.StatusOK, chatMap)
 }
 
 func HideChat(c *gin.Context) {
@@ -770,4 +802,25 @@ func joinStrings(s []string) string {
 		}
 	}
 	return res
+}
+
+func formatParticipants(users []models.User) []gin.H {
+	res := make([]gin.H, len(users))
+	for i, u := range users {
+		res[i] = gin.H{
+			"_id":      u.ID.Hex(),
+			"username": usernameCheck(u.Username),
+			"avatar":   u.Avatar,
+			"email":    u.Email,
+			"name":     u.Name,
+		}
+	}
+	return res
+}
+
+func usernameCheck(username string) string {
+	if username == "" {
+		return "Unknown User"
+	}
+	return username
 }

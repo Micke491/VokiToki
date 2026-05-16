@@ -24,12 +24,13 @@ interface Chat {
   lastMessage?: {
     text?: string;
     mediaUrl?: string;
-    mediaType?: 'image' | 'video' | 'audio';
+    mediaType?: 'image' | 'video' | 'audio' | 'gif' | 'sticker' | 'call';
     sender?: {
       _id: string;
       username: string;
     };
     createdAt: string;
+    isSystemMessage?: boolean;
   };
   updatedAt: string;
   unreadCount?: number;
@@ -94,13 +95,14 @@ export default function ChatList({
         const isCurrentChat = data.chatId === selectedChatIdRef.current;
         const amISender = data.lastMessage?.sender?._id === currentUserId || data.lastMessage?.sender === currentUserId;
 
-        let newUnreadCount = 0;
+        let newUnreadCount = existingChat.unreadCount || 0;
+
         if (isCurrentChat || amISender) {
           newUnreadCount = 0;
-        } else if (data.unreadCount !== undefined && data.unreadCount > 0) {
-          newUnreadCount = (existingChat.unreadCount || 0) + data.unreadCount;
-        } else {
-          newUnreadCount = existingChat.unreadCount || 0;
+        } else if (data.unreadCount !== undefined) {
+          newUnreadCount = data.unreadCount;
+        } else if (data.lastMessage) {
+          newUnreadCount += 1;
         }
 
         const updatedChat: Chat = {
@@ -114,7 +116,8 @@ export default function ChatList({
             mediaUrl: data.lastMessage.mediaUrl,
             mediaType: data.lastMessage.mediaType,
             sender: data.lastMessage.sender,
-            createdAt: data.lastMessage.createdAt
+            createdAt: data.lastMessage.createdAt,
+            isSystemMessage: data.lastMessage.isSystemMessage
           } : existingChat.lastMessage,
           unreadCount: newUnreadCount
         };
@@ -123,6 +126,13 @@ export default function ChatList({
 
         const shouldMoveToTop = !existingChat.lastMessage ||
           (data.lastMessage && new Date(data.lastMessage.createdAt) > new Date(existingChat.lastMessage.createdAt));
+
+        if (!isCurrentChat && !amISender && data.lastMessage?._id) {
+          apiFetch(`/api/chat/message/messages/${data.lastMessage._id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ chatId: data.chatId, messageIds: [data.lastMessage._id], status: "delivered" }),
+          }).catch(err => console.error("Error marking as delivered:", err));
+        }
 
         if (shouldMoveToTop) {
           return [updatedChat, ...otherChats];
@@ -480,7 +490,7 @@ export default function ChatList({
                     </div>
                   </div>
                   <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
-                    {chat.lastMessage && (
+                    {chat.lastMessage && !chat.lastMessage.isSystemMessage && (
                       <span className="shrink-0">
                         {chat.lastMessage.sender?._id === currentUserId ? 'You: ' :
                          isGroup ? `${chat.lastMessage.sender?.username || 'Unknown User'}: ` : ''}

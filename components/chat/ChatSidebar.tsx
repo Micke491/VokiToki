@@ -30,6 +30,7 @@ interface ChatSidebarProps {
   onViewProfile?: (userId: string) => void;
   isBlocked?: boolean;
   isDeleted?: boolean;
+  onChatUpdated?: (updatedChat: any) => void;
 }
 
 const ChatSidebar = ({
@@ -48,6 +49,7 @@ const ChatSidebar = ({
   onViewProfile,
   isBlocked,
   isDeleted,
+  onChatUpdated,
 }: ChatSidebarProps) => {
   const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -95,6 +97,9 @@ const ChatSidebar = ({
       }
       if (data.groupAdmin) {
         setLocalGroupAdminId(data.groupAdmin);
+      }
+      if (onChatUpdated) {
+        onChatUpdated(data);
       }
     });
 
@@ -155,8 +160,10 @@ const ChatSidebar = ({
         body: JSON.stringify({ name: editGroupName }),
       });
       if (res.ok) {
+        const data = await res.json();
         toast.success("Group info updated");
         setIsEditingGroup(false);
+        if (onChatUpdated) onChatUpdated(data);
       } else {
         toast.error("Failed to update group info");
       }
@@ -184,7 +191,9 @@ const ChatSidebar = ({
             body: JSON.stringify({ userId }),
           });
           if (res.ok) {
+            const data = await res.json();
             toast.success("Participant removed");
+            if (onChatUpdated) onChatUpdated(data.chat || data);
           } else {
             const data = await res.json();
             toast.error(data.error || "Failed to remove participant");
@@ -269,6 +278,29 @@ const ChatSidebar = ({
     });
   };
 
+  const handleRemoveAvatar = async () => {
+    if (!chatId) return;
+    try {
+      setIsUploadingAvatar(true);
+      const res = await apiFetch(`/api/chat/${chatId}/update`, {
+        method: "PATCH",
+        body: JSON.stringify({ avatar: "" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success("Group avatar removed");
+        if (onChatUpdated) onChatUpdated(data);
+      } else {
+        toast.error("Failed to remove group avatar");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !chatId) return;
@@ -297,7 +329,9 @@ const ChatSidebar = ({
       });
 
       if (res.ok) {
+        const data = await res.json();
         toast.success("Group avatar updated");
+        if (onChatUpdated) onChatUpdated(data);
       } else {
         toast.error("Failed to update group avatar");
       }
@@ -371,6 +405,16 @@ const ChatSidebar = ({
                 >
                   <Camera className="w-4 h-4" />
                 </button>
+                {recipientAvatar && (
+                  <button 
+                    onClick={handleRemoveAvatar}
+                    disabled={isUploadingAvatar}
+                    className="absolute bottom-4 -left-2 p-2 bg-red-500 text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
+                    title="Remove group photo"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -434,9 +478,9 @@ const ChatSidebar = ({
                )}
             </div>
             <div className="space-y-3">
-              {localParticipants.map((user) => (
+              {localParticipants.map((user, index) => (
                 <div
-                  key={user._id}
+                  key={user._id || index}
                   className={`flex items-center gap-3 group ${user._id !== currentUserId && onViewProfile ? 'cursor-pointer hover:bg-chat-hover rounded-xl p-2 -m-2 transition-colors' : ''}`}
                   onClick={() => {
                     if (user._id !== currentUserId && onViewProfile) {
@@ -447,15 +491,15 @@ const ChatSidebar = ({
                   <div className="relative w-9 h-9 flex-shrink-0">
                     <div className="w-full h-full rounded-full bg-chat-bg-secondary flex items-center justify-center text-sm font-bold text-chat-text-tertiary overflow-hidden">
                       {user.avatar ? (
-                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                        <img src={user.avatar} alt={user.username || "Avatar"} className="w-full h-full object-cover" />
                       ) : (
-                        user.username.charAt(0).toUpperCase()
+                        (user.username || "?").charAt(0).toUpperCase()
                       )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0 flex items-center justify-between">
                     <p className="text-sm font-semibold text-chat-text-secondary truncate flex items-center gap-1.5">
-                      {user.username}
+                      {user.username || "Unknown User"}
                       {user._id === currentUserId && (
                         <span className="text-xs text-chat-text-tertiary font-normal">(you)</span>
                       )}
@@ -470,7 +514,7 @@ const ChatSidebar = ({
                           <button
                              onClick={(e) => {
                                 e.stopPropagation();
-                                handleChangeAdmin(user._id, user.username);
+                                handleChangeAdmin(user._id, user.username || "this user");
                              }}
                              className="p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-full"
                              title="Make admin"

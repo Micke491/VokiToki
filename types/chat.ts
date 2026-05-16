@@ -35,6 +35,7 @@ export interface Message {
     userId: string;
     readAt: string;
   }[];
+  deliveredTo?: string[];
 }
 
 export interface ChatWindowProps {
@@ -55,6 +56,7 @@ export interface ChatWindowProps {
   onMenuClick?: () => void;
   recipientStoriesUser?: StoryUser;
   onStoryClick?: (userId: string, stories: Story[], username: string, avatar?: string) => void;
+  onChatUpdated?: (updatedChat: any) => void;
 }
 
 export interface IncomingCallData {
