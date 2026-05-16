@@ -52,7 +52,6 @@ func DeleteCurrentUser(c *gin.Context) {
         return
     }
 
-    // OBAVEZNO: Brisanje iz Redisa nakon brisanja naloga
     if db.RedisClient != nil {
         db.RedisClient.Del(ctx, "user_auth:"+authUser.ID.Hex())
     }
@@ -80,10 +79,8 @@ func UpdateCurrentUser(c *gin.Context) {
 
     setFields := bson.M{"updatedAt": time.Now()}
 
-    // Provera za username (samo ako je poslat i ako je drugačiji od trenutnog)
     if req.Username != "" && req.Username != authUser.Username {
         var existing models.User
-        // Provera da li neko drugi već koristi ovo ime (case-insensitive)
         err := db.UserCollection.FindOne(ctx, bson.M{
             "username": bson.M{"$regex": "^" + req.Username + "$", "$options": "i"},
             "_id":      bson.M{"$ne": authUser.ID},
@@ -103,7 +100,6 @@ func UpdateCurrentUser(c *gin.Context) {
         setFields["avatar"] = req.Avatar
     }
 
-    // Koristimo ReturnDocument After da izbegnemo dupli upit
     var updatedUser models.User
     opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
     
@@ -118,13 +114,12 @@ func UpdateCurrentUser(c *gin.Context) {
         return
     }
 
-    // Čistimo Redis keš jer su se podaci promenili
     if db.RedisClient != nil {
         db.RedisClient.Del(ctx, "user_auth:"+authUser.ID.Hex())
     }
 
     c.JSON(http.StatusOK, gin.H{
         "message": "Profile updated successfully",
-        "user":    updatedUser, // Vraćamo ceo objekat (štedi muke na frontendu)
+        "user":    updatedUser, 
     })
 }
