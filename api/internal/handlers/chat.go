@@ -45,6 +45,94 @@ func GetChats(c *gin.Context) {
 		return
 	}
 
+	userIDsMap := make(map[bson.ObjectID]bool)
+	lastMessageIDsMap := make(map[bson.ObjectID]bool)
+	var chatIDs []bson.ObjectID
+
+	for _, chat := range chats {
+		if chatID, ok := chat["_id"].(bson.ObjectID); ok {
+			chatIDs = append(chatIDs, chatID)
+		}
+		if participantIDs, ok := chat["participants"].(bson.A); ok {
+			for _, pid := range participantIDs {
+				if id, valid := pid.(bson.ObjectID); valid {
+					userIDsMap[id] = true
+				}
+			}
+		}
+		if lastMsgID, ok := chat["lastMessage"].(bson.ObjectID); ok {
+			lastMessageIDsMap[lastMsgID] = true
+		}
+	}
+
+	var userIDs []bson.ObjectID
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+
+	userCache := make(map[bson.ObjectID]models.User)
+	if len(userIDs) > 0 {
+		cursor, err := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": userIDs}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+		if err == nil {
+			var users []models.User
+			cursor.All(c, &users)
+			for _, u := range users {
+				userCache[u.ID] = u
+			}
+			cursor.Close(c)
+		}
+	}
+
+	var lastMessageIDs []bson.ObjectID
+	for id := range lastMessageIDsMap {
+		lastMessageIDs = append(lastMessageIDs, id)
+	}
+
+	messageCache := make(map[bson.ObjectID]models.Message)
+	if len(lastMessageIDs) > 0 {
+		cursor, err := db.MessageCollection.Find(c, bson.M{"_id": bson.M{"$in": lastMessageIDs}})
+		if err == nil {
+			var msgs []models.Message
+			cursor.All(c, &msgs)
+			for _, m := range msgs {
+				messageCache[m.ID] = m
+				if _, ok := userCache[m.Sender]; !ok {
+					var sender models.User
+					db.UserCollection.FindOne(c, bson.M{"_id": m.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1})).Decode(&sender)
+					userCache[m.Sender] = sender
+				}
+			}
+			cursor.Close(c)
+		}
+	}
+
+	unreadCounts := make(map[bson.ObjectID]int32)
+	if len(chatIDs) > 0 {
+		pipeline := bson.A{
+			bson.M{"$match": bson.M{
+				"chatId":        bson.M{"$in": chatIDs},
+				"sender":        bson.M{"$ne": currentUser.ID},
+				"readBy.userId": bson.M{"$ne": currentUser.ID},
+			}},
+			bson.M{"$group": bson.M{
+				"_id":   "$chatId",
+				"count": bson.M{"$sum": 1},
+			}},
+		}
+		cursor, err := db.MessageCollection.Aggregate(c, pipeline)
+		if err == nil {
+			var results []struct {
+				ID    bson.ObjectID `bson:"_id"`
+				Count int32         `bson:"count"`
+			}
+			cursor.All(c, &results)
+			for _, res := range results {
+				unreadCounts[res.ID] = res.Count
+			}
+			cursor.Close(c)
+		}
+	}
+
 	result := []gin.H{} 
 	for _, chat := range chats {
 		chatID, ok := chat["_id"].(bson.ObjectID)
@@ -52,42 +140,34 @@ func GetChats(c *gin.Context) {
 			continue
 		}
 
-		participantIDs, ok := chat["participants"].(bson.A)
-		if ok {
+		if participantIDs, ok := chat["participants"].(bson.A); ok {
 			var participants []models.User
-			pCursor, err := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": participantIDs}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
-			if err == nil {
-				pCursor.All(c, &participants)
-				chat["participants"] = participants
+			for _, pid := range participantIDs {
+				if id, valid := pid.(bson.ObjectID); valid {
+					if user, found := userCache[id]; found {
+						participants = append(participants, user)
+					}
+				}
 			}
+			chat["participants"] = participants
 		}
 
 		if lastMsgID, ok := chat["lastMessage"].(bson.ObjectID); ok {
-			var lastMsg models.Message
-			err := db.MessageCollection.FindOne(c, bson.M{"_id": lastMsgID}).Decode(&lastMsg)
-			if err == nil {
-				var sender models.User
-				db.UserCollection.FindOne(c, bson.M{"_id": lastMsg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1})).Decode(&sender)
-				
+			if lastMsg, found := messageCache[lastMsgID]; found {
+				sender := userCache[lastMsg.Sender]
 				msgMap := bson.M{
-					"_id":            lastMsg.ID,
-					"text":           lastMsg.Text,
-					"sender":         sender,
-					"createdAt":      lastMsg.CreatedAt,
-					"mediaType":      lastMsg.MediaType,
+					"_id":             lastMsg.ID,
+					"text":            lastMsg.Text,
+					"sender":          sender,
+					"createdAt":       lastMsg.CreatedAt,
+					"mediaType":       lastMsg.MediaType,
 					"isSystemMessage": lastMsg.IsSystemMessage,
 				}
 				chat["lastMessage"] = msgMap
 			}
 		}
 
-		unreadCount, _ := db.MessageCollection.CountDocuments(c, bson.M{
-			"chatId":        chatID,
-			"sender":        bson.M{"$ne": currentUser.ID},
-			"readBy.userId": bson.M{"$ne": currentUser.ID},
-		})
-
-		chat["unreadCount"] = unreadCount
+		chat["unreadCount"] = unreadCounts[chatID]
 		result = append(result, gin.H(chat))
 	}
 
@@ -190,6 +270,7 @@ func CreateGroupChat(c *gin.Context) {
 	var body struct {
 		Name         string   `json:"name"`
 		Participants []string `json:"participants"`
+		Avatar       *string  `json:"avatar"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
@@ -243,6 +324,7 @@ func CreateGroupChat(c *gin.Context) {
 		Name:                 &body.Name,
 		IsGroupChat:          true,
 		GroupAdmin:           &currentUser.ID,
+		Avatar:               body.Avatar,
 		Participants:         finalIDs,
 		ParticipantUsernames: usernames,
 		CreatedAt:            time.Now(),

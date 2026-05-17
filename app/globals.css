@@ -163,7 +163,6 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* Prevent iOS zoom on input focus */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -172,43 +171,63 @@ textarea {
   font-size: max(16px, 1em);
 }
 
-/* ============================================
-   CUSTOM SCROLLBAR
-   ============================================ */
+::-webkit-scrollbar,
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 0px;
+  width: 6px !important;
+  height: 6px !important;
 }
 
+::-webkit-scrollbar-track,
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent !important;
 }
 
+::-webkit-scrollbar-thumb,
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #dbdbdb;
-  border-radius: 10px;
+  background: rgba(156, 163, 175, 0.2) !important;
+  border-radius: 9999px !important;
+  transition: background-color 0.2s ease !important;
 }
 
+::-webkit-scrollbar-thumb:hover,
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: rgba(156, 163, 175, 0.35) !important;
 }
 
-/* Dark mode scrollbar */
+/* Dark mode overrides */
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb,
 :root[data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: rgba(255, 255, 255, 0.12) !important;
 }
 
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
 :root[data-theme="dark"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #363636;
+  background: rgba(255, 255, 255, 0.25) !important;
 }
 
-/* Light mode scrollbar */
+/* Light mode overrides */
+:root[data-theme="light"] ::-webkit-scrollbar-thumb,
 :root[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: rgba(0, 0, 0, 0.12) !important;
 }
 
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover,
 :root[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Firefox scrollbars compliance */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
+}
+
+:root[data-theme="dark"] * {
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+:root[data-theme="light"] * {
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
 }
 
 /* ============================================

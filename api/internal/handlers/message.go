@@ -264,17 +264,73 @@ func GetMessages(c *gin.Context) {
 		}
 	}
 
-	userCache := make(map[bson.ObjectID]models.User)
-	populatedMessages := []gin.H{}
+	senderIDsMap := make(map[bson.ObjectID]bool)
+	replyMsgIDsMap := make(map[bson.ObjectID]bool)
 
+	for _, msg := range messages {
+		senderIDsMap[msg.Sender] = true
+		if msg.ReplyTo != nil {
+			replyMsgIDsMap[*msg.ReplyTo] = true
+		}
+	}
+
+	var senderIDs []bson.ObjectID
+	for id := range senderIDsMap {
+		senderIDs = append(senderIDs, id)
+	}
+
+	userCache := make(map[bson.ObjectID]models.User)
+	if len(senderIDs) > 0 {
+		cursor, err := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": senderIDs}}, options.Find().SetProjection(bson.M{"username": 1, "avatar": 1, "name": 1}))
+		if err == nil {
+			var senders []models.User
+			cursor.All(c, &senders)
+			for _, u := range senders {
+				userCache[u.ID] = u
+			}
+			cursor.Close(c)
+		}
+	}
+
+	var replyMsgIDs []bson.ObjectID
+	for id := range replyMsgIDsMap {
+		replyMsgIDs = append(replyMsgIDs, id)
+	}
+
+	replyCache := make(map[bson.ObjectID]models.Message)
+	var replySenderIDs []bson.ObjectID
+	if len(replyMsgIDs) > 0 {
+		cursor, err := db.MessageCollection.Find(c, bson.M{"_id": bson.M{"$in": replyMsgIDs}})
+		if err == nil {
+			var replyMsgs []models.Message
+			cursor.All(c, &replyMsgs)
+			for _, rm := range replyMsgs {
+				replyCache[rm.ID] = rm
+				if _, ok := userCache[rm.Sender]; !ok {
+					replySenderIDs = append(replySenderIDs, rm.Sender)
+				}
+			}
+			cursor.Close(c)
+		}
+	}
+
+	if len(replySenderIDs) > 0 {
+		cursor, err := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": replySenderIDs}}, options.Find().SetProjection(bson.M{"username": 1, "avatar": 1}))
+		if err == nil {
+			var replySenders []models.User
+			cursor.All(c, &replySenders)
+			for _, ru := range replySenders {
+				userCache[ru.ID] = ru
+			}
+			cursor.Close(c)
+		}
+	}
+
+	populatedMessages := []gin.H{}
 	for _, msg := range messages {
 		sender, ok := userCache[msg.Sender]
 		if !ok {
-			err := db.UserCollection.FindOne(c, bson.M{"_id": msg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1, "name": 1})).Decode(&sender)
-			if err != nil {
-				sender.Username = "Deleted User"
-			}
-			userCache[msg.Sender] = sender
+			sender.Username = "Deleted User"
 		}
 
 		msgMap := gin.H{
@@ -304,16 +360,10 @@ func GetMessages(c *gin.Context) {
 		}
 
 		if msg.ReplyTo != nil {
-			var replyMsg models.Message
-			err := db.MessageCollection.FindOne(c, bson.M{"_id": msg.ReplyTo}).Decode(&replyMsg)
-			if err == nil {
+			if replyMsg, ok := replyCache[*msg.ReplyTo]; ok {
 				replySender, ok := userCache[replyMsg.Sender]
 				if !ok {
-					err := db.UserCollection.FindOne(c, bson.M{"_id": replyMsg.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})).Decode(&replySender)
-					if err != nil {
-						replySender.Username = "Deleted User"
-					}
-					userCache[replyMsg.Sender] = replySender
+					replySender.Username = "Deleted User"
 				}
 				msgMap["replyTo"] = gin.H{
 					"_id":    replyMsg.ID,

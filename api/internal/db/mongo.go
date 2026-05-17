@@ -42,4 +42,10 @@ func ConnectMongo() {
 	MessageCollection = db.Collection("messages")
 
 	log.Println("Successfully connected to MongoDB")
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = CreateIndexes(ctx)
+	}()
 }

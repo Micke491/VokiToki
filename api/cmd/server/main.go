@@ -55,6 +55,8 @@ func main() {
 		api.POST("/users/profile/upload", handlers.UploadProfilePicture)
 
 		api.GET("/users/search", handlers.SearchUsers)
+		api.GET("/users/suggested-contacts", handlers.GetSuggestedContacts)
+		api.GET("/users/recommended", handlers.GetRecommendedUsers)
 
 
 
