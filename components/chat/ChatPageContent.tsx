@@ -1,6 +1,6 @@
 "use client";
 
-import { registerServiceWorker, showNotification, isNotificationsEnabled } from "@/lib/pushNotifications";
+import { registerServiceWorker, isNotificationsEnabled } from "@/lib/pushNotifications";
 
 import { useState, useEffect, useRef } from "react";
 import { pusherClient } from "@/lib/pusher-client";
@@ -18,7 +18,6 @@ import UserProfileModal from "@/components/ui/UserProfileModal";
 import { useStories } from "@/hooks/useStories";
 import { apiFetch } from "@/lib/api";
 import { getAuthToken } from "@/lib/storage";
-import NotificationListener from "@/components/layout/NotificationListener";
 import toast from "react-hot-toast";
 
 interface User {
@@ -48,7 +47,6 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const { 
@@ -73,12 +71,12 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
 
   const [viewingProfile, setViewingProfile] = useState<{ isOpen: boolean; userId: string } | null>(null);
 
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const storyInputRef = useRef<HTMLInputElement>(null);
   const [uploadingStory, setUploadingStory] = useState(false);
 
   useEffect(() => {
     fetchCurrentUser();
+    registerServiceWorker();
   }, []);
 
   useEffect(() => {
@@ -320,13 +318,13 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       </div>
 
       <main className="flex flex-1 overflow-hidden relative z-10">
-        {/* 2. Conversations List Panel */}
+        {/* 2. Conversations List Panel — hidden on mobile when a chat is open */}
         <div
           className={`
           relative flex-shrink-0 border-r border-chat-border bg-chat-glass backdrop-blur-md
           transition-all duration-300 ease-in-out
-          w-[320px] lg:w-[360px]
-          block
+          w-full md:w-[320px] lg:w-[360px]
+          ${chatId ? 'hidden md:block' : 'block'}
         `}
         >
           {/* StoryBar - horizontal scroll row at top of ChatList */}
@@ -354,10 +352,11 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
           />
         </div>
 
-        {/* 3. Chat Window Panel */}
+        {/* 3. Chat Window Panel — full width on mobile, flex-1 on desktop */}
         <div
           className={`
-          flex-1 flex flex-col min-w-[400px] bg-transparent
+          flex-1 flex flex-col min-w-0 bg-transparent
+          ${chatId ? 'block' : 'hidden md:flex'}
         `}
         >
           {chatId && currentUser ? (
@@ -381,7 +380,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               <div className="relative mb-8">
                 <div className="absolute inset-0 bg-chat-accent/10 blur-3xl rounded-full" />
                 <svg
-                  className="relative w-32 h-32 text-chat-border"
+                  className="relative w-32 h-32 text-chat-border animate-[float_3s_ease-in-out_infinite]"
                   viewBox="0 0 120 120"
                   fill="none"
                 >

@@ -7,10 +7,9 @@ import SideBar from '@/components/layout/Sidebar';
 import {
   ArrowLeft, Camera, Save, Loader2, CheckCircle, AlertTriangle,
   User as UserIcon, MapPin, Link as LinkIcon, Edit2, X,
-  Trash2, Image as ImageIcon, Menu, Plus, Eye
+  Trash2, Image as ImageIcon, Plus, Eye, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { pusherClient } from '@/lib/pusher-client';
 import StoryManagementModal from '@/components/chat/StoryManagementModal';
 import StoryRing from '@/components/chat/StoryRing';
 import StoryViewer from '@/components/chat/StoryViewer';
@@ -52,8 +51,10 @@ export default function ProfilePage() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const storyInputRef = useRef<HTMLInputElement>(null);
+
+  const BIO_MAX_LENGTH = 200;
 
   const { 
     stories: allStories, 
@@ -76,8 +77,7 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-  useEffect(() => {
-  }, [currentUser?._id]);
+
 
   const fetchProfile = async () => {
     try {
@@ -321,7 +321,7 @@ export default function ProfilePage() {
                     if (userHasStories) {
                       setIsViewerOpen(true);
                     } else if (isEditing) {
-                      fileInputRef.current?.click();
+                      avatarInputRef.current?.click();
                     }
                   }}
                 />
@@ -329,13 +329,13 @@ export default function ProfilePage() {
                   <>
                     <input
                       type="file"
-                      ref={fileInputRef}
+                      ref={avatarInputRef}
                       className="hidden"
                       accept="image/*"
                       onChange={handleAvatarUpload}
                     />
                     <button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => avatarInputRef.current?.click()}
                       disabled={uploading}
                       className="absolute bottom-6 right-0 p-2.5 bg-chat-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 z-10 border-2 border-chat-bg-primary"
                     >
@@ -439,8 +439,12 @@ export default function ProfilePage() {
                   @
                   Username
                 </label>
-                <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                  {formData.username}
+                <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary flex items-center justify-between">
+                  <span>{formData.username}</span>
+                  <span className="flex items-center gap-1.5 text-xs text-chat-text-tertiary">
+                    <Lock className="w-3 h-3" />
+                    Cannot be changed
+                  </span>
                 </div>
               </div>
 
@@ -451,15 +455,25 @@ export default function ProfilePage() {
                   Bio
                 </label>
                 {isEditing ? (
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, bio: e.target.value }))
-                    }
-                    placeholder="Tell us a bit about yourself..."
-                    rows={3}
-                    className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary placeholder-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all font-medium resize-none"
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={formData.bio}
+                      onChange={(e) => {
+                        if (e.target.value.length <= BIO_MAX_LENGTH) {
+                          setFormData((prev) => ({ ...prev, bio: e.target.value }));
+                        }
+                      }}
+                      placeholder="Tell us a bit about yourself..."
+                      rows={3}
+                      maxLength={BIO_MAX_LENGTH}
+                      className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary placeholder-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all font-medium resize-none"
+                    />
+                    <span className={`absolute bottom-3 right-4 text-xs font-medium ${
+                      formData.bio.length >= BIO_MAX_LENGTH ? 'text-red-500' : 'text-chat-text-tertiary'
+                    }`}>
+                      {formData.bio.length}/{BIO_MAX_LENGTH}
+                    </span>
+                  </div>
                 ) : (
                   <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
                     {formData.bio || 'No bio yet'}
@@ -609,13 +623,7 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*,video/*"
-              onChange={handleStoryFileSelect}
-            />
+
 
             {stories.length === 0 ? (
               <div className="py-12 flex flex-col items-center justify-center text-center text-chat-text-tertiary bg-chat-bg-secondary rounded-2xl border border-dashed border-chat-border">
@@ -624,7 +632,7 @@ export default function ProfilePage() {
                 <p className="text-sm mt-1">Add a photo or video to share with your contacts</p>
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {stories.map((story) => (
                   <motion.div
                     key={story._id}

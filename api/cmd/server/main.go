@@ -39,6 +39,7 @@ func main() {
 		auth.POST("/login", middleware.RateLimiter(10, 5*time.Minute, "auth:login"), handlers.Login)
 		auth.POST("/password-reset-request", middleware.RateLimiter(3, 10*time.Minute, "auth:reset-request"), handlers.RequestPasswordReset)
 		auth.POST("/reset-password", middleware.RateLimiter(5, 10*time.Minute, "auth:reset-execute"), handlers.ExecutePasswordReset)
+		auth.POST("/2fa/verify-login", middleware.RateLimiter(10, 5*time.Minute, "auth:verify-login-2fa"), handlers.VerifyLogin2FA)
 	}
 
 	api := r.Group("/api")
@@ -51,6 +52,10 @@ func main() {
 		api.GET("/me", handlers.GetCurrentUser)
 
 		api.PATCH("/users/preferences", handlers.UpdatePreferences)
+
+		api.POST("/auth/2fa/request-enable", handlers.RequestEnable2FA)
+		api.POST("/auth/2fa/confirm-enable", handlers.ConfirmEnable2FA)
+		api.POST("/auth/2fa/disable", handlers.Disable2FA)
 
 		api.POST("/users/profile/upload", handlers.UploadProfilePicture)
 

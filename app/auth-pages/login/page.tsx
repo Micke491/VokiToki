@@ -16,6 +16,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [twoFaCode, setTwoFaCode] = useState('');
+  const [rememberDevice, setRememberDevice] = useState(true);
+  const [verifying2FA, setVerifying2FA] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,11 +64,44 @@ export default function LoginPage() {
         return;
       }
 
+      if (data.requires_2fa) {
+        setTempToken(data.temp_token);
+        setShow2FAModal(true);
+        setLoading(false);
+        return;
+      }
+
       setAuthToken(data.token, rememberMe);
       window.location.href = '/chat'; 
     } catch (err) {
       setError('Something went wrong. Please try again.');
       setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setVerifying2FA(true);
+
+    try {
+      const response = await apiFetch(`/api/auth/2fa/verify-login`, {
+        method: 'POST',
+        body: JSON.stringify({ temp_token: tempToken, code: twoFaCode, rememberDevice }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || data.message || 'Verification failed');
+        setVerifying2FA(false);
+        return;
+      }
+
+      setAuthToken(data.token, rememberMe);
+      window.location.href = '/chat'; 
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+      setVerifying2FA(false);
     }
   };
 
@@ -178,6 +216,94 @@ export default function LoginPage() {
 
         </div>
       </motion.div>
+
+      {/* 2FA Verification Modal */}
+      <AnimatePresence>
+        {show2FAModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !verifying2FA && setShow2FAModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-[#09090b] border border-zinc-800 rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600/10 border border-blue-500/20 rounded-2xl mb-4">
+                  <Mail className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className="text-2xl font-black text-zinc-100 tracking-tight">Check Your Email</h3>
+                <p className="text-sm font-medium text-zinc-400 mt-2 leading-relaxed">
+                  We've sent a 6-digit verification code to your email address.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerify2FA} className="space-y-6">
+                <AnimatePresence>
+                  {error && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                      className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3"
+                    >
+                      <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      <p className="text-red-300 text-sm font-medium">{error}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={twoFaCode}
+                    onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    className="w-full text-center tracking-[0.5em] text-3xl font-black py-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-zinc-700"
+                  />
+                </div>
+
+                <label className="flex items-center gap-3 cursor-pointer group p-2 bg-zinc-900/30 rounded-xl border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+                  <div className="relative flex items-center justify-center shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={rememberDevice}
+                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      className="peer sr-only"
+                    />
+                    <div className="w-5 h-5 border-2 border-zinc-700 rounded-lg group-hover:border-blue-500/50 transition-colors peer-checked:border-blue-500 peer-checked:bg-blue-500"></div>
+                    <CheckCircle size={14} className="absolute text-white scale-0 peer-checked:scale-100 transition-transform" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="block text-sm font-bold text-zinc-300">Remember this device</span>
+                    <span className="block text-xs text-zinc-500">Skip 2FA for 7 days on this browser</span>
+                  </div>
+                </label>
+
+                <div className="flex flex-col gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={verifying2FA || twoFaCode.length !== 6}
+                    className="w-full py-4 bg-blue-600 text-zinc-100 font-bold rounded-2xl hover:bg-blue-500 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)]"
+                  >
+                    {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify Code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShow2FAModal(false); setError(''); }}
+                    disabled={verifying2FA}
+                    className="w-full py-4 bg-transparent text-zinc-400 hover:text-zinc-100 font-bold rounded-2xl transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

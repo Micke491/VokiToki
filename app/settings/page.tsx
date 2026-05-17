@@ -6,9 +6,9 @@ import { apiFetch } from '@/lib/api';
 import SideBar from '@/components/layout/Sidebar';
 import BlockedUsersModal from '@/components/ui/BlockedUsersModal';
 import {
-  ArrowLeft, Camera, Trash2, Moon, Sun, AlertTriangle, Loader2,
-  User as UserIcon, Image as ImageIcon, CheckCircle, Shield,
-  Lock, Palette, EyeOff, UserX, Smartphone, Eye, Menu, Bell, BellOff, BellRing, Info
+  ArrowLeft, Trash2, Moon, Sun, AlertTriangle, Loader2,
+  User as UserIcon, CheckCircle, Shield,
+  Lock, Palette, EyeOff, UserX, Smartphone, Eye, Bell, BellOff, BellRing, Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -38,22 +38,23 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('privacy');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [requestingPassword, setRequestingPassword] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const [editUsername, setEditUsername] = useState('');
-  const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
   const [readReceipts, setReadReceipts] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
   const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(true);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [requestingPermission, setRequestingPermission] = useState(false);
+
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [show2FADisable, setShow2FADisable] = useState(false);
+  const [setupCode, setSetupCode] = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
+  const [verifying2FA, setVerifying2FA] = useState(false);
 
   useEffect(() => {
     if (feedback) {
@@ -76,10 +77,6 @@ export default function SettingsPage() {
       const data = await response.json();
 
       setCurrentUser(data.user);
-      setEditUsername(data.user.username || '');
-      setBio(data.user.bio || '');
-      setAvatarUrl(data.user.avatar || '');
-
       setReadReceipts(data.user.readReceipts ?? true);
       setTwoFactor(data.user.twoFactorEnabled ?? false);
 
@@ -124,55 +121,7 @@ export default function SettingsPage() {
     handleUpdatePreferences({ readReceipts: newState });
   };
 
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    try {
-      const response = await apiFetch(`/api/users/current_user`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          username: editUsername,
-          bio: bio,
-          avatar: avatarUrl,
-        }),
-      });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to update profile');
-
-      setCurrentUser(data.user);
-      setFeedback({ type: 'success', message: 'Profile updated successfully!' });
-    } catch (error: any) {
-      console.error('Error saving profile:', error);
-      setFeedback({ type: 'error', message: error.message || 'Failed to save changes.' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await apiFetch(`/api/users/profile/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Failed to upload image');
-      const data = await response.json();
-      setAvatarUrl(data.url);
-      setFeedback({ type: 'success', message: 'Avatar updated successfully!' });
-    } catch (error: any) {
-      setFeedback({ type: 'error', message: error.message || 'Failed to upload.' });
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handlePasswordResetRequest = async () => {
     if (!currentUser?.email) return;
@@ -190,6 +139,61 @@ export default function SettingsPage() {
       setFeedback({ type: 'error', message: 'Could not send request. Try again.' });
     } finally {
       setRequestingPassword(false);
+    }
+  };
+
+  const handleRequest2FASetup = async () => {
+    setShow2FASetup(true);
+    setVerifying2FA(true);
+    setSetupCode('');
+    try {
+      const response = await apiFetch(`/api/auth/2fa/request-enable`, { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to send code');
+      setFeedback({ type: 'success', message: 'Verification code sent to email' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Could not send verification code' });
+      setShow2FASetup(false);
+    } finally {
+      setVerifying2FA(false);
+    }
+  };
+
+  const handleConfirm2FASetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifying2FA(true);
+    try {
+      const response = await apiFetch(`/api/auth/2fa/confirm-enable`, {
+        method: 'POST',
+        body: JSON.stringify({ code: setupCode }),
+      });
+      if (!response.ok) throw new Error('Invalid code');
+      setTwoFactor(true);
+      setShow2FASetup(false);
+      setFeedback({ type: 'success', message: '2FA enabled successfully' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Invalid or expired code' });
+    } finally {
+      setVerifying2FA(false);
+    }
+  };
+
+  const handleDisable2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifying2FA(true);
+    try {
+      const response = await apiFetch(`/api/auth/2fa/disable`, {
+        method: 'POST',
+        body: JSON.stringify({ password: disablePassword }),
+      });
+      if (!response.ok) throw new Error('Incorrect password');
+      setTwoFactor(false);
+      setShow2FADisable(false);
+      setDisablePassword('');
+      setFeedback({ type: 'success', message: '2FA disabled successfully' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Incorrect password' });
+    } finally {
+      setVerifying2FA(false);
     }
   };
 
@@ -327,10 +331,11 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <div className="max-w-6xl px-10 mx-auto flex flex-row gap-8 pb-12">
+        <div className="max-w-6xl px-4 md:px-10 mx-auto flex flex-col md:flex-row gap-4 md:gap-8 pb-12">
 
           {/* Settings Sub-Sidebar Menu */}
-          <aside className="w-64 shrink-0 space-y-2">
+          {/* Tab Navigation — horizontal scroll on mobile, vertical sidebar on desktop */}
+          <aside className="w-full md:w-64 shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible scrollbar-none pb-2 md:pb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -338,7 +343,7 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${
+                  className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all whitespace-nowrap md:w-full ${
                     isActive
                       ? tab.danger
                         ? 'bg-red-500/10 text-red-500 border border-red-500/20'
@@ -404,6 +409,9 @@ export default function SettingsPage() {
                         </div>
                         <button
                           onClick={toggleReadReceipts}
+                          role="switch"
+                          aria-checked={readReceipts}
+                          aria-label="Toggle read receipts"
                           className={`w-14 h-8 rounded-full transition-colors relative shrink-0 ${readReceipts ? 'bg-chat-accent' : 'bg-chat-border'}`}
                         >
                           <div className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full transition-transform shadow-sm ${readReceipts ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -462,19 +470,26 @@ export default function SettingsPage() {
                             Two-Step Verification (2FA)
                           </h3>
                           <p className="text-sm text-chat-text-secondary mt-1">
-                            Add an extra layer of security requiring an Authenticator app code to log in.
+                            Add an extra layer of security requiring an email code to log in.
                           </p>
                         </div>
-                        <button
-                          onClick={() => {/* Implement 2FA setup route */}}
-                          className={`px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-auto ${
-                            twoFactor
-                              ? 'bg-green-500/10 text-green-500 border border-green-500/20'
-                              : 'bg-chat-accent text-white hover:bg-chat-accent-hover shadow-lg shadow-chat-accent/20'
-                          }`}
-                        >
-                          {twoFactor ? 'Configured' : 'Setup 2FA'}
-                        </button>
+                        <div className="relative group">
+                          {twoFactor ? (
+                            <button
+                              onClick={() => { setShow2FADisable(true); setDisablePassword(''); }}
+                              className="px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-auto bg-green-500/10 text-green-500 border border-green-500/20 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20"
+                            >
+                              Configured (Disable)
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleRequest2FASetup}
+                              className="px-5 py-2.5 font-bold rounded-xl transition-all text-sm whitespace-nowrap w-auto bg-chat-bg-primary border border-chat-border hover:border-chat-accent text-chat-text-primary"
+                            >
+                              Setup 2FA
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -508,6 +523,9 @@ export default function SettingsPage() {
                         </div>
                         <button
                           onClick={handleToggleNotifications}
+                          role="switch"
+                          aria-checked={notifEnabled}
+                          aria-label="Toggle push notifications"
                           className={`w-14 h-8 rounded-full transition-colors relative shrink-0 ${notifEnabled ? 'bg-chat-accent' : 'bg-chat-border'}`}
                         >
                           <div className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full transition-transform shadow-sm ${notifEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -616,7 +634,7 @@ export default function SettingsPage() {
                       <p className="text-sm text-red-600/80 font-medium mt-1">Permanently remove all your data, messages, and chats</p>
                     </div>
                     <button
-                      onClick={() => setShowDeleteConfirm(true)}
+                      onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); }}
                       className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 shrink-0"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -657,6 +675,20 @@ export default function SettingsPage() {
                 You are about to permanently delete your account. All of your data, messages, and personalized settings will be completely removed.
               </p>
 
+              <div className="space-y-3 pt-2">
+                <label className="text-sm font-bold text-chat-text-secondary">
+                  Type <span className="text-red-500 font-black">DELETE</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE here"
+                  className="w-full px-4 py-3 bg-chat-input border border-red-500/30 rounded-xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-red-500/50 font-mono tracking-widest"
+                  autoComplete="off"
+                />
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
@@ -667,8 +699,8 @@ export default function SettingsPage() {
                 </button>
                 <button
                   onClick={handleDeleteAccount}
-                  disabled={deleting}
-                  className="flex-1 px-4 py-4 bg-red-500 text-white rounded-2xl font-black shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={deleting || deleteConfirmText !== 'DELETE'}
+                  className="flex-1 px-4 py-4 bg-red-500 text-white rounded-2xl font-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
                   {deleting ? 'Deleting...' : 'Delete Forever'}
@@ -684,6 +716,126 @@ export default function SettingsPage() {
         isOpen={showBlockedUsersModal}
         onClose={() => setShowBlockedUsersModal(false)}
       />
+
+      {/* 2FA Setup Modal */}
+      <AnimatePresence>
+        {show2FASetup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !verifying2FA && setShow2FASetup(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-chat-accent/10 border border-chat-accent/20 rounded-2xl mb-4">
+                  <Smartphone className="w-8 h-8 text-chat-accent" />
+                </div>
+                <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Enable 2FA</h3>
+                <p className="text-sm font-medium text-chat-text-secondary mt-2">
+                  We've sent a 6-digit code to your email. Enter it below to enable Two-Step Verification.
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirm2FASetup} className="space-y-6">
+                <div>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={setupCode}
+                    onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    disabled={verifying2FA}
+                    className="w-full text-center tracking-[0.5em] text-3xl font-black py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all placeholder-chat-text-tertiary"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="submit"
+                    disabled={verifying2FA || setupCode.length !== 6}
+                    className="w-full py-4 bg-chat-accent text-white font-bold rounded-2xl hover:bg-chat-accent-hover transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShow2FASetup(false)}
+                    disabled={verifying2FA}
+                    className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2FA Disable Modal */}
+      <AnimatePresence>
+        {show2FADisable && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !verifying2FA && setShow2FADisable(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl mb-4">
+                  <Lock className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Disable 2FA</h3>
+                <p className="text-sm font-medium text-chat-text-secondary mt-2">
+                  Please enter your password to disable Two-Step Verification.
+                </p>
+              </div>
+
+              <form onSubmit={handleDisable2FA} className="space-y-6">
+                <div>
+                  <input
+                    type="password"
+                    required
+                    value={disablePassword}
+                    onChange={(e) => setDisablePassword(e.target.value)}
+                    placeholder="Enter your password"
+                    disabled={verifying2FA}
+                    className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all font-medium"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="submit"
+                    disabled={verifying2FA || disablePassword.length === 0}
+                    className="w-full py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Disable 2FA'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShow2FADisable(false)}
+                    disabled={verifying2FA}
+                    className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

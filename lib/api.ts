@@ -15,6 +15,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   }
 
   return fetch(url, {
+    credentials: 'include',
     ...options,
     headers,
   });

@@ -54,6 +54,38 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	if user.TwoFactorEnabled {
+		trustedCookie, err := c.Cookie("trusted_device")
+		if err == nil && services.ValidateTrustedDeviceToken(trustedCookie, user.ID.Hex()) {
+		} else {
+			timeoutKey := "2fa_login_timeout:" + user.ID.Hex()
+			if _, err := services.Get2FACode(ctx, timeoutKey); err == nil {
+				c.JSON(http.StatusTooManyRequests, gin.H{"message": "Please wait 15 seconds before requesting another code."})
+				return
+			}
+
+			code := services.GenerateRandomCode(6)
+			
+			services.Store2FACode(ctx, timeoutKey, "1", 15*time.Second)
+			services.Store2FACode(ctx, "2fa_login:"+user.ID.Hex(), code, 10*time.Minute)
+			
+			go services.SendEmail(user.Email, "Your Login Code", "Your 2FA login code is: "+code)
+
+			tempToken, err := services.GenerateTempToken(user.ID.Hex())
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate session"})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"requires_2fa": true,
+				"temp_token":   tempToken,
+				"message":      "2FA code sent to your email",
+			})
+			return
+		}
+	}
+
 	token, err := services.GenerateToken(user.ID.Hex(), user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate session"})
