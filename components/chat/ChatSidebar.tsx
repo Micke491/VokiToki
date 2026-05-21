@@ -7,6 +7,7 @@ import { getAuthToken } from "@/lib/storage";
 import { apiFetch } from "@/lib/api";
 import AddParticipantModal from "./AddParticipantModal";
 import ConfirmModal from "../ui/ConfirmModal";
+import ImagePreviewModal from "../ui/ImagePreviewModal";
 import { pusherClient } from "@/lib/pusher-client";
 
 interface ChatSidebarProps {
@@ -53,6 +54,8 @@ const ChatSidebar = ({
 }: ChatSidebarProps) => {
   const [sharedMedia, setSharedMedia] = useState<Message[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
+  const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
+  const [previewMediaType, setPreviewMediaType] = useState<string | undefined>(undefined);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editGroupName, setEditGroupName] = useState(recipientUsername || "");
   const [isSavingGroupInfo, setIsSavingGroupInfo] = useState(false);
@@ -582,7 +585,10 @@ const ChatSidebar = ({
                   <div 
                     key={media._id} 
                     className="aspect-square rounded-lg overflow-hidden bg-chat-bg-secondary cursor-pointer hover:opacity-80 transition-opacity border border-chat-border"
-                    onClick={() => window.open(media.mediaUrl, "_blank")}
+                    onClick={() => {
+                      setPreviewMediaUrl(media.mediaUrl || null);
+                      setPreviewMediaType(media.mediaType);
+                    }}
                   >
                     {media.mediaType === "video" ? (
                       <div className="w-full h-full flex items-center justify-center bg-chat-bg-secondary">
@@ -655,6 +661,15 @@ const ChatSidebar = ({
       confirmText={confirmModal.confirmText}
       type={confirmModal.type}
       isLoading={isLeaving}
+    />
+
+    <ImagePreviewModal 
+      imageUrl={previewMediaUrl}
+      mediaType={previewMediaType}
+      onClose={() => {
+        setPreviewMediaUrl(null);
+        setPreviewMediaType(undefined);
+      }}
     />
     </>
   );
