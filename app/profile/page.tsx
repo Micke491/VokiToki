@@ -433,21 +433,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Username (read-only) */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                  @
-                  Username
-                </label>
-                <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary flex items-center justify-between">
-                  <span>{formData.username}</span>
-                  <span className="flex items-center gap-1.5 text-xs text-chat-text-tertiary">
-                    <Lock className="w-3 h-3" />
-                    Cannot be changed
-                  </span>
-                </div>
-              </div>
-
               {/* Bio */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">

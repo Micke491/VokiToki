@@ -30,12 +30,12 @@ interface User {
   theme: 'light' | 'dark' | 'system';
 }
 
-type TabType = 'privacy' | 'notifications' | 'appearance' | 'danger';
+type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'danger';
 
 export default function SettingsPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('privacy');
+  const [activeTab, setActiveTab] = useState<TabType>('account');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -49,6 +49,12 @@ export default function SettingsPage() {
   const [notifEnabled, setNotifEnabled] = useState(true);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [requestingPermission, setRequestingPermission] = useState(false);
+
+  // Username change configurations
+  const [username, setUsername] = useState('');
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameSuccess, setUsernameSuccess] = useState('');
 
   const [show2FASetup, setShow2FASetup] = useState(false);
   const [show2FADisable, setShow2FADisable] = useState(false);
@@ -77,6 +83,7 @@ export default function SettingsPage() {
       const data = await response.json();
 
       setCurrentUser(data.user);
+      setUsername(data.user.username || '');
       setReadReceipts(data.user.readReceipts ?? true);
       setTwoFactor(data.user.twoFactorEnabled ?? false);
 
@@ -108,6 +115,42 @@ export default function SettingsPage() {
     }
   };
 
+  const handleUpdateUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || username === currentUser?.username) return;
+
+    // Standard character checks
+    const usernameRegex = /^[a-z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      setUsernameError('Usernames must be 3-20 characters and contain lowercase letters, numbers, or underscores.');
+      return;
+    }
+
+    setCheckingUsername(true);
+    setUsernameError('');
+    setUsernameSuccess('');
+
+    try {
+      const response = await apiFetch(`/api/profile`, {
+        method: 'PATCH',
+        body: JSON.stringify({ username }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'This username is already taken.');
+      }
+
+      setCurrentUser((prev) => (prev ? { ...prev, username: data.user?.username || username } : null));
+      setUsernameSuccess('Username has been updated successfully.');
+      setFeedback({ type: 'success', message: 'Username updated!' });
+    } catch (err: any) {
+      setUsernameError(err.message || 'Failed to update username.');
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
   const handleThemeChange = (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
@@ -120,8 +163,6 @@ export default function SettingsPage() {
     setReadReceipts(newState);
     handleUpdatePreferences({ readReceipts: newState });
   };
-
-
 
   const handlePasswordResetRequest = async () => {
     if (!currentUser?.email) return;
@@ -217,7 +258,6 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
-        {/* Ambient Glow */}
         <div className="ambient-glow">
           <div className="ambient-glow-inner" />
         </div>
@@ -273,6 +313,7 @@ export default function SettingsPage() {
   };
 
   const TABS = [
+    { id: 'account', label: 'Account Settings', icon: UserIcon, danger: false },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield, danger: false },
     { id: 'notifications', label: 'Notifications', icon: Bell, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
@@ -281,7 +322,6 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden relative selection:bg-chat-accent/30">
-      {/* Signature Ambient Gradient */}
       <div className="ambient-glow">
         <div className="ambient-glow-inner" />
       </div>
@@ -332,9 +372,7 @@ export default function SettingsPage() {
         </header>
 
         <div className="max-w-6xl px-4 md:px-10 mx-auto flex flex-col md:flex-row gap-4 md:gap-8 pb-12">
-
           {/* Settings Sub-Sidebar Menu */}
-          {/* Tab Navigation — horizontal scroll on mobile, vertical sidebar on desktop */}
           <aside className="w-full md:w-64 shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible scrollbar-none pb-2 md:pb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
@@ -360,26 +398,79 @@ export default function SettingsPage() {
 
           {/* Main Settings Content Area */}
           <main className="flex-1 max-w-3xl">
-            {/* Profile Settings Banner */}
-            <div className="mb-6 p-5 bg-chat-glass backdrop-blur-xl rounded-2xl border border-chat-accent/20 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-chat-accent/20 flex items-center justify-center">
-                  <UserIcon className="w-5 h-5 text-chat-accent" />
-                </div>
-                <div>
-                  <p className="font-bold text-chat-text-primary">Looking for profile settings?</p>
-                  <p className="text-sm text-chat-text-tertiary">Manage your profile, avatar, and stories in the dedicated Profile page</p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push('/profile')}
-                className="px-5 py-2.5 bg-chat-accent text-white rounded-xl font-bold text-sm hover:bg-chat-accent-hover transition-all whitespace-nowrap"
-              >
-                Go to Profile
-              </button>
-            </div>
-
             <AnimatePresence mode="wait">
+              {/* === ACCOUNT SETTINGS TAB === */}
+              {activeTab === 'account' && (
+                <motion.section
+                  key="account"
+                  initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
+                  className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10 space-y-8"
+                >
+                  <div>
+                    <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
+                      <UserIcon className="w-6 h-6 text-chat-accent" />
+                      Account Settings
+                    </h2>
+
+                    <form onSubmit={handleUpdateUsername} className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-chat-text-secondary">
+                          Change Username
+                        </label>
+                        <p className="text-xs text-chat-text-tertiary">
+                          Customize your handle. Other users will be able to search and message you with this identifier.
+                        </p>
+                        <div className="relative mt-2">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-chat-text-tertiary font-bold">
+                            @
+                          </span>
+                          <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => {
+                              setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+                              setUsernameError('');
+                              setUsernameSuccess('');
+                            }}
+                            placeholder="username"
+                            className="w-full pl-9 pr-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
+                            disabled={checkingUsername}
+                            maxLength={20}
+                            required
+                          />
+                        </div>
+
+                        {usernameError && (
+                          <p className="text-sm text-red-500 font-semibold mt-2 flex items-center gap-1.5">
+                            <AlertTriangle className="w-4 h-4" />
+                            {usernameError}
+                          </p>
+                        )}
+
+                        {usernameSuccess && (
+                          <p className="text-sm text-green-500 font-semibold mt-2 flex items-center gap-1.5">
+                            <CheckCircle className="w-4 h-4" />
+                            {usernameSuccess}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={checkingUsername || username === currentUser?.username || !username}
+                        className="px-6 py-4 bg-chat-accent hover:bg-chat-accent-hover text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-chat-accent/20 disabled:opacity-50"
+                      >
+                        {checkingUsername ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-5 h-5" />
+                        )}
+                        {checkingUsername ? 'Updating Username...' : 'Update Username'}
+                      </button>
+                    </form>
+                  </div>
+                </motion.section>
+              )}
 
               {/* === PRIVACY & SECURITY TAB === */}
               {activeTab === 'privacy' && (
@@ -388,7 +479,6 @@ export default function SettingsPage() {
                   initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
                   className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10 space-y-10"
                 >
-                  {/* Privacy Section */}
                   <div>
                     <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3">
                       <Shield className="w-6 h-6 text-chat-accent" />
@@ -396,7 +486,6 @@ export default function SettingsPage() {
                     </h2>
 
                     <div className="space-y-4">
-                      {/* Read Receipts Toggle */}
                       <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
@@ -404,7 +493,7 @@ export default function SettingsPage() {
                             Read Receipts
                           </h3>
                           <p className="text-sm text-chat-text-secondary mt-1 max-w-sm">
-                            If turned off, you won't send read receipts. You also won't be able to see read receipts from other people.
+                            If turned off, you won&apos;t send read receipts. You also won&apos;t be able to see read receipts from other people.
                           </p>
                         </div>
                         <button
@@ -418,7 +507,6 @@ export default function SettingsPage() {
                         </button>
                       </div>
 
-                      {/* Blocked Users */}
                       <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
@@ -438,7 +526,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Security Section */}
                   <div>
                     <h2 className="text-xl font-bold text-chat-text-primary mb-6 flex items-center gap-3 pt-6 border-t border-chat-border">
                       <Lock className="w-6 h-6 text-chat-accent" />
@@ -446,7 +533,6 @@ export default function SettingsPage() {
                     </h2>
 
                     <div className="space-y-4">
-                      {/* Password Reset */}
                       <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-row items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base">Account Password</h3>
@@ -462,7 +548,6 @@ export default function SettingsPage() {
                         </button>
                       </div>
 
-                      {/* Two-Factor Authentication (2FA) */}
                       <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex flex-row items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
@@ -510,7 +595,6 @@ export default function SettingsPage() {
                     </h2>
 
                     <div className="space-y-4">
-                      {/* Enable/Disable Toggle */}
                       <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
@@ -532,7 +616,6 @@ export default function SettingsPage() {
                         </button>
                       </div>
 
-                      {/* Permission Status */}
                       <div className="bg-chat-input border border-chat-border rounded-2xl p-6 space-y-4">
                         <div className="flex items-center justify-between gap-4">
                           <div>
@@ -572,7 +655,6 @@ export default function SettingsPage() {
                         )}
                       </div>
 
-                      {/* Info Note */}
                       <div className="bg-chat-accent/5 border border-chat-accent/15 rounded-2xl p-5 flex items-start gap-3">
                         <Info className="w-5 h-5 text-chat-accent shrink-0 mt-0.5" />
                         <div>
@@ -736,7 +818,7 @@ export default function SettingsPage() {
                 </div>
                 <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Enable 2FA</h3>
                 <p className="text-sm font-medium text-chat-text-secondary mt-2">
-                  We've sent a 6-digit code to your email. Enter it below to enable Two-Step Verification.
+                  We&apos;ve sent a 6-digit code to your email. Enter it below to enable Two-Step Verification.
                 </p>
               </div>
 
@@ -835,7 +917,6 @@ export default function SettingsPage() {
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
