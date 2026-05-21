@@ -86,6 +86,7 @@ export default function ChatWindow({
   const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
   const [viewingReceiptsFor, setViewingReceiptsFor] = useState<Message | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
+  const firstUnreadIdRef = useRef<string | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isBlockedChat, setIsBlockedChat] = useState(false);
@@ -375,6 +376,7 @@ export default function ChatWindow({
     setViewingReceiptsFor(null);
     setReplyingTo(null);
     setEditingMessage(null);
+    firstUnreadIdRef.current = null;
     fetchMessages();
   }, [chatId]);
 
@@ -388,14 +390,24 @@ export default function ChatWindow({
     if (!loading && messages.length > 0 && !hasScrolledInitially.current) {
       requestAnimationFrame(() => {
         if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTop =
-            messagesContainerRef.current.scrollHeight;
+          const unreadSeparator = document.getElementById("unread-separator");
+          if (unreadSeparator) {
+            messagesContainerRef.current.scrollTop = Math.max(0, unreadSeparator.offsetTop - 80);
+          } else {
+            messagesContainerRef.current.scrollTop =
+              messagesContainerRef.current.scrollHeight;
+          }
           hasScrolledInitially.current = true;
         }
       });
       const timeout = setTimeout(() => {
         if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          const unreadSeparator = document.getElementById("unread-separator");
+          if (unreadSeparator) {
+            messagesContainerRef.current.scrollTop = Math.max(0, unreadSeparator.offsetTop - 80);
+          } else {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
         }
       }, 100);
       return () => clearTimeout(timeout);
@@ -422,7 +434,7 @@ export default function ChatWindow({
         setLoadingMore(true);
       }
 
-      let endpoint = `/api/chat/message?chatId=${chatId}&t=${Date.now()}`;
+      let endpoint = `/api/chat/message?chatId=${chatId}&limit=50&t=${Date.now()}`;
       if (beforeDate) endpoint += `&before=${encodeURIComponent(beforeDate)}`;
 
       const response = await apiFetch(endpoint, {
@@ -451,12 +463,26 @@ export default function ChatWindow({
       } else {
         setMessages(newMessages);
 
+        // Find first unread message on initial fetch
+        const firstUnread = newMessages.find(
+          (m: Message) =>
+            m.sender?._id !== currentUserId &&
+            !m.readBy?.some((r) => r.userId === currentUserId)
+        );
+        if (firstUnread) {
+          firstUnreadIdRef.current = firstUnread._id;
+        } else {
+          firstUnreadIdRef.current = null;
+        }
+
         apiFetch(`/api/chat/${chatId}/pinned`)
           .then((res) => res.json())
           .then((data) => {
             if (Array.isArray(data)) {
               setPinnedMessages(data);
-              setTimeout(() => scrollToBottom(true), 50)
+              if (!firstUnreadIdRef.current) {
+                setTimeout(() => scrollToBottom(true), 50);
+              }
             }
           })
           .catch((err) =>
@@ -1175,6 +1201,7 @@ export default function ChatWindow({
         <ReadReceiptModal
           message={viewingReceiptsFor}
           currentUserId={currentUserId}
+          participants={participants || []}
           onClose={() => setViewingReceiptsFor(null)}
         />
       )}
@@ -1377,36 +1404,49 @@ export default function ChatWindow({
                         filteredMessages[index - 1].createdAt,
                       ).toDateString();
 
+                  const isFirstUnread = firstUnreadIdRef.current === message._id;
+
                   return (
-                    <div key={message._id} id={`msg-${message._id}`}>
-                      <MessageItem
-                        message={message}
-                        currentUserId={currentUserId}
-                        searchQuery={searchQuery}
-                        isOwn={isOwn || false}
-                        showDate={showDate}
-                        dateLabel={formatDate(message.createdAt)}
-                        onReply={startReply}
-                        onEdit={startEdit}
-                        onDelete={handleDelete}
-                        onPin={handlePin}
-                        onForward={setForwardingMessage}
-                        onViewStatus={setViewingReceiptsFor}
-                        onReaction={handleReaction}
-                        onRemoveReaction={removeReaction}
-                        scrollToBottom={scrollToBottom}
-                        showEmojiPicker={showEmojiPicker}
-                        setShowEmojiPicker={setShowEmojiPicker}
-                        showMoreMenu={showMoreMenu}
-                        setShowMoreMenu={setShowMoreMenu}
-                        chatId={chatId}
-                        isGroup={isGroup}
-                        groupAdminId={groupAdminId}
-                        onJumpToMessage={jumpToMessage}
-                        onPreviewImage={setPreviewImage}
-                        onCallAction={handleCallAction}
-                        onReport={setReportingMessage}
-                      />
+                    <div key={message._id}>
+                      {isFirstUnread && (
+                        <div id="unread-separator" className="flex items-center justify-center my-6 py-2 select-none">
+                          <div className="flex-1 h-[1px] bg-chat-accent/30" />
+                          <span className="mx-4 text-xs font-semibold tracking-wide text-chat-accent bg-chat-accent/10 px-3.5 py-1.5 rounded-full border border-chat-accent/20 shadow-sm transition-all duration-300">
+                            New Messages
+                          </span>
+                          <div className="flex-1 h-[1px] bg-chat-accent/30" />
+                        </div>
+                      )}
+                      <div id={`msg-${message._id}`}>
+                        <MessageItem
+                          message={message}
+                          currentUserId={currentUserId}
+                          searchQuery={searchQuery}
+                          isOwn={isOwn || false}
+                          showDate={showDate}
+                          dateLabel={formatDate(message.createdAt)}
+                          onReply={startReply}
+                          onEdit={startEdit}
+                          onDelete={handleDelete}
+                          onPin={handlePin}
+                          onForward={setForwardingMessage}
+                          onViewStatus={setViewingReceiptsFor}
+                          onReaction={handleReaction}
+                          onRemoveReaction={removeReaction}
+                          scrollToBottom={scrollToBottom}
+                          showEmojiPicker={showEmojiPicker}
+                          setShowEmojiPicker={setShowEmojiPicker}
+                          showMoreMenu={showMoreMenu}
+                          setShowMoreMenu={setShowMoreMenu}
+                          chatId={chatId}
+                          isGroup={isGroup}
+                          groupAdminId={groupAdminId}
+                          onJumpToMessage={jumpToMessage}
+                          onPreviewImage={setPreviewImage}
+                          onCallAction={handleCallAction}
+                          onReport={setReportingMessage}
+                        />
+                      </div>
                     </div>
                   );
                 })}

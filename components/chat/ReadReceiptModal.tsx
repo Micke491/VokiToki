@@ -6,10 +6,38 @@ interface ReadReceiptModalProps {
   message: Message;
   onClose: () => void;
   currentUserId: string;
+  participants?: Participant[]; 
 }
 
-const ReadReceiptModal = ({ message, onClose, currentUserId }: ReadReceiptModalProps) => {
-  const readByUsers = message.readBy?.filter(r => r.userId !== currentUserId) || [];
+interface Participant {
+  _id?: string;
+  id?: string;
+  username?: string;
+  avatar?: string;
+}
+
+const ReadReceiptModal = ({ message, onClose, currentUserId, participants = [] as Participant[] }: ReadReceiptModalProps) => {
+  const rawReadReceipts = ((message.readBy ?? []) as any[]).filter((r: any) => {
+    const rId = typeof r.userId === "object" ? (r.userId._id || r.userId.id) : r.userId;
+    return rId !== currentUserId;
+  });
+
+  const uniqueReceiptsMap = new Map<string, any>();
+  
+  rawReadReceipts.forEach((receipt) => {
+    const userIdStr = typeof receipt.userId === "object"
+      ? (receipt.userId._id || receipt.userId.id)
+      : receipt.userId;
+
+    if (userIdStr) {
+      const existing = uniqueReceiptsMap.get(userIdStr);
+      if (!existing || new Date(receipt.readAt) > new Date(existing.readAt)) {
+        uniqueReceiptsMap.set(userIdStr, receipt);
+      }
+    }
+  });
+
+  const readByUsers = Array.from(uniqueReceiptsMap.values());
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
@@ -47,12 +75,18 @@ const ReadReceiptModal = ({ message, onClose, currentUserId }: ReadReceiptModalP
               </div>
             ) : (
               <div className="space-y-1">
-                {readByUsers.map((readRecord: any) => {
-                  const user = readRecord.userId; // Populated in API
+                {readByUsers.map((readRecord: any, index: number) => {
+                  const rawUserId = readRecord.userId;
+                  
+                  const user: Participant = typeof rawUserId === "string"
+  ? (participants.find(p => (p._id || p.id) === rawUserId) ?? { _id: rawUserId })
+  : rawUserId;
+
                   const readAt = new Date(readRecord.readAt).toLocaleString();
+                  const key = `${user._id || user}-${index}`;
                   
                   return (
-                    <div key={user._id || user} className="flex items-center gap-3 p-2 rounded-xl hover:bg-chat-hover transition-colors">
+                    <div key={key} className="flex items-center gap-3 p-2 rounded-xl hover:bg-chat-hover transition-colors">
                       <div className="relative w-10 h-10 rounded-full bg-chat-bg-secondary flex-shrink-0 flex items-center justify-center font-bold text-chat-text-primary overflow-hidden">
                         {user.avatar ? (
                           <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />

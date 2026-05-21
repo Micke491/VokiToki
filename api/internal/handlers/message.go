@@ -198,6 +198,22 @@ func GetMessages(c *gin.Context) {
 		return
 	}
 
+	if beforeStr == "" {
+		unreadQuery := bson.M{
+			"chatId":        chatID,
+			"deletedBy":     bson.M{"$ne": currentUser.ID},
+			"sender":        bson.M{"$ne": currentUser.ID},
+			"readBy.userId": bson.M{"$ne": currentUser.ID},
+		}
+		unreadCount, err := db.MessageCollection.CountDocuments(c, unreadQuery)
+		if err == nil && int(unreadCount) > limit {
+			limit = int(unreadCount) + 15
+			if limit > 200 {
+				limit = 200
+			}
+		}
+	}
+
 	query := bson.M{
 		"chatId":    chatID,
 		"deletedBy": bson.M{"$ne": currentUser.ID},
