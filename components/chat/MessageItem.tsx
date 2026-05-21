@@ -17,6 +17,8 @@ import {
   Download,
   Image as ImageIcon,
   ShieldAlert,
+  EyeOff,
+  Tv,
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
@@ -54,7 +56,14 @@ interface MessageItemProps {
   onPreviewImage: (url: string) => void;
   onCallAction?: (callType: "voice" | "video", callId?: string) => void;
   onReport: (message: Message) => void;
+  onViewStory?: (storyId: string) => void;
 }
+
+const isSingleEmoji = (str: string) => {
+  const trimmed = str.trim();
+  const emojiRegex = /^\p{Extended_Pictographic}(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D\p{Extended_Pictographic}(?:[\u{1F3FB}-\u{1F3FF}])?)*\uFE0F?$/u;
+  return emojiRegex.test(trimmed);
+};
 
 const MessageItem = ({
   message,
@@ -83,6 +92,7 @@ const MessageItem = ({
   onPreviewImage,
   onCallAction,
   onReport,
+  onViewStory,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -93,9 +103,6 @@ const MessageItem = ({
         username: message.senderUsername || "Unknown User",
         avatar: "",
       };
-
-  // Removed redundant global click listener from MessageItem.
-  // The parent ChatWindow already manages this to avoid N listeners for N messages.
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
@@ -128,6 +135,8 @@ const MessageItem = ({
       window.open(url, "_blank");
     }
   };
+
+  const singleEmoji = message.storyId && message.text && isSingleEmoji(message.text) ? message.text.trim() : null;
 
   return (
     <motion.div
@@ -178,7 +187,9 @@ const MessageItem = ({
           )}
 
           <div
-            className={`flex items-end gap-2 max-w-[35%] min-w-0 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+            className={`flex items-end gap-2 min-w-0 ${
+              message.storyId ? "max-w-[90%] sm:max-w-[320px]" : "max-w-[35%]"
+            } ${isOwn ? "flex-row-reverse" : "flex-row"}`}
           >
             {/* Avatar (Partner) */}
             {!isOwn && (
@@ -241,16 +252,95 @@ const MessageItem = ({
                 </div>
               )}
               <div
-                className={`p-3 rounded-2xl text-[14px] leading-relaxed shadow-sm relative min-w-0 [overflow-wrap:anywhere] [word-break:break-word]
+                className={`rounded-2xl shadow-sm relative min-w-0 [overflow-wrap:anywhere] [word-break:break-word]
                       ${
                         isOwn
                           ? "bg-chat-accent text-white rounded-br-none"
                           : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                       }
                       ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
-                      ${(message.mediaUrl && !message.text) || message.mediaType === "call" ? "bg-transparent !p-0 shadow-none border-none" : "p-3 shadow-sm"}
+                      ${
+                        message.storyId
+                          ? "p-2 shadow-sm"
+                          : (message.mediaUrl && !message.text) || message.mediaType === "call"
+                            ? "bg-transparent !p-0 shadow-none border-none"
+                            : singleEmoji
+                              ? "!bg-transparent !p-0 !shadow-none"
+                              : "p-3 shadow-sm"
+                      }
                   `}
               >
+                {/* Story Reply Preview Header */}
+                {message.storyId && !message.isDeletedForEveryone && (
+                  <div
+                    className={`
+                      flex flex-col overflow-hidden mb-2
+                      ${
+                        isOwn
+                          ? "text-white"
+                          : "text-chat-text-primary"
+                      }
+                    `}
+                  >
+                    {/* Header Label strip */}
+                    <div className="flex items-center justify-between px-1 py-1 text-[9px] font-black uppercase tracking-wider opacity-75">
+                      <span>{isOwn ? "You responded to their story" : "Replied to your story"}</span>
+                    </div>
+
+                    {/* Story Media Card */}
+                    <div className="p-1 flex justify-center">
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!message.storyExpired && message.storyId && onViewStory) {
+                            onViewStory(message.storyId);
+                          }
+                        }}
+                        className={`relative w-full max-w-[260px] aspect-[9/16] rounded-lg overflow-hidden flex items-center justify-center bg-black shadow-inner border border-white/10 group/story-preview ${
+                          !message.storyExpired ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-200" : ""
+                        }`}
+                      >
+                        {message.storyExpired ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/90 text-zinc-400 p-3 text-center">
+                            <EyeOff className="w-6 h-6 text-rose-400 mb-2" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Expired</span>
+                          </div>
+                        ) : message.storyMediaUrl ? (
+                          message.storyMediaType === "video" ? (
+                            <video
+                              src={message.storyMediaUrl}
+                              className="w-full h-full object-contain"
+                              muted
+                              playsInline
+                              autoPlay
+                              loop
+                            />
+                          ) : (
+                            <img
+                              src={message.storyMediaUrl}
+                              className="w-full h-full object-contain"
+                              alt="Story preview"
+                            />
+                          )
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                            <span className="text-[10px] opacity-50 uppercase font-black">Story</span>
+                          </div>
+                        )}
+
+                        {/* Caption Overlay */}
+                        {message.storyCaption && !message.storyExpired && (
+                          <div className="absolute bottom-0 left-0 right-0 p-2.5 bg-gradient-to-t from-black/90 via-black/40 to-transparent text-white text-[11px] leading-relaxed">
+                            <p className="line-clamp-3 text-center font-medium drop-shadow-md">
+                              {message.storyCaption}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {!message.isDeletedForEveryone && message.replyTo && (
                   <div
                     onClick={(e) => {
@@ -474,21 +564,28 @@ const MessageItem = ({
                   </div>
                 )}
 
-                {message.text && message.mediaType !== "call" && (
-                  <>
-                    <HighlightText
-                      text={message.text}
-                      highlight={searchQuery}
-                    />
-                    {(() => {
-                      const urlRegex = /(https?:\/\/[^\s]+)/g;
-                      const matches = message.text.match(urlRegex);
-                      if (matches && matches.length > 0) {
-                        return <LinkPreview url={matches[0]} />;
-                      }
-                      return null;
-                    })()}
-                  </>
+                {/* If it's a single emoji response to a story, render it prominently below */}
+                {singleEmoji ? (
+                  <div className="text-5xl py-1 select-none animate-in zoom-in-75 duration-300 text-center w-full">
+                    {singleEmoji}
+                  </div>
+                ) : (
+                  message.text && message.mediaType !== "call" && (
+                    <div className="px-3 py-2">
+                      <HighlightText
+                        text={message.text}
+                        highlight={searchQuery}
+                      />
+                      {(() => {
+                        const urlRegex = /(https?:\/\/[^\s]+)/g;
+                        const matches = message.text.match(urlRegex);
+                        if (matches && matches.length > 0) {
+                          return <LinkPreview url={matches[0]} />;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )
                 )}
               </div>
 

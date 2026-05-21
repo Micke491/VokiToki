@@ -36,6 +36,12 @@ export interface Message {
     readAt: string;
   }[];
   deliveredTo?: string[];
+  storyId?: string;
+  storyMediaUrl?: string;
+  storyMediaType?: "image" | "video";
+  storyCaption?: string;
+  storyExpiresAt?: string;
+  storyExpired?: boolean;
 }
 
 export interface ChatWindowProps {
@@ -57,6 +63,7 @@ export interface ChatWindowProps {
   recipientStoriesUser?: StoryUser;
   onStoryClick?: (userId: string, stories: Story[], username: string, avatar?: string) => void;
   onChatUpdated?: (updatedChat: any) => void;
+  onViewStory?: (storyId: string) => void;
 }
 
 export interface IncomingCallData {

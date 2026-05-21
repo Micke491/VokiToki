@@ -46,6 +46,7 @@ export default function ChatWindow({
   recipientStoriesUser,
   onStoryClick,
   onChatUpdated,
+  onViewStory,
 }: ChatWindowProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1445,6 +1446,7 @@ export default function ChatWindow({
                           onPreviewImage={setPreviewImage}
                           onCallAction={handleCallAction}
                           onReport={setReportingMessage}
+                          onViewStory={onViewStory}
                         />
                       </div>
                     </div>

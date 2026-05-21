@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { X, MoreVertical, Volume2, VolumeX, Plus, Eye, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { X, Volume2, VolumeX, Eye, ArrowLeft, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import ReportModal from '../ui/ReportModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Story } from '../../types/chat';
 import { apiFetch } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface StoryViewerProps {
   stories: Story[];
@@ -24,6 +25,7 @@ interface StoryViewerProps {
 const PROGRESS_INTERVAL = 50;
 const IMAGE_DURATION = 5000;
 const VIDEO_INDICATOR_DELAY = 3000;
+const QUICK_REACTIONS = ['😂', '😮', '😢', '😍', '👏', '🔥'];
 
 export default function StoryViewer({
   stories,
@@ -47,12 +49,17 @@ export default function StoryViewer({
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [showVideoIndicator, setShowVideoIndicator] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [showSentCheck, setShowSentCheck] = useState(false);
+  const [activeFlyingEmojis, setActiveFlyingEmojis] = useState<{ id: number; emoji: string; x: number }[]>([]);
 
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const videoIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartTime = useRef<number | null>(null);
+  const reactionIdCounter = useRef(0);
 
   const currentStory = stories[currentIndex];
   const isVideo = currentStory?.mediaType === 'video';
@@ -88,6 +95,73 @@ export default function StoryViewer({
       if (video.ended || video.currentTime >= video.duration - 0.1) {
         handleNext();
       }
+    }
+  };
+
+  const triggerFlyingEmoji = (emoji: string) => {
+    const id = reactionIdCounter.current++;
+    const x = Math.floor(Math.random() * 120) - 60;
+    setActiveFlyingEmojis((prev) => [...prev, { id, emoji, x }]);
+    
+    setTimeout(() => {
+      setActiveFlyingEmojis((prev) => prev.filter((item) => item.id !== id));
+    }, 2000);
+  };
+
+  const handleSendReply = async (reactionText: string) => {
+    if (!reactionText.trim() || sendingReply) return;
+
+    setIsPaused(true);
+    setSendingReply(true);
+
+    const isEmojiReaction = QUICK_REACTIONS.includes(reactionText.trim());
+    if (isEmojiReaction) {
+      triggerFlyingEmoji(reactionText.trim());
+    }
+
+    let chatId = '';
+    try {
+      const chatRes = await apiFetch('/api/chats', {
+        method: 'POST',
+        body: JSON.stringify({ recipientId: userId }),
+      });
+
+      if (chatRes.ok) {
+        const chatData = await chatRes.json();
+        chatId = chatData._id;
+      } else {
+        throw new Error('Failed to start chat');
+      }
+
+      const msgRes = await apiFetch('/api/chat/message', {
+        method: 'POST',
+        body: JSON.stringify({
+          chatId,
+          senderId: currentUserId,
+          text: reactionText.trim(),
+          storyId: currentStory._id,
+          storyMediaUrl: currentStory.mediaUrl,
+          storyMediaType: currentStory.mediaType,
+          storyCaption: currentStory.caption || '',
+          storyExpiresAt: currentStory.expiresAt,
+        }),
+      });
+
+      if (msgRes.ok) {
+        setReplyText('');
+        setShowSentCheck(true);
+        setTimeout(() => setShowSentCheck(false), 1500);
+      } else {
+        const errData = await msgRes.json();
+        toast.error(errData.error || 'Failed to send reply');
+      }
+    } catch (err) {
+      console.error('Error sending story response:', err);
+      toast.error('Could not send reply. Try again.');
+    } finally {
+      setSendingReply(false);
+      setReplyText('');
+      setIsPaused(false);
     }
   };
 
@@ -159,22 +233,22 @@ export default function StoryViewer({
     if (isPaused || isLoading || isVideo) return;
 
     const interval = setInterval(() => {
-      setProgress((prev) => {
-        const increment = (PROGRESS_INTERVAL / IMAGE_DURATION) * 100;
-        const newProgress = prev + increment;
-
-        if (newProgress >= 100) {
-          handleNext();
-          return 0;
-        }
-        return newProgress;
-      });
+      setProgress((prev) => prev + (PROGRESS_INTERVAL / IMAGE_DURATION) * 100);
     }, PROGRESS_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [isPaused, isLoading, isVideo, currentIndex, handleNext]);
+  }, [isPaused, isLoading, isVideo]);
+
+  useEffect(() => {
+    if (progress >= 100) {
+      handleNext();
+      setProgress(0);
+    }
+  }, [progress, handleNext]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input') || target.closest('button')) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartTime.current = Date.now();
     setIsPaused(true);
@@ -202,6 +276,9 @@ export default function StoryViewer({
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input') || target.closest('button')) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const halfWidth = rect.width / 2;
@@ -215,6 +292,10 @@ export default function StoryViewer({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
       if (e.key === 'ArrowRight') {
         handleNext();
       } else if (e.key === 'ArrowLeft') {
@@ -233,7 +314,9 @@ export default function StoryViewer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNext, handlePrev, onClose]);
 
-  const handleMouseDown = () => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input') || target.closest('button')) return;
     setIsPaused(true);
   };
 
@@ -256,7 +339,6 @@ export default function StoryViewer({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
       >
-        {/* Subtle background glow based on story content (optional, but premium) */}
         {!isLoading && (
            <div 
              className="absolute inset-0 opacity-20 blur-[100px] pointer-events-none"
@@ -266,7 +348,7 @@ export default function StoryViewer({
            />
         )}
 
-        {/* Story Container (Always Desktop View) */}
+        {/* Story Container */}
         <div className="relative w-full max-w-lg h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center bg-black">
           
           {/* Progress bars */}
@@ -355,7 +437,7 @@ export default function StoryViewer({
           </div>
 
           {/* Story content */}
-          <div className="w-full h-full flex items-center justify-center p-2">
+          <div className="w-full h-full flex items-center justify-center p-2 relative">
             {isVideo ? (
               <video
                 key={currentStory._id}
@@ -379,6 +461,50 @@ export default function StoryViewer({
               />
             )}
 
+            {/* Floating Reactions Canvas */}
+            <div className="absolute inset-0 pointer-events-none z-[45] overflow-hidden">
+              <AnimatePresence>
+                {activeFlyingEmojis.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: '80%', x: item.x, scale: 0.5 }}
+                    animate={{ 
+                      opacity: [0, 1, 1, 0], 
+                      y: ['80%', '40%', '20%'],
+                      x: [item.x, item.x + (item.x > 0 ? -20 : 20), item.x],
+                      scale: [0.5, 1.4, 1.4, 0.8]
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.8, ease: 'easeOut' }}
+                    className="absolute bottom-0 left-1/2 text-5xl"
+                  >
+                    {item.emoji}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Reply Sent Success Overlay */}
+            <AnimatePresence>
+              {showSentCheck && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="absolute p-6 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-lg flex flex-col items-center gap-3 shadow-2xl z-50 pointer-events-none"
+                >
+                  <motion.div
+                    initial={{ rotate: -90, scale: 0 }}
+                    animate={{ rotate: 0, scale: 1 }}
+                    transition={{ type: 'spring', damping: 10, stiffness: 100 }}
+                  >
+                    <CheckCircle2 className="w-12 h-12 text-emerald-400" />
+                  </motion.div>
+                  <span className="text-white text-sm font-bold tracking-tight">Response Sent</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Loading indicator */}
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
@@ -395,59 +521,114 @@ export default function StoryViewer({
               </div>
             )}
 
-            {/* Caption & View Count */}
-            {(currentStory.caption || isOwner) && (
-              <div className="absolute bottom-0 left-0 right-0 px-6 py-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-30">
-                <div className="flex flex-col items-center gap-4">
-                  {currentStory.caption && (
-                    <p className="text-white text-center text-[15px] font-medium leading-relaxed drop-shadow-md max-w-[90%]">
-                      {currentStory.caption}
-                    </p>
-                  )}
-                  
-                  {isOwner && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onShowViewers?.(currentStory._id);
-                      }}
-                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20 transition-all group active:scale-95"
-                    >
-                      {/* Mini Avatar Stack (Mini Views) */}
-                      {currentStory.viewedBy && currentStory.viewedBy.length > 0 && (
-                        <div className="flex -space-x-2 mr-1">
-                          {Array.from(new Map(currentStory.viewedBy.map(v => [v.userId, v])).values())
-                            .slice(0, 3)
-                            .map((view: any, i) => (
-                              <div 
-                                key={i} 
-                                className="w-5 h-5 rounded-full border-2 border-black overflow-hidden bg-chat-bg-secondary"
-                              >
-                                {view.user?.avatar ? (
-                                  <img src={view.user.avatar} className="w-full h-full object-cover" alt="" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-chat-accent text-[8px] text-white">
-                                    {(view.user?.username || 'U').charAt(0).toUpperCase()}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                      
-                      <Eye className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-                      <span className="text-white text-[14px] font-bold tracking-tight">
-                         {Array.from(new Set(currentStory.viewedBy?.map(v => v.userId) || [])).length} views
-                      </span>
-                    </button>
-                  )}
-                </div>
+            {/* Caption, View Count & Reply Bar */}
+            <div className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-20 bg-gradient-to-t from-black/95 via-black/60 to-transparent z-30 pointer-events-auto">
+              <div className="flex flex-col items-center gap-4">
+                {currentStory.caption && (
+                  <p className="text-white text-center text-[15px] font-medium leading-relaxed drop-shadow-md max-w-[90%]">
+                    {currentStory.caption}
+                  </p>
+                )}
+                
+                {isOwner ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShowViewers?.(currentStory._id);
+                    }}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20 transition-all group active:scale-95"
+                  >
+                    {currentStory.viewedBy && currentStory.viewedBy.length > 0 && (
+                      <div className="flex -space-x-2 mr-1">
+                        {Array.from(new Map(currentStory.viewedBy.map(v => [v.userId, v])).values())
+                          .slice(0, 3)
+                          .map((view: any, i) => (
+                            <div 
+                              key={i} 
+                              className="w-5 h-5 rounded-full border-2 border-black overflow-hidden bg-chat-bg-secondary"
+                            >
+                              {view.user?.avatar ? (
+                                <img src={view.user.avatar} className="w-full h-full object-cover" alt="" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-chat-accent text-[8px] text-white">
+                                  {(view.user?.username || 'U').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                    
+                    <Eye className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                    <span className="text-white text-[14px] font-bold tracking-tight">
+                       {Array.from(new Set(currentStory.viewedBy?.map(v => v.userId) || [])).length} views
+                    </span>
+                  </button>
+                ) : (
+                  /* Input Box for other accounts */
+                  <div className="w-full flex flex-col gap-3.5" onClick={(e) => e.stopPropagation()}>
+                    {/* Emoticons */}
+                    <div className="flex items-center justify-center gap-4">
+                      {QUICK_REACTIONS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => handleSendReply(emoji)}
+                          disabled={sendingReply}
+                          className="text-2xl hover:scale-125 active:scale-95 transition-transform duration-200 cursor-pointer p-0.5"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Chat Reply Field */}
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 px-4 py-2 focus-within:border-white/40 transition-colors">
+                      <input
+                        type="text"
+                        placeholder="Type a response..."
+                        value={replyText}
+                        onFocus={() => setIsPaused(true)}
+                        onBlur={() => {
+                          if (!replyText.trim()) {
+                            setTimeout(() => setIsPaused(false), 150);
+                          }
+                        }}
+                        onChange={(e) => {
+                          setReplyText(e.target.value);
+                          setIsPaused(true);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSendReply(replyText);
+                          }
+                        }}
+                        disabled={sendingReply}
+                        className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white text-sm placeholder-white/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSendReply(replyText)}
+                        disabled={sendingReply || !replyText.trim()}
+                        className="p-1.5 bg-white text-black hover:bg-gray-200 active:scale-95 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center"
+                      >
+                        {sendingReply ? (
+                          <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Side Controls (Always Desktop View) */}
+        {/* Side Controls */}
         <div className="flex absolute inset-y-0 left-0 right-0 pointer-events-none items-center justify-between px-10 z-40">
           <button 
             type="button"

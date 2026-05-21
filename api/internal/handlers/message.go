@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 	"strconv"
+	"time"
 
 	"chat-app/internal/db"
 	"chat-app/internal/models"
@@ -19,14 +19,19 @@ func SendMessage(c *gin.Context) {
 	currentUser := userObj.(models.User)
 
 	var body struct {
-		ChatID        string         `json:"chatId"`
-		SenderID      string         `json:"senderId"`
-		Text          string         `json:"text"`
-		ReplyTo       *string        `json:"replyTo"`
-		MediaURL      string         `json:"mediaUrl"`
-		MediaType     string         `json:"mediaType"`
-		MediaPublicID string         `json:"mediaPublicId"`
-		IsForwarded   bool           `json:"isForwarded"`
+		ChatID         string  `json:"chatId"`
+		SenderID       string  `json:"senderId"`
+		Text           string  `json:"text"`
+		ReplyTo        *string `json:"replyTo"`
+		MediaURL       string  `json:"mediaUrl"`
+		MediaType      string  `json:"mediaType"`
+		MediaPublicID  string  `json:"mediaPublicId"`
+		IsForwarded    bool    `json:"isForwarded"`
+		StoryID        *string `json:"storyId"`
+		StoryMediaURL  string  `json:"storyMediaUrl"`
+		StoryMediaType string  `json:"storyMediaType"`
+		StoryCaption   string  `json:"storyCaption"`
+		StoryExpiresAt *string `json:"storyExpiresAt"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
@@ -94,6 +99,22 @@ func SendMessage(c *gin.Context) {
 		replyToID = &id
 	}
 
+	var storyID *bson.ObjectID
+	if body.StoryID != nil && *body.StoryID != "" {
+		id, err := bson.ObjectIDFromHex(*body.StoryID)
+		if err == nil {
+			storyID = &id
+		}
+	}
+
+	var storyExpiresAt *time.Time
+	if body.StoryExpiresAt != nil && *body.StoryExpiresAt != "" {
+		parsedTime, err := time.Parse(time.RFC3339, *body.StoryExpiresAt)
+		if err == nil {
+			storyExpiresAt = &parsedTime
+		}
+	}
+
 	newMessage := models.Message{
 		ID:             bson.NewObjectID(),
 		ChatID:         chatID,
@@ -105,6 +126,11 @@ func SendMessage(c *gin.Context) {
 		MediaType:      body.MediaType,
 		MediaPublicID:  body.MediaPublicID,
 		IsForwarded:    body.IsForwarded,
+		StoryID:        storyID,
+		StoryMediaURL:  body.StoryMediaURL,
+		StoryMediaType: body.StoryMediaType,
+		StoryCaption:   body.StoryCaption,
+		StoryExpiresAt: storyExpiresAt,
 		Status:         "sent",
 		Read:           false,
 		ReadBy:         []models.ReadByEntry{},
@@ -131,7 +157,7 @@ func SendMessage(c *gin.Context) {
 
 	var populatedSender models.User
 	db.UserCollection.FindOne(c, bson.M{"_id": newMessage.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "email": 1, "avatar": 1})).Decode(&populatedSender)
-	
+
 	populatedMsg := gin.H{
 		"_id":            newMessage.ID,
 		"chatId":         newMessage.ChatID,
@@ -144,6 +170,12 @@ func SendMessage(c *gin.Context) {
 		"status":         newMessage.Status,
 		"createdAt":      newMessage.CreatedAt,
 		"isForwarded":    newMessage.IsForwarded,
+		"storyId":        newMessage.StoryID,
+		"storyMediaUrl":  newMessage.StoryMediaURL,
+		"storyMediaType": newMessage.StoryMediaType,
+		"storyCaption":   newMessage.StoryCaption,
+		"storyExpiresAt": newMessage.StoryExpiresAt,
+		"storyExpired":   false,
 	}
 
 	if newMessage.ReplyTo != nil {
@@ -257,8 +289,8 @@ func GetMessages(c *gin.Context) {
 
 	if len(unreadIDs) > 0 {
 		_, err := db.MessageCollection.UpdateMany(c, bson.M{"_id": bson.M{"$in": unreadIDs}}, bson.M{
-			"$push": bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
-			"$set":  bson.M{"status": "seen", "read": true},
+			"$push":     bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
+			"$set":      bson.M{"status": "seen", "read": true},
 			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
 		})
 		if err == nil {
@@ -266,12 +298,12 @@ func GetMessages(c *gin.Context) {
 				"chatId":      chatID.Hex(),
 				"unreadCount": 0,
 			})
-			
+
 			var unreadIDStrs []string
 			for _, id := range unreadIDs {
 				unreadIDStrs = append(unreadIDStrs, id.Hex())
 			}
-			
+
 			utils.TriggerPusher("chat-"+chatID.Hex(), "messages-read", gin.H{
 				"chatId":     chatID.Hex(),
 				"messageIds": unreadIDStrs,
@@ -349,6 +381,11 @@ func GetMessages(c *gin.Context) {
 			sender.Username = "Deleted User"
 		}
 
+		storyExpired := false
+		if msg.StoryExpiresAt != nil && time.Now().After(*msg.StoryExpiresAt) {
+			storyExpired = true
+		}
+
 		msgMap := gin.H{
 			"_id":                  msg.ID,
 			"chatId":               msg.ChatID,
@@ -373,6 +410,12 @@ func GetMessages(c *gin.Context) {
 			"reactions":            msg.Reactions,
 			"createdAt":            msg.CreatedAt,
 			"updatedAt":            msg.UpdatedAt,
+			"storyId":              msg.StoryID,
+			"storyMediaUrl":        msg.StoryMediaURL,
+			"storyMediaType":       msg.StoryMediaType,
+			"storyCaption":         msg.StoryCaption,
+			"storyExpiresAt":       msg.StoryExpiresAt,
+			"storyExpired":         storyExpired,
 		}
 
 		if msg.ReplyTo != nil {
@@ -441,8 +484,8 @@ func UpdateMessageStatus(c *gin.Context) {
 		}
 	} else {
 		update = bson.M{
-			"$push": bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
-			"$set":  bson.M{"status": "seen", "read": true},
+			"$push":     bson.M{"readBy": models.ReadByEntry{UserID: currentUser.ID, ReadAt: time.Now()}},
+			"$set":      bson.M{"status": "seen", "read": true},
 			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
 		}
 	}
@@ -573,7 +616,7 @@ func EditMessage(c *gin.Context) {
 	}
 
 	db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, update)
-	
+
 	db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
 
 	var sender models.User
@@ -628,10 +671,10 @@ func DeleteMessage(c *gin.Context) {
 				"isDeletedForEveryone": true,
 				"deletedForEveryoneAt": time.Now(),
 				"text":                 "This message was deleted",
-				"mediaUrl":              "",
-				"mediaType":             "",
-				"mediaPublicId":         "",
-				"isPinned":              false,
+				"mediaUrl":             "",
+				"mediaType":            "",
+				"mediaPublicId":        "",
+				"isPinned":             false,
 			},
 		})
 		utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-deleted", gin.H{"messageId": messageIDStr, "chatId": msg.ChatID.Hex()})

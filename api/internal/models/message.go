@@ -39,6 +39,11 @@ type Message struct {
 	MediaType            string          `bson:"mediaType,omitempty" json:"mediaType,omitempty"`
 	MediaPublicID        string          `bson:"mediaPublicId,omitempty" json:"mediaPublicId,omitempty"`
 	IsForwarded          bool            `bson:"isForwarded" json:"isForwarded"`
+	StoryID              *bson.ObjectID  `bson:"storyId,omitempty" json:"storyId,omitempty"`
+	StoryMediaURL        string          `bson:"storyMediaUrl,omitempty" json:"storyMediaUrl,omitempty"`
+	StoryMediaType       string          `bson:"storyMediaType,omitempty" json:"storyMediaType,omitempty"`
+	StoryCaption         string          `bson:"storyCaption,omitempty" json:"storyCaption,omitempty"`
+	StoryExpiresAt       *time.Time      `bson:"storyExpiresAt,omitempty" json:"storyExpiresAt,omitempty"`
 	IsSystemMessage      bool            `bson:"isSystemMessage" json:"isSystemMessage"`
 	Reactions            []Reaction      `bson:"reactions" json:"reactions"`
 	CreatedAt            time.Time       `bson:"createdAt" json:"createdAt"`

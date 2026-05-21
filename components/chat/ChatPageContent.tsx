@@ -209,6 +209,26 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     });
   };
 
+  const handleViewStoryById = (storyId: string) => {
+    const storyUser = allStoriesUsers.find((su) =>
+      su.stories.some((s) => s._id === storyId)
+    );
+
+    if (storyUser) {
+      const storyIndex = storyUser.stories.findIndex((s) => s._id === storyId);
+      setViewingStory({
+        isOpen: true,
+        userId: storyUser.user._id,
+        username: storyUser.user.username,
+        userAvatar: storyUser.user.avatar,
+        stories: storyUser.stories,
+        currentIndex: storyIndex >= 0 ? storyIndex : 0,
+      });
+    } else {
+      toast.error("Story could not be found or has expired");
+    }
+  };
+
   const handleMyStoryClick = () => {
     setShowStoryManagement(true);
   };
@@ -373,6 +393,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               recipientStoriesUser={allStoriesUsers.find(u => u.user._id === selectedChat?.participants.find(p => p._id !== currentUser?._id)?._id)}
               onStoryClick={handleStoryClick}
               onChatUpdated={handleChatUpdated}
+              onViewStory={handleViewStoryById}
             />
           ) : (
             /* Empty State */
