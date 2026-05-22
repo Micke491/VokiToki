@@ -866,7 +866,7 @@ export default function SettingsPage() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => !verifying2FA && setShow2FADisable(false)}
+              onClick={() => !verifying2FA && !requestingPassword && setShow2FADisable(false)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -890,15 +890,29 @@ export default function SettingsPage() {
                     value={disablePassword}
                     onChange={(e) => setDisablePassword(e.target.value)}
                     placeholder="Enter your password"
-                    disabled={verifying2FA}
+                    disabled={verifying2FA || requestingPassword}
                     className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all font-medium"
                   />
+                  <div className="flex justify-end mt-2">
+                    <button
+                      type="button"
+                      disabled={requestingPassword || verifying2FA}
+                      onClick={async () => {
+                        setShow2FADisable(false);
+                        await handlePasswordResetRequest();
+                      }}
+                      className="text-xs font-bold text-chat-accent hover:underline disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {requestingPassword && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Forgot password?
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
                   <button
                     type="submit"
-                    disabled={verifying2FA || disablePassword.length === 0}
+                    disabled={verifying2FA || requestingPassword || disablePassword.length === 0}
                     className="w-full py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Disable 2FA'}
@@ -906,7 +920,7 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShow2FADisable(false)}
-                    disabled={verifying2FA}
+                    disabled={verifying2FA || requestingPassword}
                     className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
                   >
                     Cancel

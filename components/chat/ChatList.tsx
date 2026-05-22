@@ -31,6 +31,9 @@ interface Chat {
     };
     createdAt: string;
     isSystemMessage?: boolean;
+    storyId?: string;
+    storyMediaUrl?: string;
+    isDeletedForEveryone?: boolean;
   };
   updatedAt: string;
   unreadCount?: number;
@@ -117,7 +120,10 @@ export default function ChatList({
             mediaType: data.lastMessage.mediaType,
             sender: data.lastMessage.sender,
             createdAt: data.lastMessage.createdAt,
-            isSystemMessage: data.lastMessage.isSystemMessage
+            isSystemMessage: data.lastMessage.isSystemMessage,
+            storyId: data.lastMessage.storyId,
+            storyMediaUrl: data.lastMessage.storyMediaUrl,
+            isDeletedForEveryone: data.lastMessage.isDeletedForEveryone
           } : existingChat.lastMessage,
           unreadCount: newUnreadCount
         };
@@ -295,9 +301,24 @@ export default function ChatList({
     return other || { _id: '', username: 'Unknown', avatar: '' };
   };
 
-  const renderMessagePreview = (msg: any) => {
+  const renderMessagePreview = (msg: any, chatName: string) => {
     if (!msg) return 'No messages yet';
+
+    if (msg.isDeletedForEveryone) {
+      return <span className="italic">Deleted message</span>;
+    }
+
+    if (msg.storyId || msg.storyMediaUrl) {
+      const amISender = msg.sender?._id === currentUserId || msg.sender === currentUserId;
+      if (amISender) {
+        return `You replied to ${chatName}'s story`;
+      } else {
+        return `${msg.sender?.username || chatName} replied to your story`;
+      }
+    }
+
     if (msg.text) return msg.text;
+    
     switch (msg.mediaType) {
       case 'image': return 'Image';
       case 'video': return 'Video';
@@ -490,13 +511,17 @@ export default function ChatList({
                     </div>
                   </div>
                   <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
-                    {chat.lastMessage && !chat.lastMessage.isSystemMessage && (
+                    {chat.lastMessage && 
+                     !chat.lastMessage.isSystemMessage && 
+                     !chat.lastMessage.storyId && 
+                     !chat.lastMessage.storyMediaUrl && 
+                     !chat.lastMessage.isDeletedForEveryone && (
                       <span className="shrink-0">
                         {chat.lastMessage.sender?._id === currentUserId ? 'You: ' :
                          isGroup ? `${chat.lastMessage.sender?.username || 'Unknown User'}: ` : ''}
                       </span>
                     )}
-                    {renderMessagePreview(chat.lastMessage)}
+                    {renderMessagePreview(chat.lastMessage, chatName || '')}
                   </div>
                 </div>
 
