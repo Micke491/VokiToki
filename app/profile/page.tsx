@@ -25,6 +25,7 @@ interface User {
   avatar?: string;
   links?: { label: string; url: string }[];
   location?: string;
+  gender?: string;
   readReceipts: boolean;
   theme: 'light' | 'dark' | 'system';
 }
@@ -34,27 +35,15 @@ export default function ProfilePage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showSidebarDrawer, setShowSidebarDrawer] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    username: '',
-    name: '',
-    bio: '',
-    avatar: '',
-    location: '',
-    links: [] as { label: string; url: string }[],
-  });
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const storyInputRef = useRef<HTMLInputElement>(null);
-
-  const BIO_MAX_LENGTH = 200;
 
   const { 
     stories: allStories, 
@@ -77,8 +66,6 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-
-
   const fetchProfile = async () => {
     try {
       const response = await apiFetch(`/api/profile`);
@@ -87,41 +74,11 @@ export default function ProfilePage() {
 
       setCurrentUser(data.user);
       setStories(data.stories || []);
-      setFormData({
-        username: data.user.username || '',
-        name: data.user.name || '',
-        bio: data.user.bio || '',
-        avatar: data.user.avatar || '',
-        location: data.user.location || '',
-        links: data.user.links || [],
-      });
     } catch (error) {
       console.error('Error fetching profile:', error);
       router.push('/auth-pages/login');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    try {
-      const response = await apiFetch(`/api/profile`, {
-        method: 'PATCH',
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to update profile');
-
-      setCurrentUser((prev) => (prev ? { ...prev, ...data.user } : null));
-      setFeedback({ type: 'success', message: 'Profile updated successfully!' });
-      setIsEditing(false);
-    } catch (error: any) {
-      console.error('Error saving profile:', error);
-      setFeedback({ type: 'error', message: error.message || 'Failed to save changes.' });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -140,11 +97,20 @@ export default function ProfilePage() {
       });
 
       if (!response.ok) throw new Error('Failed to upload image');
-      const data = await response.json();
+      const uploadData = await response.json();
+      const avatarUrl = uploadData.url;
 
-      setFormData((prev) => ({ ...prev, avatar: data.url }));
+      const saveResponse = await apiFetch(`/api/profile`, {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar: avatarUrl }),
+      });
+
+      if (!saveResponse.ok) throw new Error('Failed to save profile picture');
+
+      setCurrentUser((prev) => (prev ? { ...prev, avatar: avatarUrl } : null));
       setFeedback({ type: 'success', message: 'Avatar updated successfully!' });
     } catch (error: any) {
+      console.error('Error uploading avatar:', error);
       setFeedback({ type: 'error', message: error.message || 'Failed to upload.' });
     } finally {
       setUploading(false);
@@ -313,40 +279,38 @@ export default function ProfilePage() {
             <div className="flex flex-col items-center mb-8">
               <div className="relative">
                 <StoryRing
-                  avatarUrl={formData.avatar}
-                  username={formData.username}
+                  avatarUrl={currentUser?.avatar}
+                  username={currentUser?.username || ''}
                   hasUnviewedStory={myStoryUser ? hasUnviewedStories(myStoryUser) : false}
                   size="lg"
                   onClick={() => {
                     if (userHasStories) {
                       setIsViewerOpen(true);
-                    } else if (isEditing) {
+                    } else {
                       avatarInputRef.current?.click();
                     }
                   }}
                 />
-                {isEditing && (
-                  <>
-                    <input
-                      type="file"
-                      ref={avatarInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                    />
-                    <button
-                      onClick={() => avatarInputRef.current?.click()}
-                      disabled={uploading}
-                      className="absolute bottom-6 right-0 p-2.5 bg-chat-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 z-10 border-2 border-chat-bg-primary"
-                    >
-                      {uploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Camera className="w-4 h-4" />
-                      )}
-                    </button>
-                  </>
-                )}
+                <>
+                  <input
+                    type="file"
+                    ref={avatarInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                  />
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploading}
+                    className="absolute bottom-6 right-0 p-2.5 bg-chat-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 z-10 border-2 border-chat-bg-primary"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                  </button>
+                </>
                 <input
                   type="file"
                   ref={storyInputRef}
@@ -356,81 +320,33 @@ export default function ProfilePage() {
                 />
               </div>
               <h2 className="text-2xl font-bold text-chat-text-primary mt-4">
-                {formData.name || formData.username}
+                {currentUser?.name || currentUser?.username}
               </h2>
-              <p className="text-chat-text-tertiary">@{formData.username}</p>
+              <p className="text-chat-text-tertiary">@{currentUser?.username}</p>
             </div>
 
-            {/* Edit Toggle */}
+            {/* Edit Button */}
             <div className="flex justify-end mb-6">
-              {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-6 py-3 bg-chat-input border border-chat-border hover:bg-chat-hover rounded-xl text-sm font-bold text-chat-text-primary transition-all flex items-center gap-2"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit Profile
-                </button>
-              ) : (
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setFormData({
-                        username: currentUser?.username || '',
-                        name: currentUser?.name || '',
-                        bio: currentUser?.bio || '',
-                        avatar: currentUser?.avatar || '',
-                        location: currentUser?.location || '',
-                        links: currentUser?.links || [],
-                      });
-                    }}
-                    className="px-6 py-3 bg-chat-bg-secondary border border-chat-border hover:bg-chat-hover rounded-xl text-sm font-bold text-chat-text-primary transition-all flex items-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                    className="px-6 py-3 bg-chat-accent text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-chat-accent/20 disabled:opacity-50"
-                  >
-                    {saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={() => router.push('/settings')}
+                className="px-6 py-3 bg-chat-accent hover:bg-chat-accent-hover text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-chat-accent/20"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit Profile
+              </button>
             </div>
 
-            {/* Form Fields */}
+            {/* Read-only Details Grid */}
             <div className="grid gap-6 max-w-2xl mx-auto">
-
-
               {/* Name */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                  <UserIcon className="w-3 h-3" />
+                  <UserIcon className="w-3 h-3 text-chat-accent" />
                   Name
                 </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    placeholder="Your name"
-                    className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
-                  />
-                ) : (
-                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                    {formData.name || 'Not set'}
-                  </div>
-                )}
+                <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
+                  {currentUser?.name || 'Not set'}
+                </div>
               </div>
 
               {/* Bio */}
@@ -439,142 +355,69 @@ export default function ProfilePage() {
                   <span className="w-1.5 h-1.5 bg-chat-accent rounded-full" />
                   Bio
                 </label>
-                {isEditing ? (
-                  <div className="relative">
-                    <textarea
-                      value={formData.bio}
-                      onChange={(e) => {
-                        if (e.target.value.length <= BIO_MAX_LENGTH) {
-                          setFormData((prev) => ({ ...prev, bio: e.target.value }));
-                        }
-                      }}
-                      placeholder="Tell us a bit about yourself..."
-                      rows={3}
-                      maxLength={BIO_MAX_LENGTH}
-                      className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary placeholder-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all font-medium resize-none"
-                    />
-                    <span className={`absolute bottom-3 right-4 text-xs font-medium ${
-                      formData.bio.length >= BIO_MAX_LENGTH ? 'text-red-500' : 'text-chat-text-tertiary'
-                    }`}>
-                      {formData.bio.length}/{BIO_MAX_LENGTH}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                    {formData.bio || 'No bio yet'}
-                  </div>
-                )}
+                <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary whitespace-pre-wrap leading-relaxed">
+                  {currentUser?.bio || 'No bio yet'}
+                </div>
               </div>
 
-              {/* Location */}
+              {/* Gender */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                  <MapPin className="w-3 h-3" />
-                  Location
+                  <span className="w-1.5 h-1.5 bg-chat-accent rounded-full" />
+                  Gender
                 </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, location: e.target.value }))
-                    }
-                    placeholder="City, Country"
-                    className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium"
-                  />
-                ) : (
-                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                    {formData.location || 'Not set'}
-                  </div>
-                )}
+                <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary capitalize">
+                  {currentUser?.gender || 'Not specified'}
+                </div>
               </div>
+
+              {/* Location - Only rendered if a location is set */}
+              {currentUser?.location && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
+                    <MapPin className="w-3 h-3 text-chat-accent" />
+                    Location
+                  </label>
+                  <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
+                    {currentUser.location}
+                  </div>
+                </div>
+              )}
 
               {/* Links Section */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-chat-text-tertiary ml-1 flex items-center gap-2">
-                  <LinkIcon className="w-3 h-3" />
+                  <LinkIcon className="w-3 h-3 text-chat-accent" />
                   Links
                 </label>
-                {isEditing ? (
-                  <div className="space-y-3">
-                    {formData.links.map((link, index) => (
-                      <div key={index} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={link.label}
-                          onChange={(e) => {
-                            const newLinks = [...formData.links];
-                            newLinks[index].label = e.target.value;
-                            setFormData((prev) => ({ ...prev, links: newLinks }));
-                          }}
-                          placeholder="Label (e.g., Twitter)"
-                          className="flex-1 px-4 py-3 bg-chat-input border border-chat-border rounded-xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium text-sm"
-                        />
-                        <input
-                          type="url"
-                          value={link.url}
-                          onChange={(e) => {
-                            const newLinks = [...formData.links];
-                            newLinks[index].url = e.target.value;
-                            setFormData((prev) => ({ ...prev, links: newLinks }));
-                          }}
-                          placeholder="https://..."
-                          className="flex-1 px-4 py-3 bg-chat-input border border-chat-border rounded-xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 font-medium text-sm"
-                        />
-                        <button
-                          onClick={() => {
-                            const newLinks = formData.links.filter((_, i) => i !== index);
-                            setFormData((prev) => ({ ...prev, links: newLinks }));
-                          }}
-                          className="p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-red-500 transition-all"
+                <div className="space-y-2">
+                  {currentUser?.links && currentUser.links.length > 0 ? (
+                    currentUser.links.map((link, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-3 bg-chat-bg-secondary border border-chat-border rounded-xl flex items-center gap-3"
+                      >
+                        <LinkIcon className="w-4 h-4 text-chat-accent" />
+                        <a
+                          href={
+                            link.url.startsWith('http')
+                              ? link.url
+                              : `https://${link.url}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-chat-accent hover:underline font-medium"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          {link.label || link.url}
+                        </a>
                       </div>
-                    ))}
-                    <button
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          links: [...prev.links, { label: '', url: '' }],
-                        }));
-                      }}
-                      className="w-full py-3 border-2 border-dashed border-chat-border rounded-xl text-chat-text-secondary hover:border-chat-accent hover:text-chat-accent transition-all flex items-center justify-center gap-2 font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Link
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {formData.links && formData.links.length > 0 ? (
-                      formData.links.map((link, index) => (
-                        <div
-                          key={index}
-                          className="px-4 py-3 bg-chat-bg-secondary border border-chat-border rounded-xl flex items-center gap-3"
-                        >
-                          <LinkIcon className="w-4 h-4 text-chat-accent" />
-                          <a
-                            href={
-                              link.url.startsWith('http')
-                                ? link.url
-                                : `https://${link.url}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-chat-accent hover:underline font-medium"
-                          >
-                            {link.label || link.url}
-                          </a>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
-                        No links added yet
-                      </div>
-                    )}
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div className="px-4 py-4 bg-chat-bg-secondary border border-chat-border rounded-2xl text-chat-text-secondary">
+                      No links added yet
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.section>
@@ -607,8 +450,6 @@ export default function ProfilePage() {
                 Add Story
               </button>
             </div>
-
-
 
             {stories.length === 0 ? (
               <div className="py-12 flex flex-col items-center justify-center text-center text-chat-text-tertiary bg-chat-bg-secondary rounded-2xl border border-dashed border-chat-border">
@@ -697,9 +538,9 @@ export default function ProfilePage() {
         <StoryViewer
           stories={myStoryUser.stories}
           initialIndex={viewerInitialIndex}
-          username={formData.username}
+          username={currentUser?.username || ''}
           userId={currentUser?._id || ''}
-          userAvatar={formData.avatar}
+          userAvatar={currentUser?.avatar}
           onClose={() => setIsViewerOpen(false)}
           onIndexChange={(index) => setViewerInitialIndex(index)}
           currentUserId={currentUser?._id}

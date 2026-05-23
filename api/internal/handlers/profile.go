@@ -86,6 +86,7 @@ func GetMyProfile(c *gin.Context) {
 			"avatar":           user.Avatar,
 			"links":            user.Links,
 			"location":         user.Location,
+			"gender":           user.Gender,
 			"readReceipts":     user.ReadReceipts,
 			"theme":            user.Theme,
 			"twoFactorEnabled": user.TwoFactorEnabled,
@@ -100,7 +101,8 @@ type UpdateProfileFullRequest struct {
 	Name     string             `json:"name"`
 	Bio      string             `json:"bio"`
 	Avatar   string             `json:"avatar"`
-	Location string             `json:"location"`
+	Location *string            `json:"location"` 
+	Gender   *string            `json:"gender"`   
 	Links    []models.UserLink  `json:"links"`
 }
 
@@ -140,8 +142,11 @@ func UpdateMyProfile(c *gin.Context) {
 	if req.Avatar != "" {
 		setFields["avatar"] = req.Avatar
 	}
-	if req.Location != "" {
-		setFields["location"] = req.Location
+	if req.Location != nil {
+		setFields["location"] = *req.Location
+	}
+	if req.Gender != nil {
+		setFields["gender"] = *req.Gender
 	}
 
 	if req.Links != nil {
@@ -177,6 +182,7 @@ func UpdateMyProfile(c *gin.Context) {
 			"avatar":           updatedUser.Avatar,
 			"links":            updatedUser.Links,
 			"location":         updatedUser.Location,
+			"gender":           updatedUser.Gender,
 			"readReceipts":     updatedUser.ReadReceipts,
 			"theme":            updatedUser.Theme,
 			"twoFactorEnabled": updatedUser.TwoFactorEnabled,
@@ -323,6 +329,7 @@ func GetUserProfile(c *gin.Context) {
 			"bio":                user.Bio,
 			"avatar":             user.Avatar,
 			"location":           user.Location,
+			"gender":             user.Gender,
 			"links":              user.Links,
 			"createdAt":          user.CreatedAt,
 			"activeStoriesCount": activeStoriesCount,

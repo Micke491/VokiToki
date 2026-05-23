@@ -27,6 +27,7 @@ type User struct {
 	ResetPasswordExpires *time.Time           `bson:"resetPasswordExpires,omitempty" json:"resetPasswordExpires,omitempty"`
 	Links                []UserLink           `bson:"links" json:"links"`
 	Location             string               `bson:"location" json:"location"`
+	Gender               string               `bson:"gender" json:"gender"`
 	TimeoutUntil         *time.Time           `bson:"timeoutUntil,omitempty" json:"timeoutUntil,omitempty"`
 	CreatedAt            time.Time            `bson:"createdAt" json:"createdAt"`
 	UpdatedAt            time.Time            `bson:"updatedAt" json:"updatedAt"`

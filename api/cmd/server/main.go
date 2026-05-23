@@ -77,6 +77,9 @@ func main() {
 		api.DELETE("/profile", middleware.RateLimiter(10, 5*time.Minute, "profile:delete-story"), handlers.DeleteMyStory)
 		api.GET("/profile/:userId", handlers.GetUserProfile)
 
+		api.GET("/geolocation/search", handlers.SearchLocation)
+		api.GET("/geolocation/reverse", handlers.ReverseGeocode)
+
 		api.GET("/stories", handlers.GetAllStories)
 		api.POST("/stories", middleware.RateLimiter(10, 5*time.Minute, "stories:create"), handlers.CreateStory)
 		api.GET("/stories/:userId", handlers.GetUserStories)
