@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import StoryRing from "./StoryRing";
+import StoryRing from "@/components/story/StoryRing";
 import { useRouter } from 'next/navigation';
 import { getAuthToken } from '@/lib/storage';
 import { pusherClient } from '@/lib/pusher-client';

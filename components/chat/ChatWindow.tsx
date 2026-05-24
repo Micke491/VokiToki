@@ -30,7 +30,7 @@ import EmojiPicker from "emoji-picker-react";
 import ImagePreviewModal from "../ui/ImagePreviewModal";
 import UserProfileModal from "../ui/UserProfileModal";
 import ReportModal from "../ui/ReportModal";
-import StoryRing from "./StoryRing";
+import StoryRing from "@/components/story/StoryRing";
 
 export default function ChatWindow({
   chatId,

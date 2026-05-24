@@ -10,9 +10,9 @@ import {
   Trash2, Image as ImageIcon, Plus, Eye, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import StoryManagementModal from '@/components/chat/StoryManagementModal';
-import StoryRing from '@/components/chat/StoryRing';
-import StoryViewer from '@/components/chat/StoryViewer';
+import StoryManagementModal from '@/components/story/StoryManagementModal';
+import StoryRing from '@/components/story/StoryRing';
+import StoryViewer from '@/components/story/StoryViewer';
 import { useStories } from '@/hooks/useStories';
 import { Story } from '@/types/chat';
 

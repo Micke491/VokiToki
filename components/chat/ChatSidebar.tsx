@@ -5,9 +5,9 @@ import { Message } from "../../types/chat";
 import toast from "react-hot-toast";
 import { getAuthToken } from "@/lib/storage";
 import { apiFetch } from "@/lib/api";
-import AddParticipantModal from "./AddParticipantModal";
-import ConfirmModal from "../ui/ConfirmModal";
-import ImagePreviewModal from "../ui/ImagePreviewModal";
+import AddParticipantModal from "@/components/chat/AddParticipantModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import ImagePreviewModal from "@/components/ui/ImagePreviewModal";
 import { pusherClient } from "@/lib/pusher-client";
 
 interface ChatSidebarProps {

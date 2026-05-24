@@ -7,7 +7,7 @@ interface GifPickerProps {
   onClose: () => void;
 }
 
-const GIPHY_API_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || "yAiPQUtlZL6nc1w7bhjMeE7o58YjoCBx"; 
+const GIPHY_API_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || ""; 
 
 const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
   const [search, setSearch] = useState("");

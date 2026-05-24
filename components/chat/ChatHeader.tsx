@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, X, MoreVertical, User as UserIcon } from "lucide-react";
-import CallButton from "./CallButton";
-import StoryRing from "./StoryRing";
+import CallButton from "@/components/calls/CallButton";
+import StoryRing from "@/components/story/StoryRing";
 
 interface ChatHeaderProps {
   recipientUsername?: string;
