@@ -183,8 +183,66 @@ export default function ChatWindow({
 
     channel.bind("message-updated", (updatedMessage: Message) => {
       setMessages((prev) =>
-        prev.map((m) => (m._id === updatedMessage._id ? updatedMessage : m)),
+        prev.map((m) => {
+          let updatedMsg = m;
+          if (String(m._id) === String(updatedMessage._id)) {
+            updatedMsg = {
+              ...m,
+              ...updatedMessage,
+              sender: updatedMessage.sender && typeof updatedMessage.sender === "object"
+                ? updatedMessage.sender
+                : m.sender,
+              replyTo: updatedMessage.replyTo && typeof updatedMessage.replyTo === "object"
+                ? updatedMessage.replyTo
+                : m.replyTo,
+            };
+          }
+          if (m.replyTo && String(m.replyTo._id) === String(updatedMessage._id)) {
+            updatedMsg = {
+              ...updatedMsg,
+              replyTo: {
+                ...m.replyTo,
+                text: updatedMessage.text,
+                mediaUrl: updatedMessage.mediaUrl,
+                mediaType: updatedMessage.mediaType,
+              },
+            };
+          }
+          return updatedMsg;
+        }),
       );
+
+      setPinnedMessages((prev) =>
+        prev.map((m) => {
+          let updatedMsg = m;
+          if (String(m._id) === String(updatedMessage._id)) {
+            updatedMsg = {
+              ...m,
+              ...updatedMessage,
+              sender: updatedMessage.sender && typeof updatedMessage.sender === "object"
+                ? updatedMessage.sender
+                : m.sender,
+              replyTo: updatedMessage.replyTo && typeof updatedMessage.replyTo === "object"
+                ? updatedMessage.replyTo
+                : m.replyTo,
+            };
+          }
+          if (m.replyTo && String(m.replyTo._id) === String(updatedMessage._id)) {
+            updatedMsg = {
+              ...updatedMsg,
+              replyTo: {
+                ...m.replyTo,
+                text: updatedMessage.text,
+                mediaUrl: updatedMessage.mediaUrl,
+                mediaType: updatedMessage.mediaType,
+              },
+            };
+          }
+          return updatedMsg;
+        })
+      );
+
+      window.dispatchEvent(new CustomEvent("local-message-updated", { detail: updatedMessage }));
     });
 
     channel.bind("message-deleted", (data: { messageId: string }) => {

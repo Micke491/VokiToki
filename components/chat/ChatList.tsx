@@ -22,6 +22,7 @@ interface Chat {
     avatar?: string;
   }>;
   lastMessage?: {
+    _id: string;
     text?: string;
     mediaUrl?: string;
     mediaType?: 'image' | 'video' | 'audio' | 'gif' | 'sticker' | 'call';
@@ -115,6 +116,7 @@ export default function ChatList({
           ...(data.avatar !== undefined && { avatar: data.avatar }),
           ...(data.participants !== undefined && { participants: data.participants }),
           lastMessage: data.lastMessage ? {
+            _id: data.lastMessage._id,
             text: data.lastMessage.text,
             mediaUrl: data.lastMessage.mediaUrl,
             mediaType: data.lastMessage.mediaType,
@@ -193,6 +195,37 @@ export default function ChatList({
       channel.unbind('profile-updated', onProfileUpdate);
     };
   }, [currentUserId]);
+
+  useEffect(() => {
+    const handleLocalMessageUpdated = (e: Event) => {
+      const updatedMessage = (e as CustomEvent).detail;
+      if (!updatedMessage) return;
+
+      setChats((prevChats) =>
+        prevChats.map((chat) => {
+          if (chat.lastMessage && String(chat.lastMessage._id) === String(updatedMessage._id)) {
+            return {
+              ...chat,
+              lastMessage: {
+                ...chat.lastMessage,
+                text: updatedMessage.text,
+                mediaUrl: updatedMessage.mediaUrl,
+                mediaType: updatedMessage.mediaType,
+                isDeletedForEveryone: updatedMessage.isDeletedForEveryone,
+              },
+            };
+          }
+          return chat;
+        })
+      );
+    };
+
+    window.addEventListener("local-message-updated", handleLocalMessageUpdated);
+    return () => {
+      window.removeEventListener("local-message-updated", handleLocalMessageUpdated);
+    };
+  }, []);
+
 
   const fetchChats = async () => {
     try {
