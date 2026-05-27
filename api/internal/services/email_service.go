@@ -1,6 +1,7 @@
 package services
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/mail"
 	"net/smtp"
@@ -20,7 +21,7 @@ func SendEmail(to, subject, body string) error {
 	if err == nil {
 		from = fromAddr.Address
 	} else {
-		from = fromConfig 
+		from = fromConfig
 	}
 
 	msg := fmt.Sprintf("From: %s\r\n"+
@@ -31,12 +32,60 @@ func SendEmail(to, subject, body string) error {
 		"\r\n"+
 		"%s\r\n", from, to, subject, body)
 
-	auth := smtp.PlainAuth("", user, pass, host)
 	addr := fmt.Sprintf("%s:%s", host, port)
 
+	if port == "465" {
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: false,
+			ServerName:         host,
+		}
+
+		conn, err := tls.Dial("tcp", addr, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("failed to connect via TLS: %w", err)
+		}
+		defer conn.Close()
+
+		client, err := smtp.NewClient(conn, host)
+		if err != nil {
+			return fmt.Errorf("failed to create SMTP client: %w", err)
+		}
+		defer client.Close()
+
+		auth := smtp.PlainAuth("", user, pass, host)
+		if err = client.Auth(auth); err != nil {
+			return fmt.Errorf("SMTP authentication failed: %w", err)
+		}
+
+		if err = client.Mail(from); err != nil {
+			return err
+		}
+		if err = client.Rcpt(to); err != nil {
+			return err
+		}
+
+		w, err := client.Data()
+		if err != nil {
+			return err
+		}
+
+		_, err = w.Write([]byte(msg))
+		if err != nil {
+			return err
+		}
+
+		err = w.Close()
+		if err != nil {
+			return err
+		}
+
+		return client.Quit()
+	}
+
+	auth := smtp.PlainAuth("", user, pass, host)
 	err = smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send standard email: %w", err)
 	}
 
 	return nil

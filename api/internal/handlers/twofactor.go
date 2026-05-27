@@ -60,7 +60,11 @@ func RequestEnable2FA(c *gin.Context) {
 	services.Store2FACode(ctx, timeoutKey, "1", 15*time.Second)
 	services.Store2FACode(ctx, "2fa_enable:"+user.ID.Hex(), code, 10*time.Minute)
 
-	services.SendEmail(user.Email, "Your 2FA Setup Code", "Your 2FA setup code is: "+code)
+	err := services.SendEmail(user.Email, "Your 2FA Setup Code", "Your 2FA setup code is: "+code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send 2FA email. Please try again later."})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Verification code sent to your email"})
 }
