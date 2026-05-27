@@ -94,4 +94,3 @@ const ImagePreviewModal = ({ imageUrl, mediaType, onClose }: ImagePreviewModalPr
 };
 
 export default ImagePreviewModal;
-

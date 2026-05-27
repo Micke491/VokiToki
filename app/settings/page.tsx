@@ -3,17 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import SideBar from '@/components/layout/Sidebar';
+import SideBar from '@/features/sidebar/components/Sidebar';
 import {
   ArrowLeft, Loader2, CheckCircle, AlertTriangle,
   User as UserIcon, Shield, Lock, Bell, Palette
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import AccountSettingsTab from '@/components/settings/AccountSettingsTab';
-import PrivacySettingsTab from '@/components/settings/PrivacySettingsTab';
-import NotificationSettingsTab from '@/components/settings/NotificationSettingsTab';
-import AppearanceSettingsTab from '@/components/settings/AppearanceSettingsTab';
-import DangerZoneTab from '@/components/settings/DangerZoneTab';
+import AccountSettingsTab from '@/features/settings/components/AccountSettingsTab';
+import PrivacySettingsTab from '@/features/settings/components/PrivacySettingsTab';
+import NotificationSettingsTab from '@/features/settings/components/NotificationSettingsTab';
+import AppearanceSettingsTab from '@/features/settings/components/AppearanceSettingsTab';
+import DangerZoneTab from '@/features/settings/components/DangerZoneTab';
 
 interface User {
   _id: string;
