@@ -1,28 +1,106 @@
 package services
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/mail"
 	"net/smtp"
+	"time"
 
 	"chat-app/internal/config"
 )
 
+type BrevoSender struct {
+	Name  string `json:"name,omitempty"`
+	Email string `json:"email"`
+}
+
+type BrevoRecipient struct {
+	Name  string `json:"name,omitempty"`
+	Email string `json:"email"`
+}
+
+type BrevoEmailPayload struct {
+	Sender      BrevoSender      `json:"sender"`
+	To          []BrevoRecipient `json:"to"`
+	Subject     string           `json:"subject"`
+	HTMLContent string           `json:"htmlContent"`
+}
+
+var brevoURL = "https://api.brevo.com/v3/smtp/email"
+
+func sendBrevoHTTP(apiKey, fromName, fromEmail, toEmail, subject, htmlContent string) error {
+	payload := BrevoEmailPayload{
+		Sender: BrevoSender{
+			Name:  fromName,
+			Email: fromEmail,
+		},
+		To: []BrevoRecipient{
+			{
+				Email: toEmail,
+			},
+		},
+		Subject:     subject,
+		HTMLContent: htmlContent,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal Brevo payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", brevoURL, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create Brevo HTTP request: %w", err)
+	}
+
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("api-key", apiKey)
+	req.Header.Set("content-type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute Brevo HTTP request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var errResp map[string]interface{}
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		return fmt.Errorf("Brevo API returned status code %d: %v", resp.StatusCode, errResp)
+	}
+
+	return nil
+}
+
 func SendEmail(to, subject, body string) error {
 	fromConfig := config.AppConfig.EmailFrom
+	apiKey := config.AppConfig.BrevoAPIKey
+
+	fromAddr, err := mail.ParseAddress(fromConfig)
+	var fromEmail string
+	var fromName string
+	if err == nil {
+		fromEmail = fromAddr.Address
+		fromName = fromAddr.Name
+	} else {
+		fromEmail = fromConfig
+		fromName = "Chat App"
+	}
+
+	if apiKey != "" {
+		return sendBrevoHTTP(apiKey, fromName, fromEmail, to, subject, body)
+	}
+
 	pass := config.AppConfig.SMTPPass
 	user := config.AppConfig.SMTPUser
 	host := config.AppConfig.SMTPHost
 	port := config.AppConfig.SMTPPort
-
-	fromAddr, err := mail.ParseAddress(fromConfig)
-	var from string
-	if err == nil {
-		from = fromAddr.Address
-	} else {
-		from = fromConfig
-	}
+	from := fromEmail
 
 	msg := fmt.Sprintf("From: %s\r\n"+
 		"To: %s\r\n"+

@@ -17,6 +17,7 @@ type Config struct {
 	SMTPUser      string
 	SMTPPass      string
 	EmailFrom     string
+	BrevoAPIKey   string
 	RedisURL      string
 	RedisToken    string
 	CloudinaryURL string
@@ -47,6 +48,7 @@ func LoadConfig() {
 		SMTPUser:      getEnv("SMTP_USER", ""),
 		SMTPPass:      getEnv("SMTP_PASS", ""),
 		EmailFrom:     getEnv("EMAIL_FROM", ""),
+		BrevoAPIKey:   getEnv("BREVO_API_KEY", ""),
 		RedisURL:      getEnv("REDIS_URL", ""),
 		RedisToken:    getEnv("REDIS_TOKEN", ""),
 		CloudinaryURL: getEnv("CLOUDINARY_URL", ""),

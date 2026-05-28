@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -76,6 +77,7 @@ func RequestPasswordReset(c *gin.Context) {
 	emailBody := services.GeneratePasswordResetEmail(user.Username, resetURL)
 	err = services.SendEmail(user.Email, "Password Reset Request", emailBody)
 	if err != nil {
+		log.Printf("Error sending password reset email to %s: %v", user.Email, err)
 		db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
 			"$unset": bson.M{
 				"resetPasswordToken":   "",
@@ -142,7 +144,9 @@ func ExecutePasswordReset(c *gin.Context) {
 			<p>Your password has been updated. If this wasn't you, contact support immediately.</p>
 		</div>
 	`, user.Username)
-	services.SendEmail(user.Email, "Password Reset Successful", successBody)
+	if err := services.SendEmail(user.Email, "Password Reset Successful", successBody); err != nil {
+		log.Printf("Error sending password reset success email to %s: %v", user.Email, err)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
 }
