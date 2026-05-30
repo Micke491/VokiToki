@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -70,11 +69,7 @@ func Login(c *gin.Context) {
 			services.Store2FACode(ctx, timeoutKey, "1", 15*time.Second)
 			services.Store2FACode(ctx, "2fa_login:"+user.ID.Hex(), code, 10*time.Minute)
 			
-			go func() {
-				if err := services.SendEmail(user.Email, "Your Login Code", "Your 2FA login code is: "+code); err != nil {
-					log.Printf("Error sending 2FA login email to %s: %v", user.Email, err)
-				}
-			}()
+			go services.SendEmail(user.Email, "Your Login Code", "Your 2FA login code is: "+code)
 
 			tempToken, err := services.GenerateTempToken(user.ID.Hex())
 			if err != nil {

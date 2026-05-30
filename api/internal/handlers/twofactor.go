@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
@@ -61,12 +60,7 @@ func RequestEnable2FA(c *gin.Context) {
 	services.Store2FACode(ctx, timeoutKey, "1", 15*time.Second)
 	services.Store2FACode(ctx, "2fa_enable:"+user.ID.Hex(), code, 10*time.Minute)
 
-	err := services.SendEmail(user.Email, "Your 2FA Setup Code", "Your 2FA setup code is: "+code)
-	if err != nil {
-		log.Printf("Error sending 2FA setup email to %s: %v", user.Email, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send 2FA email. Please try again later."})
-		return
-	}
+	services.SendEmail(user.Email, "Your 2FA Setup Code", "Your 2FA setup code is: "+code)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Verification code sent to your email"})
 }
