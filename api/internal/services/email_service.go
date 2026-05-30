@@ -1,6 +1,7 @@
 package services
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/mail"
 	"net/smtp"
@@ -33,6 +34,53 @@ func SendEmail(to, subject, body string) error {
 
 	auth := smtp.PlainAuth("", user, pass, host)
 	addr := fmt.Sprintf("%s:%s", host, port)
+
+	if port == "465" {
+		conn, err := tls.Dial("tcp", addr, &tls.Config{
+			ServerName: host,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to dial SMTP server via TLS: %w", err)
+		}
+		defer conn.Close()
+
+		c, err := smtp.NewClient(conn, host)
+		if err != nil {
+			return fmt.Errorf("failed to create SMTP client: %w", err)
+		}
+		defer c.Close()
+
+		if ok, _ := c.Extension("AUTH"); ok {
+			if err = c.Auth(auth); err != nil {
+				return fmt.Errorf("failed to authenticate SMTP client: %w", err)
+			}
+		}
+
+		if err = c.Mail(from); err != nil {
+			return fmt.Errorf("failed to set SMTP sender: %w", err)
+		}
+
+		if err = c.Rcpt(to); err != nil {
+			return fmt.Errorf("failed to set SMTP recipient: %w", err)
+		}
+
+		w, err := c.Data()
+		if err != nil {
+			return fmt.Errorf("failed to open SMTP data writer: %w", err)
+		}
+
+		_, err = w.Write([]byte(msg))
+		if err != nil {
+			return fmt.Errorf("failed to write SMTP mail body: %w", err)
+		}
+
+		err = w.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close SMTP data writer: %w", err)
+		}
+
+		return c.Quit()
+	}
 
 	err = smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
 	if err != nil {
