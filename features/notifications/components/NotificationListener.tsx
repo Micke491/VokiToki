@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { pusherClient } from "@/lib/pusher-client";
 import { apiFetch } from "@/lib/api";
+import { pusherClient } from "@/lib/pusher-client";
 import { showNotification, isNotificationsEnabled, registerServiceWorker } from "@/lib/pushNotifications";
 import { usePathname } from "next/navigation";
 import IncomingCallModal from "@/features/calls/components/IncomingCallModal";
 import CallModal from "@/features/calls/components/CallModal";
 import { useCalls } from "@/features/calls/hooks/useCalls";
 import { getAuthToken } from "@/lib/storage";
-import { motion } from "framer-motion";
-import { Phone, PhoneOff, Video } from "lucide-react";
 
 interface User {
   _id: string;
@@ -67,10 +65,8 @@ export default function NotificationListener({ currentUser: propUser }: { curren
   const {
     incomingCall,
     activeCall,
-    pendingCallId,
     acceptCall,
     declineCall,
-    cancelCall,
     leaveCall,
   } = useCalls(currentUser);
 
@@ -142,49 +138,15 @@ export default function NotificationListener({ currentUser: propUser }: { curren
         />
       )}
 
-      {activeCall && currentUser && activeCall.token && (
+      {activeCall && currentUser && (
         <CallModal
           roomName={activeCall.callId}
           token={activeCall.token}
           callType={activeCall.type}
-          username={activeCall.username}
+          remoteUser={activeCall.remoteUser}
+          currentUser={currentUser}
           onLeave={leaveCall}
         />
-      )}
-      
-      {activeCall && !activeCall.token && (
-        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="w-full max-w-sm bg-chat-bg-primary rounded-3xl p-6 shadow-2xl flex flex-col items-center border border-chat-border"
-          >
-            <div className="relative mb-6 mt-4">
-              <div className="absolute inset-0 bg-chat-accent rounded-full animate-ping opacity-20" />
-              <div className="w-24 h-24 rounded-full flex items-center justify-center border-4 border-chat-bg-secondary relative z-10 shadow-lg text-chat-accent text-3xl font-bold uppercase bg-chat-bg-secondary">
-                {activeCall.type === 'video' ? <Video className="w-10 h-10 animate-pulse" /> : <Phone className="w-10 h-10 animate-pulse" />}
-              </div>
-            </div>
-            <h2 className="text-2xl font-bold text-chat-text-primary mb-1 text-center">
-              Calling...
-            </h2>
-            <p className="text-chat-text-secondary mb-8 text-sm flex items-center gap-2">
-              Waiting for answer
-            </p>
-            <button 
-              onClick={cancelCall}
-              className="flex flex-col items-center gap-2 group"
-            >
-              <div className="w-14 h-14 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-md">
-                <PhoneOff className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-medium text-chat-text-secondary group-hover:text-red-500 transition-colors">
-                Cancel
-              </span>
-            </button>
-          </motion.div>
-        </div>
       )}
     </>
   );

@@ -11,14 +11,21 @@ interface User {
   avatar?: string;
 }
 
+interface ActiveCall {
+  callId: string;
+  type: "voice" | "video";
+  token: string;
+  remoteUser: {
+    username: string;
+    avatar?: string;
+    id?: string;
+  };
+  isIncoming: boolean;
+}
+
 export function useCalls(currentUser: User | null) {
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
-  const [activeCall, setActiveCall] = useState<{ 
-    callId: string; 
-    type: "voice" | "video";
-    token: string;
-    username: string;
-  } | null>(null);
+  const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const [pendingCallId, setPendingCallId] = useState<string | null>(null);
   
   const activeCallRef = useRef(activeCall);
@@ -56,11 +63,13 @@ export function useCalls(currentUser: User | null) {
 
     const handleCallAccepted = (data: any) => {
       if (pendingCallId === data.call_id) {
-        setActiveCall((prev) => ({
-          ...prev!,
-          callId: data.call_id,
-          token: data.token,
-        }));
+        setActiveCall((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            token: prev.token || data.token,
+          };
+        });
         setPendingCallId(null);
       }
     };
@@ -69,7 +78,6 @@ export function useCalls(currentUser: User | null) {
       if (pendingCallId === data.call_id || activeCallRef.current?.callId === data.call_id) {
         setActiveCall(null);
         setPendingCallId(null);
-        alert("Call was declined.");
       }
     };
 
@@ -95,7 +103,7 @@ export function useCalls(currentUser: User | null) {
     const handleStartCall = async (e: Event) => {
       if (activeCallRef.current || !currentUser) return;
       
-      const { chatId, type, calleeId, callId: existingCallId } = (e as CustomEvent).detail;
+      const { chatId, type, calleeId, callId: existingCallId, calleeName, calleeAvatar } = (e as CustomEvent).detail;
       
       if (!calleeId && !existingCallId && !chatId) {
         alert("Cannot determine who to call.");
@@ -108,7 +116,12 @@ export function useCalls(currentUser: User | null) {
         callId: newCallId,
         type,
         token: "",
-        username: "...",
+        remoteUser: {
+          username: calleeName || "User",
+          avatar: calleeAvatar,
+          id: calleeId,
+        },
+        isIncoming: !!existingCallId,
       });
 
       try {
@@ -120,12 +133,7 @@ export function useCalls(currentUser: User | null) {
           
           if (res.ok) {
             const data = await res.json();
-            setActiveCall({
-              callId: existingCallId,
-              type,
-              token: data.token,
-              username: "Active Call",
-            });
+            setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
           } else {
             const err = await res.json();
             alert(err.error || "Could not join call.");
@@ -146,7 +154,12 @@ export function useCalls(currentUser: User | null) {
             }),
           });
           
-          if (!res.ok) {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.token) {
+              setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
+            }
+          } else {
             const err = await res.json();
             alert(err.error || "Could not start call.");
             setActiveCall(null);
@@ -155,6 +168,7 @@ export function useCalls(currentUser: User | null) {
         }
       } catch (err) {
         setActiveCall(null);
+        setPendingCallId(null);
       }
     };
 
@@ -162,9 +176,10 @@ export function useCalls(currentUser: User | null) {
     return () => window.removeEventListener("start-call", handleStartCall);
   }, [currentUser]);
 
+  // 30 seconds unanswered timeout
   useEffect(() => {
     let timeout: NodeJS.Timeout;
-    if (pendingCallId && activeCall && !activeCall.token) {
+    if (pendingCallId && activeCall) {
       timeout = setTimeout(() => {
         apiFetch("/api/call/end", {
           method: "POST",
@@ -179,22 +194,6 @@ export function useCalls(currentUser: User | null) {
     };
   }, [pendingCallId, activeCall, currentUser]);
 
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    if (incomingCall) {
-      timeout = setTimeout(() => {
-        apiFetch("/api/call/reject", {
-          method: "POST",
-          body: JSON.stringify({ call_id: incomingCall.call_id, user_id: currentUser?._id })
-        }).catch(() => {});
-        setIncomingCall(null);
-      }, 30000);
-    }
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [incomingCall, currentUser]);
-
   const leaveCall = () => {
     if (activeCall) {
       apiFetch("/api/call/end", {
@@ -203,10 +202,24 @@ export function useCalls(currentUser: User | null) {
       }).catch(() => {});
     }
     setActiveCall(null);
+    setPendingCallId(null);
   };
 
   const acceptCall = async () => {
     if (!incomingCall) return;
+
+    setActiveCall({
+      callId: incomingCall.call_id,
+      type: incomingCall.call_type,
+      token: "",
+      remoteUser: {
+        username: incomingCall.caller_name,
+        avatar: incomingCall.caller_avatar,
+        id: incomingCall.caller_id,
+      },
+      isIncoming: true,
+    });
+
     try {
       const res = await apiFetch("/api/call/accept", {
         method: "POST",
@@ -214,17 +227,14 @@ export function useCalls(currentUser: User | null) {
       });
       if (res.ok) {
         const data = await res.json();
-        setActiveCall({
-          callId: incomingCall.call_id,
-          type: incomingCall.call_type,
-          token: data.token,
-          username: incomingCall.caller_name,
-        });
+        setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
       } else {
         alert("Failed to accept call.");
+        setActiveCall(null);
       }
     } catch (e) {
       console.error(e);
+      setActiveCall(null);
     }
     setIncomingCall(null);
   };

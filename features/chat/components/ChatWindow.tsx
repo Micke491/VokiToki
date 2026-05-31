@@ -156,8 +156,17 @@ export default function ChatWindow({
       return;
     }
     const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
-    window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type, calleeId, callId } }));
-  }, [chatId, isRecipientDeleted, isBlockedChat, isGroup, participants, currentUserId]);
+    window.dispatchEvent(new CustomEvent("start-call", {
+      detail: {
+        chatId,
+        type,
+        calleeId,
+        callId,
+        calleeName: recipientUsername,
+        calleeAvatar: recipientAvatar,
+      }
+    }));
+  }, [chatId, isRecipientDeleted, isBlockedChat, isGroup, participants, currentUserId, recipientUsername, recipientAvatar]);
 
   const [showSidebar, setShowSidebar] = React.useState(false);
 
@@ -236,7 +245,15 @@ export default function ChatWindow({
             return;
           }
           const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
-          window.dispatchEvent(new CustomEvent("start-call", { detail: { chatId, type: callType, calleeId } }));
+          window.dispatchEvent(new CustomEvent("start-call", {
+            detail: {
+              chatId,
+              type: callType,
+              calleeId,
+              calleeName: recipientUsername,
+              calleeAvatar: recipientAvatar,
+            }
+          }));
         }}
         isBlocked={isBlockedChat}
         isDeleted={isRecipientDeleted}
