@@ -1,10 +1,13 @@
 package services
 
 import (
+	"crypto/tls"
 	"fmt"
-	"net/mail"
-	"net/smtp"
+	"log"
+	"strconv"
+
 	"chat-app/internal/config"
+	"gopkg.in/gomail.v2"
 )
 
 func SendEmail(to, subject, body string) error {
@@ -12,32 +15,33 @@ func SendEmail(to, subject, body string) error {
 	pass := config.AppConfig.SMTPPass
 	user := config.AppConfig.SMTPUser
 	host := config.AppConfig.SMTPHost
-	port := config.AppConfig.SMTPPort
+	portStr := config.AppConfig.SMTPPort
 
-	fromAddr, err := mail.ParseAddress(fromConfig)
-	var from string
-	if err == nil {
-		from = fromAddr.Address
-	} else {
-		from = fromConfig 
-	}
-
-	msg := fmt.Sprintf("From: %s\r\n"+
-		"To: %s\r\n"+
-		"Subject: %s\r\n"+
-		"MIME-version: 1.0;\r\n"+
-		"Content-Type: text/html; charset=\"UTF-8\";\r\n"+
-		"\r\n"+
-		"%s\r\n", from, to, subject, body)
-
-	auth := smtp.PlainAuth("", user, pass, host)
-	addr := fmt.Sprintf("%s:%s", host, port)
-
-	err = smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return err
+		port = 587
 	}
 
+	m := gomail.NewMessage()
+	m.SetHeader("From", fromConfig)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/html", body)
+
+	d := gomail.NewDialer(host, port, user, pass)
+	
+	d.TLSConfig = &tls.Config{
+		ServerName: host,
+	}
+
+	log.Printf("Attempting to send email to %s via %s:%d...", to, host, port)
+
+	if err := d.DialAndSend(m); err != nil {
+		log.Printf("ERROR sending email to %s: %v", to, err)
+		return fmt.Errorf("failed to send email via gomail: %w", err)
+	}
+
+	log.Printf("SUCCESS: Email sent to %s", to)
 	return nil
 }
 
