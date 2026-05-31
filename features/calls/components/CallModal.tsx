@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -9,6 +9,7 @@ import {
   useTracks,
   VideoTrack,
   useRoomContext,
+  useMediaDeviceSelect,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { RoomEvent, Track } from "livekit-client";
@@ -21,7 +22,8 @@ import {
   MicOff, 
   Loader2, 
   MonitorUp, 
-  MonitorOff 
+  MonitorOff,
+  ChevronDown
 } from "lucide-react";
 
 interface CallModalProps {
@@ -51,6 +53,18 @@ export default function CallModal({
 }: CallModalProps) {
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
+  const rUser = {
+    username: remoteUser?.username || "Remote User",
+    avatar: remoteUser?.avatar,
+    id: remoteUser?.id,
+  };
+
+  const cUser = {
+    username: currentUser?.username || "You",
+    avatar: currentUser?.avatar,
+    _id: currentUser?._id,
+  };
+
   const renderConnectingLayout = () => (
     <div className="flex flex-col h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-neutral-950 to-black text-white p-6 justify-between select-none">
       <div className="flex items-center justify-between">
@@ -64,15 +78,15 @@ export default function CallModal({
         {/* Local Participant Box */}
         <div className="aspect-video w-full rounded-3xl bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl">
           <div className="relative w-24 h-24 mb-4">
-            {currentUser.avatar ? (
-              <img src={currentUser.avatar} alt={currentUser.username} className="w-24 h-24 rounded-full object-cover border-2 border-zinc-700/50" />
+            {cUser.avatar ? (
+              <img src={cUser.avatar} alt={cUser.username} className="w-24 h-24 rounded-full object-cover border-2 border-zinc-700/50" />
             ) : (
               <div className="w-24 h-24 rounded-full bg-zinc-850 flex items-center justify-center text-3xl font-bold uppercase border-2 border-zinc-700/50">
-                {currentUser.username.charAt(0)}
+                {cUser.username.charAt(0)}
               </div>
             )}
           </div>
-          <span className="text-lg font-semibold text-zinc-200">{currentUser.username} (You)</span>
+          <span className="text-lg font-semibold text-zinc-200">{cUser.username} (You)</span>
           <span className="text-xs text-zinc-500 mt-1 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
             Initializing devices...
@@ -102,15 +116,15 @@ export default function CallModal({
               transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0.5 }}
               className="absolute inset-0 rounded-full bg-rose-500/10"
             />
-            {remoteUser.avatar ? (
-              <img src={remoteUser.avatar} alt={remoteUser.username} className="w-24 h-24 rounded-full object-cover relative z-10 border-2 border-rose-500/20" />
+            {rUser.avatar ? (
+              <img src={rUser.avatar} alt={rUser.username} className="w-24 h-24 rounded-full object-cover relative z-10 border-2 border-rose-500/20" />
             ) : (
               <div className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center text-3xl font-bold uppercase relative z-10 border-2 border-rose-500/20">
-                {remoteUser.username.charAt(0)}
+                {rUser.username.charAt(0)}
               </div>
             )}
           </div>
-          <span className="text-lg font-semibold text-zinc-200">{remoteUser.username}</span>
+          <span className="text-lg font-semibold text-zinc-200">{rUser.username}</span>
           <span className="text-sm text-rose-400 font-medium animate-pulse mt-1">Ringing...</span>
         </motion.div>
       </div>
@@ -137,8 +151,8 @@ export default function CallModal({
   return (
     <div className="fixed inset-0 z-[1000] bg-black">
       <LiveKitRoom
-        video={false} // Connect first without capturing to avoid immediate device initialization crashes
-        audio={false} // Devices are requested safely inside LiveKitCallActive with try-catch
+        video={false}
+        audio={true}
         token={token}
         serverUrl={serverUrl}
         onDisconnected={onLeave}
@@ -146,8 +160,8 @@ export default function CallModal({
         <RoomConnectionListener onLeave={onLeave} />
         <LiveKitCallActive
           callType={callType}
-          remoteUser={remoteUser}
-          currentUser={currentUser}
+          remoteUser={rUser}
+          currentUser={cUser}
           onLeave={onLeave}
         />
         <RoomAudioRenderer />
@@ -192,19 +206,47 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
     isScreenShareEnabled 
   } = useLocalParticipant();
 
-  // Safety device initialization
+  const [showMicMenu, setShowMicMenu] = useState(false);
+  const [showCamMenu, setShowCamMenu] = useState(false);
+
+  const micDropdownRef = useRef<HTMLDivElement>(null);
+  const camDropdownRef = useRef<HTMLDivElement>(null);
+
+  const {
+    devices: micDevices,
+    activeDeviceId: activeMicId,
+    setActiveMediaDevice: setActiveMic,
+  } = useMediaDeviceSelect({ kind: "audioinput", requestPermissions: true });
+
+  const {
+    devices: camDevices,
+    activeDeviceId: activeCamId,
+    setActiveMediaDevice: setActiveCam,
+  } = useMediaDeviceSelect({ kind: "videoinput", requestPermissions: true });
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (micDropdownRef.current && !micDropdownRef.current.contains(e.target as Node)) {
+        setShowMicMenu(false);
+      }
+      if (camDropdownRef.current && !camDropdownRef.current.contains(e.target as Node)) {
+        setShowCamMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
   useEffect(() => {
     let active = true;
 
     const initDevices = async () => {
-      // Gracefully attempt microphone startup
       try {
         await localParticipant.setMicrophoneEnabled(true);
       } catch (err) {
         console.warn("Could not capture audio device on start:", err);
       }
 
-      // Gracefully attempt camera startup if call type is video
       if (callType === "video" && active) {
         try {
           await localParticipant.setCameraEnabled(true);
@@ -221,7 +263,6 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
     };
   }, [localParticipant, callType]);
 
-  // Subscribe to tracks - withPlaceholder: false prevents fake tracks from showing up as camera placeholders
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
     { source: Track.Source.ScreenShare, withPlaceholder: false }
@@ -230,22 +271,33 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
   const remoteParticipants = participants.filter((p) => !p.isLocal);
   const isRemoteConnected = remoteParticipants.length > 0;
 
-  // 30 seconds unattended timeout: Disconnect if alone in room
+  const [hasRemoteConnected, setHasRemoteConnected] = useState(false);
+
   useEffect(() => {
-    if (isRemoteConnected) return;
+    if (isRemoteConnected) {
+      setHasRemoteConnected(true);
+    }
+  }, [isRemoteConnected]);
+
+  useEffect(() => {
+    if (hasRemoteConnected && !isRemoteConnected) {
+      onLeave();
+    }
+  }, [isRemoteConnected, hasRemoteConnected, onLeave]);
+
+  useEffect(() => {
+    if (isRemoteConnected || hasRemoteConnected) return;
 
     const timer = setTimeout(() => {
       onLeave();
     }, 30000);
 
     return () => clearTimeout(timer);
-  }, [isRemoteConnected, onLeave]);
+  }, [isRemoteConnected, hasRemoteConnected, onLeave]);
 
-  // Filter out any active screenshare tracks in the room
   const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare);
   const hasScreenShare = screenShareTracks.length > 0;
 
-  // Helper to map participants to actual usernames & avatars
   const getParticipantDetails = (p: any) => {
     if (p.isLocal) {
       return {
@@ -254,10 +306,9 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
       };
     }
 
-    let username = p.name || p.identity;
-    let avatar = undefined;
+    let username = remoteUser.username || "Remote User";
+    let avatar = remoteUser.avatar;
 
-    // Parse participant metadata if configured
     if (p.metadata) {
       try {
         const meta = JSON.parse(p.metadata);
@@ -272,13 +323,11 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
           avatar = p.metadata;
         }
       }
-    }
-
-    // Fallback comparison with initial remoteUser details
-    if (p.identity === remoteUser.id || remoteParticipants.length === 1) {
-      if (!avatar && remoteUser.avatar) avatar = remoteUser.avatar;
-      if ((username === p.identity || !username) && remoteUser.username) {
-        username = remoteUser.username;
+    } else {
+      if (p.name && (!remoteUser.username || remoteUser.username === "User")) {
+        username = p.name;
+      } else if (p.identity && (!remoteUser.username || remoteUser.username === "User")) {
+        username = p.identity;
       }
     }
 
@@ -318,7 +367,7 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
         </span>
       </div>
 
-      {/* Grid container with beautiful animations */}
+      {/* Grid container with balanced animations */}
       <AnimatePresence mode="wait">
         {hasScreenShare ? (
           /* Split Screen Share Layout */
@@ -383,7 +432,6 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                 const remoteTrack = tracks.find(
                   (t) => t.participant.identity === p.identity && t.source === Track.Source.Camera
                 );
-                // We use both explicit check `p.isCameraEnabled` and track presence check
                 const isCameraActive = p.isCameraEnabled && remoteTrack && !remoteTrack.publication?.isMuted;
                 const { username: pName, avatar: pAvatar } = getParticipantDetails(p);
 
@@ -625,29 +673,156 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
 
       {/* Floating Glassmorphic Call Action Bar */}
       <div className="flex justify-center items-center gap-4 md:gap-6 mb-6">
-        {/* Toggle Audio Button */}
-        <button
-          onClick={toggleMic}
-          className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border ${
-            isMicrophoneEnabled
-              ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-850 text-white"
-              : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500 hover:text-white"
-          }`}
-        >
-          {isMicrophoneEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-        </button>
+        
+        {/* Toggle Audio Button + Dropdown */}
+        <div ref={micDropdownRef} className="relative flex items-center bg-zinc-900 border border-zinc-850 rounded-full shadow-lg hover:border-zinc-800 transition-all">
+          <button
+            onClick={toggleMic}
+            className={`w-14 h-14 rounded-l-full flex items-center justify-center transition-all active:scale-95 ${
+              isMicrophoneEnabled
+                ? "text-white hover:bg-zinc-850"
+                : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+            }`}
+          >
+            {isMicrophoneEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+          </button>
+          
+          <div className="w-[1px] h-6 bg-zinc-800" />
+          
+          <button
+            onClick={() => {
+              setShowMicMenu(!showMicMenu);
+              setShowCamMenu(false);
+            }}
+            className="px-2.5 h-14 rounded-r-full flex items-center justify-center hover:bg-zinc-850 transition-all text-zinc-400 hover:text-zinc-200 active:scale-95"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showMicMenu ? "rotate-180" : ""}`} />
+          </button>
 
-        {/* Toggle Camera Button */}
-        <button
-          onClick={toggleCamera}
-          className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border ${
-            isCameraEnabled
-              ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-850 text-white"
-              : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500 hover:text-white"
-          }`}
-        >
-          {isCameraEnabled ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-        </button>
+          {/* Mic Menu Dropdown */}
+          <AnimatePresence>
+            {showMicMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-16 left-0 min-w-[220px] bg-zinc-950/95 border border-zinc-800/80 backdrop-blur-xl rounded-2xl p-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[1001] flex flex-col gap-1 max-h-60 overflow-y-auto"
+              >
+                <div className="text-zinc-400 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1.5 border-b border-zinc-900/80 mb-1 flex items-center justify-between">
+                  <span>Microphones</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                </div>
+                {micDevices.length === 0 ? (
+                  <div className="text-zinc-500 text-xs px-2.5 py-2 italic text-center">
+                    No microphones found
+                  </div>
+                ) : (
+                  micDevices.map((device) => (
+                    <button
+                      key={device.deviceId}
+                      onClick={async () => {
+                        try {
+                          await setActiveMic(device.deviceId);
+                        } catch (err) {
+                          console.error("Failed to set active microphone:", err);
+                        }
+                        setShowMicMenu(false);
+                      }}
+                      className={`w-full text-left text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-between ${
+                        device.deviceId === activeMicId
+                          ? "bg-indigo-600/90 text-white font-medium shadow-md"
+                          : "text-zinc-300 hover:bg-zinc-800/80 hover:text-zinc-100"
+                      }`}
+                    >
+                      <span className="truncate pr-2 text-left">
+                        {device.label || `Microphone ${device.deviceId.substring(0, 5)}`}
+                      </span>
+                      {device.deviceId === activeMicId && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Toggle Camera Button + Dropdown */}
+        <div ref={camDropdownRef} className="relative flex items-center bg-zinc-900 border border-zinc-850 rounded-full shadow-lg hover:border-zinc-800 transition-all">
+          <button
+            onClick={toggleCamera}
+            className={`w-14 h-14 rounded-l-full flex items-center justify-center transition-all active:scale-95 ${
+              isCameraEnabled
+                ? "text-white hover:bg-zinc-850"
+                : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+            }`}
+          >
+            {isCameraEnabled ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+          </button>
+          
+          <div className="w-[1px] h-6 bg-zinc-800" />
+          
+          <button
+            onClick={() => {
+              setShowCamMenu(!showCamMenu);
+              setShowMicMenu(false);
+            }}
+            className="px-2.5 h-14 rounded-r-full flex items-center justify-center hover:bg-zinc-850 transition-all text-zinc-400 hover:text-zinc-200 active:scale-95"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showCamMenu ? "rotate-180" : ""}`} />
+          </button>
+
+          {/* Camera Menu Dropdown */}
+          <AnimatePresence>
+            {showCamMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-16 left-0 min-w-[220px] bg-zinc-950/95 border border-zinc-800/80 backdrop-blur-xl rounded-2xl p-2.5 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[1001] flex flex-col gap-1 max-h-60 overflow-y-auto"
+              >
+                <div className="text-zinc-400 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1.5 border-b border-zinc-900/80 mb-1 flex items-center justify-between">
+                  <span>Cameras</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                </div>
+                {camDevices.length === 0 ? (
+                  <div className="text-zinc-500 text-xs px-2.5 py-2 italic text-center">
+                    No cameras found
+                  </div>
+                ) : (
+                  camDevices.map((device) => (
+                    <button
+                      key={device.deviceId}
+                      onClick={async () => {
+                        try {
+                          await setActiveCam(device.deviceId);
+                        } catch (err) {
+                          console.error("Failed to set active camera:", err);
+                        }
+                        setShowCamMenu(false);
+                      }}
+                      className={`w-full text-left text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-between ${
+                        device.deviceId === activeCamId
+                          ? "bg-indigo-600/90 text-white font-medium shadow-md"
+                          : "text-zinc-300 hover:bg-zinc-800/80 hover:text-zinc-100"
+                      }`}
+                    >
+                      <span className="truncate pr-2 text-left">
+                        {device.label || `Camera ${device.deviceId.substring(0, 5)}`}
+                      </span>
+                      {device.deviceId === activeCamId && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Toggle Screen Share Button */}
         <button

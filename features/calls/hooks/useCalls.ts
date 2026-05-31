@@ -119,7 +119,7 @@ export function useCalls(currentUser: User | null) {
         remoteUser: {
           username: calleeName || "User",
           avatar: calleeAvatar,
-          id: calleeId,
+          id: calleeId ? calleeId.toString() : undefined,
         },
         isIncoming: !!existingCallId,
       });
@@ -176,7 +176,6 @@ export function useCalls(currentUser: User | null) {
     return () => window.removeEventListener("start-call", handleStartCall);
   }, [currentUser]);
 
-  // 30 seconds unanswered timeout
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     if (pendingCallId && activeCall) {
