@@ -1,11 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import StoryRing from "@/features/story/components/StoryRing";
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ReportModal from '@/components/ui/ReportModal';
-import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert } from 'lucide-react';
+import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff } from 'lucide-react';
 import { useChatList, ChatListItem } from '../hooks/useChatList';
+import { AnimatePresence } from 'framer-motion';
+import { apiFetch } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface ChatListProps {
   currentUserId?: string;
@@ -27,6 +30,41 @@ export default function ChatList({
   storiesUsers = [],
   onStoryClick
 }: ChatListProps) {
+  const [muteSelectChat, setMuteSelectChat] = useState<{ chatId: string; username: string } | null>(null);
+  const [mutedChatIds, setMutedChatIds] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    const fetchMuted = async () => {
+      try {
+        const res = await apiFetch('/api/chats/muted');
+        if (res.ok) {
+          const data = await res.json();
+          const activeMutes = (data.mutedChats || [])
+            .filter((m: any) => new Date(m.mutedUntil) > new Date())
+            .map((m: any) => m.chatId);
+          setMutedChatIds(activeMutes);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchMuted();
+  }, []);
+
+  const handleUnmute = async (chatId: string, chatName: string) => {
+    try {
+      const res = await apiFetch(`/api/chats/unmute?chatId=${chatId}`, { method: 'POST' });
+      if (res.ok) {
+        setMutedChatIds(prev => prev.filter(id => id !== chatId));
+        toast.success(`Unmuted ${chatName}`);
+      } else {
+        toast.error('Failed to unmute chat');
+      }
+    } catch (err) {
+      toast.error('Network error');
+    }
+  };
+
   const {
     filteredChats,
     loading,
@@ -230,8 +268,11 @@ export default function ChatList({
                 {/* Chat Info */}
                 <div className="flex flex-col flex-1 min-w-0 gap-1">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'}`}>
+                    <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'} flex items-center gap-1.5`}>
                       {chatName}
+                      {mutedChatIds.includes(chat._id) && (
+                        <BellOff className="w-3.5 h-3.5 text-chat-text-tertiary shrink-0" />
+                      )}
                     </span>
                     <div className="flex items-center gap-1 ml-2 shrink-0">
                       <span className={`text-xs whitespace-nowrap ${isUnread ? 'font-bold text-chat-accent' : 'text-chat-text-tertiary'}`}>
@@ -271,6 +312,43 @@ export default function ChatList({
                     onClick={(e) => e.stopPropagation()}
                     className="absolute right-4 top-12 z-50 w-44 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
                   >
+                    {/* Add Mute / Unmute Option */}
+                    {(() => {
+                      const isCurrentlyMuted = mutedChatIds.includes(chat._id);
+                      return (
+                        <>
+                          {isCurrentlyMuted ? (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleUnmute(chat._id, chatName || 'Chat');
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                            >
+                              <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                              </svg>
+                              Unmute Chat
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setMuteSelectChat({ chatId: chat._id, username: chatName || 'Chat' });
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                            >
+                              <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                              </svg>
+                              Mute Settings
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                    <div className="h-px bg-chat-border mx-2" />
                     {isGroup ? (
                       <button
                         onClick={() => handleLeaveGroup(chat._id)}
@@ -365,6 +443,57 @@ export default function ChatList({
         targetType="user"
         targetName={reportData?.username}
       />
+
+      {/* Mute Chat Modal with Options */}
+      <AnimatePresence>
+        {muteSelectChat && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMuteSelectChat(null)} />
+            <div className="relative w-full max-w-sm bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl p-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-chat-text-primary mb-2">Mute "{muteSelectChat.username}"</h3>
+              <p className="text-xs text-chat-text-secondary mb-4">Choose how long you'd like to silence notifications from this conversation:</p>
+              
+              <div className="flex flex-col gap-2">
+                {[
+                  { label: '8 Hours', value: 8 },
+                  { label: '1 Week', value: 168 },
+                  { label: 'Until I turn it off', value: -1 },
+                ].map((option) => (
+                  <button
+                    key={option.label}
+                    onClick={async () => {
+                      try {
+                        const response = await apiFetch('/api/chats/mute', {
+                          method: 'POST',
+                          body: JSON.stringify({ chatId: muteSelectChat.chatId, durationHours: option.value }),
+                        });
+                        if (response.ok) {
+                          toast.success(`Muted ${muteSelectChat.username}`);
+                          setMutedChatIds(prev => [...prev, muteSelectChat.chatId]);
+                        } else {
+                          toast.error('Failed to mute conversation');
+                        }
+                      } catch (err) {
+                        toast.error('Network error');
+                      }
+                      setMuteSelectChat(null);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl text-sm font-semibold text-chat-text-primary bg-chat-input hover:bg-chat-hover text-left transition-colors border border-chat-border"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setMuteSelectChat(null)}
+                className="w-full mt-4 py-2 text-xs font-bold text-chat-text-tertiary hover:text-chat-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

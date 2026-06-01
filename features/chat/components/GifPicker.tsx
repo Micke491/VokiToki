@@ -2,6 +2,49 @@ import React from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useGiphyPicker } from "../hooks/useGiphyPicker";
+import { useChatSession } from "@/hooks/useChatSession";
+
+const GifPickerItem = ({
+  gif,
+  onSelect,
+  autoPlay,
+}: {
+  gif: any;
+  onSelect: (url: string) => void;
+  autoPlay: boolean;
+}) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+  const shouldPlay = autoPlay || isHovered;
+  const currentSrc = shouldPlay ? gif.images.fixed_height.url : gif.images.fixed_height_still.url;
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => onSelect(gif.images.fixed_height.url)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative aspect-video bg-chat-bg-secondary rounded-lg overflow-hidden cursor-pointer group"
+    >
+      <img
+        src={currentSrc}
+        alt={gif.title}
+        className="w-full h-full object-cover"
+        loading="lazy"
+        onError={(e) => {
+          const target = e.target as HTMLImageElement;
+          target.src = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHRreXQ0Yzh0eHR4eHR4eHR4eHR4eHR4eHR4eHR4eHR4eHR4eHR4eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxN8XW8Dk4M/giphy.gif";
+        }}
+      />
+      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+      {!autoPlay && !isHovered && (
+        <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-bold text-white uppercase tracking-wider">
+          GIF
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 interface GifPickerProps {
   onSelect: (url: string) => void;
@@ -10,6 +53,8 @@ interface GifPickerProps {
 
 const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
   const { search, setSearch, items: gifs, loading, error, scrollRef } = useGiphyPicker("gifs");
+  const { currentUser } = useChatSession();
+  const autoPlayGifs = currentUser?.autoPlayGifs ?? true;
 
   return (
     <motion.div
@@ -54,25 +99,12 @@ const GifPicker = ({ onSelect, onClose }: GifPickerProps) => {
         ) : gifs.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
             {gifs.map((gif) => (
-              <motion.div
+              <GifPickerItem
                 key={gif.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onSelect(gif.images.fixed_height.url)}
-                className="relative aspect-video bg-chat-bg-secondary rounded-lg overflow-hidden cursor-pointer group"
-              >
-                <img
-                  src={gif.images.fixed_height.url}
-                  alt={gif.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHRreXQ0Yzh0eHR4eHR4eHR4eHR4eHR4eHR4eHR4eHR4eHR4eHR4eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxN8XW8Dk4M/giphy.gif";
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </motion.div>
+                gif={gif}
+                onSelect={onSelect}
+                autoPlay={autoPlayGifs}
+              />
             ))}
           </div>
         ) : (

@@ -11,6 +11,10 @@ export interface User {
   username: string;
   email: string;
   avatar?: string;
+  theme?: 'light' | 'dark' | 'system';
+  defaultWallpaper?: string;
+  autoPlayGifs?: boolean;
+  autoPlayVoice?: boolean;
 }
 
 export function useChatSession() {

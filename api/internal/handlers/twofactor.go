@@ -183,6 +183,16 @@ func VerifyLogin2FA(c *gin.Context) {
 		return
 	}
 
+	ctxBg := context.Background()
+	db.SessionCollection.InsertOne(ctxBg, models.Session{
+		ID:         bson.NewObjectID(),
+		UserID:     user.ID,
+		Token:      token,
+		Device:     c.Request.UserAgent(),
+		IP:         c.ClientIP(),
+		LastActive: time.Now(),
+	})
+
 	if req.RememberDevice {
 		trustedToken, err := services.GenerateTrustedDeviceToken(user.ID.Hex())
 		if err == nil {

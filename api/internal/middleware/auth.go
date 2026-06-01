@@ -40,6 +40,20 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		var sess models.Session
+		err = db.SessionCollection.FindOne(c, bson.M{"token": tokenString}).Decode(&sess)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(http.StatusUnauthorized, gin.H{"message": "Session has been revoked or expired"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"message": "Database error checking session"})
+			}
+			c.Abort()
+			return
+		}
+
+		c.Set("sessionId", sess.ID)
+
 		cacheKey := "user_auth:" + claims.UserID
 		if db.RedisClient != nil {
 			cachedStatus, _ := db.RedisClient.Get(c, cacheKey).Result()

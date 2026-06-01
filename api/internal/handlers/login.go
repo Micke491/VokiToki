@@ -92,6 +92,16 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	ctxBg := context.Background()
+	db.SessionCollection.InsertOne(ctxBg, models.Session{
+		ID:         bson.NewObjectID(),
+		UserID:     user.ID,
+		Token:      token,
+		Device:     c.Request.UserAgent(),
+		IP:         c.ClientIP(),
+		LastActive: time.Now(),
+	})
+
 	db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
 		"$set": bson.M{
 			"updatedAt": time.Now(),

@@ -28,6 +28,9 @@ interface User {
   readReceipts: boolean;
   twoFactorEnabled: boolean;
   theme: 'light' | 'dark' | 'system';
+  defaultWallpaper?: string;
+  autoPlayGifs?: boolean;
+  autoPlayVoice?: boolean;
 }
 
 type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'danger';

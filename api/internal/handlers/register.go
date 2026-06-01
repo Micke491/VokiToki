@@ -70,6 +70,8 @@ func Register(c *gin.Context) {
 		MutedChats:       []models.MutedChat{},
 		Links:            []models.UserLink{},
 		TwoFactorEnabled: false,
+		AutoPlayGifs:     true,
+		AutoPlayVoice:    true,
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -86,6 +88,16 @@ func Register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate session"})
 		return
 	}
+
+	ctxBg := context.Background()
+	db.SessionCollection.InsertOne(ctxBg, models.Session{
+		ID:         bson.NewObjectID(),
+		UserID:     newUser.ID,
+		Token:      token,
+		Device:     c.Request.UserAgent(),
+		IP:         c.ClientIP(),
+		LastActive: time.Now(),
+	})
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,

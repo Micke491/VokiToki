@@ -138,6 +138,40 @@ export function usePrivacySettings({
     }
   };
 
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await apiFetch('/api/users/sessions');
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data.sessions || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const revokeSession = async (sessionId: string) => {
+    try {
+      const res = await apiFetch(`/api/users/sessions/${sessionId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSessions(prev => prev.filter(s => s._id !== sessionId));
+        setFeedback({ type: 'success', message: 'Session revoked successfully' });
+      }
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Failed to revoke session' });
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
   return {
     readReceipts,
     twoFactor,
@@ -158,5 +192,8 @@ export function usePrivacySettings({
     handleRequest2FASetup,
     handleConfirm2FASetup,
     handleDisable2FA,
+    sessions,
+    loadingSessions,
+    revokeSession,
   };
 }

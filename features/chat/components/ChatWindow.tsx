@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useChatMessages } from "../hooks/useChatMessages";
 import { useMessageSender } from "../hooks/useMessageSender";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
+import { useChatSession } from "@/hooks/useChatSession";
 
 export default function ChatWindow({
   chatId,
@@ -40,6 +41,7 @@ export default function ChatWindow({
   onViewStory,
 }: ChatWindowProps) {
   const router = useRouter();
+  const { currentUser } = useChatSession();
 
   // 1. Messages Management Hook
   const {
@@ -141,7 +143,20 @@ export default function ChatWindow({
     setReplyingTo,
     scrollToBottom,
     inputRef,
-  });
+    value: newMessage,
+    setValue: setNewMessage,
+  } as any);
+
+  const activeWallpaper = useMemo(() => {
+    if (wallpaper) return wallpaper;
+
+    const tokenUser = currentUser;
+    if (tokenUser && (tokenUser as any).defaultWallpaper) {
+      return (tokenUser as any).defaultWallpaper;
+    }
+
+    return null; 
+  }, [wallpaper, currentUser]);
 
   const uploading = mediaUploading || voiceUploading;
   const isRecipientDeleted = !isGroup && (recipientUsername === "Unknown User" || !recipientUsername);
@@ -266,14 +281,15 @@ export default function ChatWindow({
             ref={messagesContainerRef}
             onScroll={handleScroll}
             style={{
-              backgroundImage: wallpaper ? `url(${wallpaper})` : "none",
+              backgroundColor: activeWallpaper && (activeWallpaper.startsWith('#') || activeWallpaper.startsWith('rgb') || activeWallpaper.startsWith('hsl')) ? activeWallpaper : undefined,
+              backgroundImage: activeWallpaper && !(activeWallpaper.startsWith('#') || activeWallpaper.startsWith('rgb') || activeWallpaper.startsWith('hsl')) ? `url(${activeWallpaper})` : undefined,
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundAttachment: "fixed",
             }}
           >
             {/* Ambient Overlay for Wallpaper */}
-            {wallpaper && (
+            {activeWallpaper && !(activeWallpaper.startsWith('#') || activeWallpaper.startsWith('rgb') || activeWallpaper.startsWith('hsl')) && (
               <div className="absolute inset-0 bg-chat-bg-primary/40 backdrop-blur-[2px] pointer-events-none" />
             )}
 
@@ -457,6 +473,8 @@ export default function ChatWindow({
                           onReport={setReportingMessage}
                           onViewStory={onViewStory}
                           recipientUsername={recipientUsername}
+                          autoPlayGifs={currentUser?.autoPlayGifs ?? true}
+                          autoPlayVoice={currentUser?.autoPlayVoice ?? true}
                         />
                       </div>
                     </div>

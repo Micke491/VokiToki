@@ -1,4 +1,4 @@
-import { getAuthToken } from './storage';
+import { getAuthToken, removeAuthToken } from './storage';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
@@ -14,9 +14,16 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     credentials: 'include',
     ...options,
     headers,
   });
+
+  if (response.status === 401 && typeof window !== 'undefined') {
+    removeAuthToken();
+    window.location.href = '/auth-pages/login';
+  }
+
+  return response;
 }

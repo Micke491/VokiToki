@@ -121,6 +121,14 @@ func CreateIndexes(ctx context.Context) error {
 		log.Printf("Warning: Failed to create message indexes: %v\n", err)
 	}
 
+	sessionTokenIndexModel := mongo.IndexModel{
+		Keys: bson.M{"token": 1},
+		Options: options.Index().SetUnique(true),
+	}
+	if _, err := SessionCollection.Indexes().CreateOne(ctx, sessionTokenIndexModel); err != nil {
+		log.Printf("Warning: Failed to create session indexes: %v\n", err)
+	}
+
 	log.Println("Database index migration completed successfully.")
 	return nil
 }

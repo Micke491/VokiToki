@@ -1,4 +1,4 @@
-import React, { useRef, memo } from "react";
+import React, { useRef, memo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import {
   Mic,
@@ -17,6 +17,7 @@ import {
   Clock,
   Eye,
   ShieldAlert,
+  Play,
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { motion, useAnimation } from "framer-motion";
@@ -25,6 +26,64 @@ import MessageStatusIcon from "./MessageStatusIcon";
 import AudioPlayer from "@/components/ui/AudioPlayer";
 import LinkPreview from "@/components/ui/LinkPreview";
 import HighlightText from "@/components/ui/HighlightText";
+
+const GifBubble = ({
+  src,
+  autoPlay,
+  onPreviewImage,
+  onLoad,
+  onDownload,
+}: {
+  src: string;
+  autoPlay: boolean;
+  onPreviewImage: (url: string) => void;
+  onLoad: () => void;
+  onDownload: (e: React.MouseEvent) => void;
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const getStillUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("giphy.com")) {
+      if (url.includes("_s.gif")) return url;
+      return url.replace(/\.gif(\?.*)?$/, "_s.gif$1");
+    }
+    return url;
+  };
+
+  const shouldPlay = autoPlay || isHovered;
+  const currentSrc = shouldPlay ? src : getStillUrl(src);
+
+  return (
+    <div
+      className="relative w-full h-full"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <img
+        src={currentSrc}
+        alt="Shared GIF"
+        className="w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
+        onClick={() => onPreviewImage(src)}
+        onLoad={onLoad}
+      />
+      {!autoPlay && !isHovered && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none transition-opacity duration-200">
+          <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg border border-white/10">
+            <Play className="w-3.5 h-3.5 fill-current" /> GIF
+          </span>
+        </div>
+      )}
+      <button
+        onClick={onDownload}
+        className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-black/70 rounded-full text-white backdrop-blur-sm shadow-lg transition-all z-30"
+        title="Download"
+      >
+        <Download className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 interface MessageItemProps {
   message: Message;
@@ -55,6 +114,8 @@ interface MessageItemProps {
   onReport: (message: Message) => void;
   onViewStory?: (storyId: string) => void;
   recipientUsername?: string; 
+  autoPlayGifs?: boolean;
+  autoPlayVoice?: boolean;
 }
 
 const MessageItem = ({
@@ -86,6 +147,8 @@ const MessageItem = ({
   onReport,
   onViewStory,
   recipientUsername,
+  autoPlayGifs = true,
+  autoPlayVoice = true,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -508,24 +571,23 @@ const MessageItem = ({
                             />
                           </div>
                         ) : message.mediaType === "audio" ? (
-                          <AudioPlayer src={message.mediaUrl!} />
+                          <AudioPlayer src={message.mediaUrl!} autoPlayVoice={autoPlayVoice} />
+                        ) : message.mediaType === "gif" ? (
+                          <GifBubble
+                            src={message.mediaUrl!}
+                            autoPlay={autoPlayGifs}
+                            onPreviewImage={onPreviewImage}
+                            onLoad={scrollToBottom}
+                            onDownload={(e) => handleDownload(e, message.mediaUrl!, `download-${message._id}`)}
+                          />
                         ) : (
                           <>
                             <img
                               src={message.mediaUrl}
                               alt="Shared media"
                               className={`w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-opacity ${message.mediaType === "sticker" ? "max-w-[160px] aspect-square object-contain mx-auto" : ""}`}
-                              onClick={(e) => {
-                                if (
-                                  message.mediaType === "gif" ||
-                                  message.mediaType === "sticker"
-                                ) {
-                                  const target = e.target as HTMLImageElement;
-                                  const originalSrc = target.src.split("?t=")[0];
-                                  target.src = originalSrc + "?t=" + Date.now();
-                                } else {
-                                  onPreviewImage(message.mediaUrl!);
-                                }
+                              onClick={() => {
+                                onPreviewImage(message.mediaUrl!);
                               }}
                               onLoad={scrollToBottom}
                             />

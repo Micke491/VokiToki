@@ -5,9 +5,10 @@ import { Play, Pause } from "lucide-react";
 
 interface AudioPlayerProps {
   src: string;
+  autoPlayVoice?: boolean;
 }
 
-export default function AudioPlayer({ src }: AudioPlayerProps) {
+export default function AudioPlayer({ src, autoPlayVoice = true }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -26,21 +27,41 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
       setCurrentTime(audio.currentTime);
     };
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
+
+      if (autoPlayVoice) {
+        setTimeout(() => {
+          const audios = Array.from(document.querySelectorAll("audio"));
+          const currentIndex = audios.indexOf(audio);
+          if (currentIndex !== -1 && currentIndex + 1 < audios.length) {
+            const nextAudio = audios[currentIndex + 1];
+            nextAudio.play().catch(err => {
+              console.error("Autoplay failed:", err);
+            });
+          }
+        }, 150);
+      }
     };
 
     audio.addEventListener("loadeddata", setAudioData);
     audio.addEventListener("timeupdate", setAudioTime);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
     audio.addEventListener("ended", handleEnded);
 
     return () => {
       audio.removeEventListener("loadeddata", setAudioData);
       audio.removeEventListener("timeupdate", setAudioTime);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, []);
+  }, [autoPlayVoice]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -49,7 +70,6 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     } else {
       audioRef.current.play();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {

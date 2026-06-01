@@ -53,6 +53,13 @@ func main() {
 
 		api.PATCH("/users/preferences", handlers.UpdatePreferences)
 
+		api.GET("/chats/muted", handlers.GetMutedChats)
+		api.POST("/chats/mute", handlers.MuteChat)
+		api.POST("/chats/unmute", handlers.UnmuteChat)
+
+		api.GET("/users/sessions", handlers.GetActiveSessions)
+		api.DELETE("/users/sessions/:id", handlers.RevokeSession)
+
 		api.POST("/auth/2fa/request-enable", handlers.RequestEnable2FA)
 		api.POST("/auth/2fa/confirm-enable", handlers.ConfirmEnable2FA)
 		api.POST("/auth/2fa/disable", handlers.Disable2FA)

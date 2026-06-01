@@ -26,6 +26,41 @@ interface PrivacySettingsTabProps {
   setFeedback: (fb: { type: 'success' | 'error'; message: string } | null) => void;
 }
 
+const parseUserAgent = (userAgent: string): string => {
+  if (!userAgent) return 'Unknown Device';
+  
+  let os = 'Unknown OS';
+  let browser = 'Unknown Browser';
+
+  if (/windows/i.test(userAgent)) {
+    os = 'Windows PC';
+  } else if (/macintosh|mac os x/i.test(userAgent)) {
+    os = 'Mac';
+  } else if (/iphone|ipad|ipod/i.test(userAgent)) {
+    os = 'iOS Device';
+  } else if (/android/i.test(userAgent)) {
+    os = 'Android Device';
+  } else if (/linux/i.test(userAgent)) {
+    os = 'Linux Device';
+  }
+
+  if (/edg/i.test(userAgent)) {
+    browser = 'Edge';
+  } else if (/chrome|crios/i.test(userAgent)) {
+    browser = 'Chrome';
+  } else if (/safari/i.test(userAgent) && !/chrome|crios/i.test(userAgent)) {
+    browser = 'Safari';
+  } else if (/firefox|fxios/i.test(userAgent)) {
+    browser = 'Firefox';
+  } else if (/opr\//i.test(userAgent)) {
+    browser = 'Opera';
+  } else if (/trident/i.test(userAgent)) {
+    browser = 'Internet Explorer';
+  }
+
+  return `${os} (${browser})`;
+};
+
 export default function PrivacySettingsTab({
   currentUser,
   onUserUpdate,
@@ -51,6 +86,9 @@ export default function PrivacySettingsTab({
     handleRequest2FASetup,
     handleConfirm2FASetup,
     handleDisable2FA,
+    sessions,
+    loadingSessions,
+    revokeSession,
   } = usePrivacySettings({ currentUser, onUserUpdate, setFeedback });
 
   return (
@@ -153,6 +191,54 @@ export default function PrivacySettingsTab({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Active Sessions & Device Management */}
+      <div className="pt-6 border-t border-chat-border">
+        <h2 className="text-xl font-bold text-chat-text-primary mb-4 flex items-center gap-3">
+          <Smartphone className="w-6 h-6 text-chat-accent" />
+          Active Sessions & Devices
+        </h2>
+        <p className="text-sm text-chat-text-secondary mb-6">
+          Logged-in devices currently holding active tokens for your profile. Revoke any unrecognized sessions.
+        </p>
+
+        {loadingSessions ? (
+          <div className="flex justify-center p-4">
+            <Loader2 className="w-6 h-6 animate-spin text-chat-accent" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-chat-text-tertiary italic">No active session details.</p>
+        ) : (
+          <div className="space-y-3">
+            {sessions.map((session) => (
+              <div key={session._id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-chat-input/50 border rounded-2xl ${session.isCurrent ? 'border-emerald-500/30 shadow-lg shadow-emerald-500/5' : 'border-chat-border'}`}>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-bold text-chat-text-primary truncate">{parseUserAgent(session.device)}</p>
+                    {session.isCurrent && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full shrink-0">
+                        Current Device
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-chat-text-tertiary mt-1.5">IP Address: {session.ip}</p>
+                  <p className="text-xs text-chat-text-tertiary">Last Active: {new Date(session.lastActive).toLocaleString()}</p>
+                </div>
+                <button
+                  onClick={() => revokeSession(session._id)}
+                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all self-start sm:self-center ${
+                    session.isCurrent
+                      ? 'bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-500'
+                      : 'bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500'
+                  }`}
+                >
+                  {session.isCurrent ? 'Sign Out' : 'Revoke Access'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Blocked Users Modal */}

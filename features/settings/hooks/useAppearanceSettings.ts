@@ -16,6 +16,9 @@ interface User {
   readReceipts: boolean;
   twoFactorEnabled: boolean;
   theme: 'light' | 'dark' | 'system';
+  defaultWallpaper?: string;
+  autoPlayGifs?: boolean;
+  autoPlayVoice?: boolean;
 }
 
 interface UseAppearanceSettingsProps {
@@ -30,23 +33,35 @@ export function useAppearanceSettings({
   setFeedback,
 }: UseAppearanceSettingsProps) {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [wallpaper, setWallpaper] = useState<string>('');
+  const [autoPlayGifs, setAutoPlayGifs] = useState<boolean>(true);
+  const [autoPlayVoice, setAutoPlayVoice] = useState<boolean>(true);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'dark';
     const userTheme = currentUser.theme === 'system' ? savedTheme : (currentUser.theme || savedTheme);
     setTheme(userTheme as 'light' | 'dark');
+    
+    if (currentUser) {
+      setWallpaper(currentUser.defaultWallpaper || '');
+      setAutoPlayGifs(currentUser.autoPlayGifs ?? true);
+      setAutoPlayVoice(currentUser.autoPlayVoice ?? true);
+    }
   }, [currentUser]);
 
-  const handleUpdatePreferences = async (updates: Partial<User>) => {
+  const updatePreferenceField = async (field: string, value: any) => {
     try {
       const response = await apiFetch(`/api/users/preferences`, {
         method: 'PATCH',
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ [field]: value }),
       });
-      if (!response.ok) throw new Error('Failed to update preferences');
-    } catch (error: any) {
-      console.error('Update pref error:', error);
-      setFeedback({ type: 'error', message: 'Failed to save preference.' });
+      if (response.ok) {
+        const data = await response.json();
+        onUserUpdate(data.user);
+        setFeedback({ type: 'success', message: 'Preference saved successfully' });
+      }
+    } catch (error) {
+      setFeedback({ type: 'error', message: 'Failed to sync preferences' });
     }
   };
 
@@ -55,11 +70,17 @@ export function useAppearanceSettings({
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
     onUserUpdate({ ...currentUser, theme: newTheme });
-    handleUpdatePreferences({ theme: newTheme });
+    updatePreferenceField('theme', newTheme);
   };
 
   return {
     theme,
     handleThemeChange,
+    wallpaper,
+    setWallpaper: (val: string) => { setWallpaper(val); updatePreferenceField('defaultWallpaper', val); },
+    autoPlayGifs,
+    setAutoPlayGifs: (val: boolean) => { setAutoPlayGifs(val); updatePreferenceField('autoPlayGifs', val); },
+    autoPlayVoice,
+    setAutoPlayVoice: (val: boolean) => { setAutoPlayVoice(val); updatePreferenceField('autoPlayVoice', val); },
   };
 }

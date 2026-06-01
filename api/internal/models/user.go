@@ -31,6 +31,9 @@ type User struct {
 	TimeoutUntil         *time.Time           `bson:"timeoutUntil,omitempty" json:"timeoutUntil,omitempty"`
 	CreatedAt            time.Time            `bson:"createdAt" json:"createdAt"`
 	UpdatedAt            time.Time            `bson:"updatedAt" json:"updatedAt"`
+	DefaultWallpaper     string               `bson:"defaultWallpaper" json:"defaultWallpaper"`
+	AutoPlayGifs         bool                 `bson:"autoPlayGifs" json:"autoPlayGifs"`
+	AutoPlayVoice        bool                 `bson:"autoPlayVoice" json:"autoPlayVoice"`
 }
 
 type MutedChat struct {
