@@ -130,9 +130,9 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-y-auto pb-0 relative z-10 w-full">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10 w-full">
         {/* Header */}
-        <header className="px-10 py-8 max-w-6xl mx-auto border-b border-chat-border/50 mb-8">
+        <header className="px-10 py-8 w-full max-w-6xl mx-auto border-b border-chat-border/50 shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/chat')}
@@ -147,9 +147,9 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <div className="max-w-6xl px-4 md:px-10 mx-auto flex flex-col md:flex-row gap-4 md:gap-8 pb-12">
+        <div className="flex-1 w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-4 md:gap-8 px-4 md:px-10 pt-6 pb-12 overflow-hidden">
           {/* Settings Sub-Sidebar Menu */}
-          <aside className="w-full md:w-64 shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible scrollbar-none pb-2 md:pb-0">
+          <aside className="w-full md:w-64 shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible scrollbar-none pb-2 md:pb-0 z-20">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -173,7 +173,7 @@ export default function SettingsPage() {
           </aside>
 
           {/* Main Settings Content Area */}
-          <main className="flex-1 max-w-3xl">
+          <main className="flex-1 max-w-3xl overflow-y-auto pr-2 pb-6 scrollbar-thin">
             <AnimatePresence mode="wait">
               {currentUser && (
                 <motion.div
