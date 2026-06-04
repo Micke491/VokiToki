@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, X } from "lucide-react";
+import Portal from "./Portal";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -26,9 +27,10 @@ const ConfirmModal = ({
   isLoading = false,
 }: ConfirmModalProps) => {
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <Portal>
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -88,7 +90,8 @@ const ConfirmModal = ({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+    </Portal>
   );
 };
 

@@ -4,6 +4,7 @@ import { Loader2, Shield, Lock, Eye, EyeOff, UserX, Smartphone } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrivacySettings } from '@/features/settings/hooks/usePrivacySettings';
 import BlockedUsersModal from '@/features/settings/components/BlockedUsersModal';
+import Portal from '@/components/ui/Portal';
 
 interface User {
   _id: string;
@@ -248,137 +249,141 @@ export default function PrivacySettingsTab({
       />
 
       {/* 2FA Setup Modal */}
-      <AnimatePresence>
-        {show2FASetup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => !verifying2FA && setShow2FASetup(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
-            >
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-chat-accent/10 border border-chat-accent/20 rounded-2xl mb-4">
-                  <Smartphone className="w-8 h-8 text-chat-accent" />
-                </div>
-                <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Enable 2FA</h3>
-                <p className="text-sm font-medium text-chat-text-secondary mt-2">
-                  We&apos;ve sent a 6-digit code to your email. Enter it below to enable Two-Step Verification.
-                </p>
-              </div>
-
-              <form onSubmit={handleConfirm2FASetup} className="space-y-6">
-                <div>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={setupCode}
-                    onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="000000"
-                    disabled={verifying2FA}
-                    className="w-full text-center tracking-[0.5em] text-3xl font-black py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all placeholder-chat-text-tertiary"
-                  />
+      <Portal>
+        <AnimatePresence>
+          {show2FASetup && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                onClick={() => !verifying2FA && setShow2FASetup(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
+              >
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-chat-accent/10 border border-chat-accent/20 rounded-2xl mb-4">
+                    <Smartphone className="w-8 h-8 text-chat-accent" />
+                  </div>
+                  <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Enable 2FA</h3>
+                  <p className="text-sm font-medium text-chat-text-secondary mt-2">
+                    We&apos;ve sent a 6-digit code to your email. Enter it below to enable Two-Step Verification.
+                  </p>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="submit"
-                    disabled={verifying2FA || setupCode.length !== 6}
-                    className="w-full py-4 bg-chat-accent text-white font-bold rounded-2xl hover:bg-chat-accent-hover transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Code'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShow2FASetup(false)}
-                    disabled={verifying2FA}
-                    className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                <form onSubmit={handleConfirm2FASetup} className="space-y-6">
+                  <div>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={setupCode}
+                      onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000"
+                      disabled={verifying2FA}
+                      className="w-full text-center tracking-[0.5em] text-3xl font-black py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-chat-accent/50 transition-all placeholder-chat-text-tertiary"
+                    />
+                  </div>
 
-      {/* 2FA Disable Modal */}
-      <AnimatePresence>
-        {show2FADisable && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => !verifying2FA && !requestingPassword && setShow2FADisable(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
-            >
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl mb-4">
-                  <Lock className="w-8 h-8 text-red-500" />
-                </div>
-                <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Disable 2FA</h3>
-                <p className="text-sm font-medium text-chat-text-secondary mt-2">
-                  Please enter your password to disable Two-Step Verification.
-                </p>
-              </div>
-
-              <form onSubmit={handleDisable2FA} className="space-y-6">
-                <div>
-                  <input
-                    type="password"
-                    required
-                    value={disablePassword}
-                    onChange={(e) => setDisablePassword(e.target.value)}
-                    placeholder="Enter your password"
-                    disabled={verifying2FA || requestingPassword}
-                    className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all font-medium"
-                  />
-                  <div className="flex justify-end mt-2">
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="submit"
+                      disabled={verifying2FA || setupCode.length !== 6}
+                      className="w-full py-4 bg-chat-accent text-white font-bold rounded-2xl hover:bg-chat-accent-hover transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Code'}
+                    </button>
                     <button
                       type="button"
-                      disabled={requestingPassword || verifying2FA}
-                      onClick={async () => {
-                        setShow2FADisable(false);
-                        await handlePasswordResetRequest();
-                      }}
-                      className="text-xs font-bold text-chat-accent hover:underline disabled:opacity-50 flex items-center gap-1.5"
+                      onClick={() => setShow2FASetup(false)}
+                      disabled={verifying2FA}
+                      className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
                     >
-                      {requestingPassword && <Loader2 className="w-3 h-3 animate-spin" />}
-                      Forgot password?
+                      Cancel
                     </button>
                   </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </Portal>
+
+      {/* 2FA Disable Modal */}
+      <Portal>
+        <AnimatePresence>
+          {show2FADisable && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                onClick={() => !verifying2FA && !requestingPassword && setShow2FADisable(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-chat-bg-primary border border-chat-border rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8"
+              >
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl mb-4">
+                    <Lock className="w-8 h-8 text-red-500" />
+                  </div>
+                  <h3 className="text-2xl font-black text-chat-text-primary tracking-tight">Disable 2FA</h3>
+                  <p className="text-sm font-medium text-chat-text-secondary mt-2">
+                    Please enter your password to disable Two-Step Verification.
+                  </p>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="submit"
-                    disabled={verifying2FA || requestingPassword || disablePassword.length === 0}
-                    className="w-full py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Disable 2FA'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShow2FADisable(false)}
-                    disabled={verifying2FA || requestingPassword}
-                    className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                <form onSubmit={handleDisable2FA} className="space-y-6">
+                  <div>
+                    <input
+                      type="password"
+                      required
+                      value={disablePassword}
+                      onChange={(e) => setDisablePassword(e.target.value)}
+                      placeholder="Enter your password"
+                      disabled={verifying2FA || requestingPassword}
+                      className="w-full px-4 py-4 bg-chat-input border border-chat-border rounded-2xl text-chat-text-primary focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all font-medium"
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        type="button"
+                        disabled={requestingPassword || verifying2FA}
+                        onClick={async () => {
+                          setShow2FADisable(false);
+                          await handlePasswordResetRequest();
+                        }}
+                        className="text-xs font-bold text-chat-accent hover:underline disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {requestingPassword && <Loader2 className="w-3 h-3 animate-spin" />}
+                        Forgot password?
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="submit"
+                      disabled={verifying2FA || requestingPassword || disablePassword.length === 0}
+                      className="w-full py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {verifying2FA ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Disable 2FA'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShow2FADisable(false)}
+                      disabled={verifying2FA || requestingPassword}
+                      className="w-full py-4 bg-transparent text-chat-text-secondary hover:text-chat-text-primary font-bold rounded-2xl transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { X, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Portal from "./Portal";
 
 interface ImagePreviewModalProps {
   imageUrl: string | null;
@@ -38,7 +39,8 @@ const ImagePreviewModal = ({ imageUrl, mediaType, onClose }: ImagePreviewModalPr
   };
 
   return (
-    <AnimatePresence>
+    <Portal>
+      <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -90,6 +92,7 @@ const ImagePreviewModal = ({ imageUrl, mediaType, onClose }: ImagePreviewModalPr
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    </Portal>
   );
 };
 
