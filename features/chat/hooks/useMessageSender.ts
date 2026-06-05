@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api';
 import { pusherClient } from '@/lib/pusher-client';
 import { Message } from '@/features/chat/types/chat';
 import { EmojiClickData } from 'emoji-picker-react';
+import toast from 'react-hot-toast';
 
 import { useChatSession } from '@/hooks/useChatSession';
 
@@ -191,6 +192,10 @@ export function useMessageSender({
   }, [attemptSendMessage, attemptSendMedia, setMessages]);
 
   const retrySingleMessage = useCallback(async (failedMsg: Message) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: No active connection. Cannot retry yet.");
+      return;
+    }
     setMessages((prev) =>
       prev.map((m) => (m._id === failedMsg._id ? { ...m, status: "sending" } : m))
     );
@@ -223,6 +228,10 @@ export function useMessageSender({
     }
 
     if (editingMessage) {
+      if (!navigator.onLine) {
+        toast.error("Offline: Cannot edit messages without an internet connection.");
+        return;
+      }
       setSending(true);
       try {
         await apiFetch(`/api/chat/message/messages/${editingMessage._id}/edit`, {
@@ -268,6 +277,18 @@ export function useMessageSender({
     setReplyingTo(null);
     setTimeout(() => scrollToBottom(true), 50);
 
+    // Connection check: queue text message offline
+    if (!navigator.onLine) {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
+      );
+      if (!offlineQueueRef.current.some((item) => item.tempId === tempId)) {
+        offlineQueueRef.current.push({ tempId, text: messageText, replyToId: replyingTo?._id });
+      }
+      toast.error("Offline: Message queued. It will send automatically upon reconnection.");
+      return;
+    }
+
     attemptSendMessage(tempId, messageText, replyingTo?._id);
   }, [newMessage, sending, editingMessage, chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMessage, setMessages]);
 
@@ -275,8 +296,13 @@ export function useMessageSender({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot upload photos, videos, or voice recordings without an internet connection.");
+      return;
+    }
+
     if (file.size > 10 * 1024 * 1024) {
-      alert("File is too large. Maximum size is 10MB.");
+      toast.error("File is too large. Maximum size is 10MB.");
       return;
     }
 
@@ -328,7 +354,7 @@ export function useMessageSender({
       attemptSendMedia(tempId, data.url, data.mediaType, data.publicId, replyingTo?._id);
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Failed to upload file.");
+      toast.error("Failed to upload file.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -337,6 +363,10 @@ export function useMessageSender({
   }, [chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMedia, setMessages]);
 
   const handleGifSelect = useCallback(async (url: string) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot send GIFs without an internet connection.");
+      return;
+    }
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const optimisticMsg: Message = {
       _id: tempId,
@@ -373,6 +403,10 @@ export function useMessageSender({
   }, [chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMedia, setMessages]);
 
   const handleStickerSelect = useCallback(async (url: string) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot send stickers without an internet connection.");
+      return;
+    }
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const optimisticMsg: Message = {
       _id: tempId,
@@ -427,6 +461,10 @@ export function useMessageSender({
 
   const confirmDeleteMessage = useCallback(async () => {
     if (!messageToDelete || !pusherClient) return;
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot delete messages for everyone without an internet connection.");
+      return;
+    }
     try {
       await apiFetch(
         `/api/chat/message/messages/${messageToDelete}/delete?forEveryone=true`,
@@ -455,6 +493,10 @@ export function useMessageSender({
   }, []);
 
   const handlePin = useCallback(async (message: Message) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot pin or unpin messages without an internet connection.");
+      return;
+    }
     if (message.isPinned) {
       await apiFetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
         method: "DELETE",
@@ -472,6 +514,10 @@ export function useMessageSender({
     messageId: string
   ) => {
     if (!pusherClient) return;
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot add reactions without an internet connection.");
+      return;
+    }
     try {
       await apiFetch(`/api/chat/message/messages/${messageId}/reaction`, {
         method: "POST",
@@ -488,6 +534,10 @@ export function useMessageSender({
 
   const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!pusherClient) return;
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot remove reactions without an internet connection.");
+      return;
+    }
     try {
       await apiFetch(
         `/api/chat/message/messages/${messageId}/reaction?chatId=${chatId}&emoji=${encodeURIComponent(emoji)}`,

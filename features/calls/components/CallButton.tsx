@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Phone, Video } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface CallButtonProps {
   chatId: string;
@@ -26,6 +27,10 @@ export default function CallButton({
 }: CallButtonProps) {
   const handleCall = (type: "voice" | "video") => {
     if (isBlocked || isDeleted) return;
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot place audio or video calls without an internet connection.");
+      return;
+    }
     onCallStart(type);
   };
 

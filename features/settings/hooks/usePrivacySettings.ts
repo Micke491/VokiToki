@@ -61,6 +61,10 @@ export function usePrivacySettings({
     const newState = !readReceipts;
     setReadReceipts(newState);
     onUserUpdate({ ...currentUser, readReceipts: newState });
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Read receipts saved locally, but could not sync to database.' });
+      return;
+    }
     handleUpdatePreferences({ readReceipts: newState });
   };
 

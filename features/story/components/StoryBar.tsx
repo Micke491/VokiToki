@@ -38,6 +38,11 @@ export default function StoryBar({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot publish stories without an internet connection.");
+      return;
+    }
+
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
     if (!isImage && !isVideo) {

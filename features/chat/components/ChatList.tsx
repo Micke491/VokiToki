@@ -52,6 +52,10 @@ export default function ChatList({
   }, []);
 
   const handleUnmute = async (chatId: string, chatName: string) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot unmute chat without an internet connection.");
+      return;
+    }
     try {
       const res = await apiFetch(`/api/chats/unmute?chatId=${chatId}`, { method: 'POST' });
       if (res.ok) {
@@ -462,6 +466,11 @@ export default function ChatList({
                   <button
                     key={option.label}
                     onClick={async () => {
+                      if (!navigator.onLine) {
+                        toast.error("Offline: Cannot mute conversation without an internet connection.");
+                        setMuteSelectChat(null);
+                        return;
+                      }
                       try {
                         const response = await apiFetch('/api/chats/mute', {
                           method: 'POST',

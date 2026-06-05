@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export interface User {
   _id: string;
@@ -147,6 +148,10 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
   }, [searchQuery, searchUsers]);
 
   const startChat = useCallback(async (recipientId: string) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot start new conversations without an internet connection.");
+      return;
+    }
     try {
       setCreating(true);
       const response = await apiFetch('/api/chats', {
@@ -168,6 +173,11 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
 
   const createGroupChat = useCallback(async () => {
     if (!groupName.trim() || selectedUsers.length < 2) return;
+
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot create group chats without an internet connection.");
+      return;
+    }
 
     try {
       setCreating(true);
@@ -192,7 +202,7 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
       router.push(`/chat/${chat._id}`);
     } catch (error) {
       console.error('Error creating group chat:', error);
-      alert('Failed to create group chat');
+      toast.error('Failed to create group chat');
     } finally {
       setCreating(false);
     }
@@ -203,7 +213,7 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("File is too large. Max 5MB.");
+      toast.error("File is too large. Max 5MB.");
       return;
     }
 
@@ -222,7 +232,7 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
       setGroupAvatar(uploadData.url);
     } catch (error) {
       console.error("Failed to upload avatar:", error);
-      alert("Failed to upload avatar");
+      toast.error("Failed to upload avatar");
     } finally {
       setUploadingAvatar(false);
     }

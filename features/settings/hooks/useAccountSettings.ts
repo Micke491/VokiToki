@@ -153,6 +153,10 @@ export function useAccountSettings({
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Cannot update profile settings without an internet connection.' });
+      return;
+    }
     setSavingProfile(true);
 
     const finalLocation = locationQuery.trim() === '' ? '' : location;
@@ -188,6 +192,10 @@ export function useAccountSettings({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Cannot update profile picture without an internet connection.' });
+      return;
+    }
     setUploadingAvatar(true);
     const formDataUpload = new FormData();
     formDataUpload.append('file', file);
@@ -222,6 +230,11 @@ export function useAccountSettings({
   const handleUpdateUsername = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || username === currentUser.username) return;
+
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Cannot update username without an internet connection.' });
+      return;
+    }
 
     const usernameRegex = /^[a-z0-9_]{3,20}$/;
     if (!usernameRegex.test(username)) {

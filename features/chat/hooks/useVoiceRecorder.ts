@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { apiFetch } from '@/lib/api';
 import { pusherClient } from '@/lib/pusher-client';
+import toast from 'react-hot-toast';
 
 interface UseVoiceRecorderProps {
   chatId: string;
@@ -49,11 +50,15 @@ export function useVoiceRecorder({
       }, 1000);
     } catch (error) {
       console.error("Error accessing microphone:", error);
-      alert("Could not access microphone.");
+      toast.error("Could not access microphone.");
     }
   };
 
   const sendAudioMessage = async (audioBlob: Blob) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot upload voice recordings without an internet connection.");
+      return;
+    }
     setUploading(true);
     const formData = new FormData();
     formData.append("file", audioBlob, "voice_message.webm");
@@ -84,7 +89,7 @@ export function useVoiceRecorder({
       }
     } catch (error) {
       console.error("Audio upload error:", error);
-      alert("Failed to send voice message.");
+      toast.error("Failed to send voice message.");
     } finally {
       setUploading(false);
       setTimeout(() => inputRef.current?.focus(), 10);

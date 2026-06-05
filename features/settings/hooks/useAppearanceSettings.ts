@@ -50,6 +50,10 @@ export function useAppearanceSettings({
   }, [currentUser]);
 
   const updatePreferenceField = async (field: string, value: any) => {
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Preference saved locally, but could not sync to database.' });
+      return;
+    }
     try {
       const response = await apiFetch(`/api/users/preferences`, {
         method: 'PATCH',

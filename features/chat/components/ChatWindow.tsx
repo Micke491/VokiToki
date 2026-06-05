@@ -24,6 +24,7 @@ import { useChatMessages } from "../hooks/useChatMessages";
 import { useMessageSender } from "../hooks/useMessageSender";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useChatSession } from "@/hooks/useChatSession";
+import toast from "react-hot-toast";
 
 export default function ChatWindow({
   chatId,
@@ -167,11 +168,11 @@ export default function ChatWindow({
 
   const handleCallAction = React.useCallback((type: "voice" | "video", callId?: string) => {
     if (isRecipientDeleted) {
-      alert("You cannot call a deleted account.");
+      toast.error("You cannot call a deleted account.");
       return;
     }
     if (isBlockedChat) {
-      alert("You cannot call this user. There is a block between you.");
+      toast.error("You cannot call this user. There is a block between you.");
       return;
     }
     const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;
@@ -262,11 +263,11 @@ export default function ChatWindow({
         onStoryClick={onStoryClick}
         onCallStart={(callType: "voice" | "video") => {
           if (isRecipientDeleted) {
-            alert("You cannot call a deleted account.");
+            toast.error("You cannot call a deleted account.");
             return;
           }
           if (isBlockedChat) {
-            alert("You cannot call this user. There is a block between you.");
+            toast.error("You cannot call this user. There is a block between you.");
             return;
           }
           const calleeId = !isGroup && participants ? participants.find(p => p._id !== currentUserId)?._id : undefined;

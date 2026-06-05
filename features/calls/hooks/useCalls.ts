@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { pusherClient } from "@/lib/pusher-client";
 import { apiFetch } from "@/lib/api";
 import { showNotification, isNotificationsEnabled } from "@/lib/pushNotifications";
+import toast from "react-hot-toast";
 
 interface User {
   _id: string;
@@ -106,7 +107,7 @@ export function useCalls(currentUser: User | null) {
       const { chatId, type, calleeId, callId: existingCallId, calleeName, calleeAvatar } = (e as CustomEvent).detail;
       
       if (!calleeId && !existingCallId && !chatId) {
-        alert("Cannot determine who to call.");
+        toast.error("Cannot determine who to call.");
         return;
       }
 
@@ -136,7 +137,7 @@ export function useCalls(currentUser: User | null) {
             setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
           } else {
             const err = await res.json();
-            alert(err.error || "Could not join call.");
+            toast.error(err.error || "Could not join call.");
             setActiveCall(null);
           }
         } else {
@@ -161,7 +162,7 @@ export function useCalls(currentUser: User | null) {
             }
           } else {
             const err = await res.json();
-            alert(err.error || "Could not start call.");
+            toast.error(err.error || "Could not start call.");
             setActiveCall(null);
             setPendingCallId(null);
           }
@@ -228,7 +229,7 @@ export function useCalls(currentUser: User | null) {
         const data = await res.json();
         setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
       } else {
-        alert("Failed to accept call.");
+        toast.error("Failed to accept call.");
         setActiveCall(null);
       }
     } catch (e) {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NotificationListener from "@/features/notifications/components/NotificationListener";
+import OfflineBanner from "@/components/ui/OfflineBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +57,7 @@ export default function RootLayout({
       >
         {children}
         <NotificationListener />
+        <OfflineBanner />
       </body>
     </html>
   );

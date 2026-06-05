@@ -76,6 +76,10 @@ export function useProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Cannot update profile picture without an internet connection.' });
+      return;
+    }
     setUploading(true);
     const formDataUpload = new FormData();
     formDataUpload.append('file', file);
@@ -137,6 +141,11 @@ export function useProfile() {
     const isVideo = file.type.startsWith('video/');
     if (!isImage && !isVideo) {
       setFeedback({ type: 'error', message: 'Only images and videos are allowed' });
+      return;
+    }
+
+    if (!navigator.onLine) {
+      setFeedback({ type: 'error', message: 'Offline: Cannot post stories without an internet connection.' });
       return;
     }
 
