@@ -205,15 +205,9 @@ const MessageItem = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.2,
-        ease: "easeOut",
-      }}
+    <div
       key={message._id}
-      className="relative"
+      className="relative animate-fade-in"
     >
       {showDate && dateLabel && (
         <div className="flex justify-center sticky top-0 z-10 mb-4 pt-2 pointer-events-none">
@@ -926,7 +920,7 @@ const MessageItem = ({
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

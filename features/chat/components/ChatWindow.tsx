@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Message, ChatWindowProps } from "@/features/chat/types/chat";
@@ -14,6 +14,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import GifPicker from "@/features/chat/components/GifPicker";
 import StickerPicker from "@/features/chat/components/StickerPicker";
 import EmojiPicker from "emoji-picker-react";
+const MemoizedEmojiPicker = React.memo(EmojiPicker);
 import ImagePreviewModal from "@/components/ui/ImagePreviewModal";
 import UserProfileModal from "./UserProfileModal";
 import ReportModal from "@/components/ui/ReportModal";
@@ -185,6 +186,12 @@ export default function ChatWindow({
       }
     }));
   }, [chatId, isRecipientDeleted, isBlockedChat, isGroup, participants, currentUserId, recipientUsername, recipientAvatar]);
+
+  const handleEmojiClick = useCallback((emojiData: any) => {
+    setNewMessage(newMessage + emojiData.emoji);
+    setShowEmojiPickerInput(false);
+    inputRef.current?.focus();
+  }, [newMessage, setNewMessage, setShowEmojiPickerInput, inputRef]);
 
   const [showSidebar, setShowSidebar] = React.useState(false);
 
@@ -513,12 +520,8 @@ export default function ChatWindow({
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 className="absolute bottom-20 left-4 z-[100] shadow-2xl"
               >
-                 <EmojiPicker
-                   onEmojiClick={(emojiData) => {
-                     setNewMessage(newMessage + emojiData.emoji);
-                     setShowEmojiPickerInput(false);
-                     inputRef.current?.focus();
-                   }}
+                 <MemoizedEmojiPicker
+                   onEmojiClick={handleEmojiClick}
                    theme={"auto" as any}
                  />
               </motion.div>

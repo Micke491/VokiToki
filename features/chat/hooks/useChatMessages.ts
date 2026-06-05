@@ -54,7 +54,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
         setLoadingMore(true);
       }
 
-      let endpoint = `/api/chat/message?chatId=${chatId}&limit=50&t=${Date.now()}`;
+      let endpoint = `/api/chat/message?chatId=${chatId}&limit=20&t=${Date.now()}`;
       if (beforeDate) endpoint += `&before=${encodeURIComponent(beforeDate)}`;
 
       const response = await apiFetch(endpoint, {
@@ -173,7 +173,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
 
         const beforeDate =
           currentMessages.length > 0 ? currentMessages[0].createdAt : undefined;
-        let endpoint = `/api/chat/message?chatId=${chatId}&limit=50`;
+        let endpoint = `/api/chat/message?chatId=${chatId}&limit=20`;
         if (beforeDate) endpoint += `&before=${encodeURIComponent(beforeDate)}`;
 
         const response = await apiFetch(endpoint, {

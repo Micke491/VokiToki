@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Mic, Send, Trash2, Smile, Sticker } from "lucide-react";
 import { Message } from "@/features/chat/types/chat";
 
@@ -59,6 +59,20 @@ const MessageInput = ({
   showEmojiPickerInput,
   setShowEmojiPickerInput,
 }: MessageInputProps) => {
+  const [localValue, setLocalValue] = useState(newMessage);
+
+  useEffect(() => {
+    setLocalValue(newMessage);
+  }, [newMessage]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    if (val.length <= MAX_CHARS) {
+      setLocalValue(val);
+      setNewMessage(val);
+    }
+  };
+
   return (
     <footer className="p-4 pb-safe bg-transparent border-t border-chat-border shrink-0 relative z-10 transition-all duration-300">
       {(replyingTo || editingMessage) && (
@@ -246,12 +260,8 @@ const MessageInput = ({
 
             <textarea
               ref={inputRef}
-              value={newMessage}
-              onChange={(e) => {
-                if (e.target.value.length <= MAX_CHARS) {
-                  setNewMessage(e.target.value);
-                }
-              }}
+              value={localValue}
+              onChange={handleChange}
               maxLength={MAX_CHARS}
               onKeyDown={handleKeyDown}
               placeholder={
@@ -261,13 +271,13 @@ const MessageInput = ({
               disabled={sending}
               className="flex-1 max-h-32 py-2.5 bg-transparent border-none focus:ring-0 text-[15px] text-chat-text-primary placeholder-chat-text-tertiary resize-none overflow-y-auto focus:outline-none scrollbar-none"
             />
-            {newMessage.length > MAX_CHARS * 0.8 && (
+            {localValue.length > MAX_CHARS * 0.8 && (
                <div className={`absolute -top-6 right-8 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border ${
-                 newMessage.length >= MAX_CHARS
+                 localValue.length >= MAX_CHARS
                    ? "text-red-500 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/30"
                    : "text-chat-text-tertiary bg-chat-input border-chat-border"
                }`}>
-                 {newMessage.length}/{MAX_CHARS}
+                 {localValue.length}/{MAX_CHARS}
                </div>
             )}
           </>
@@ -283,20 +293,20 @@ const MessageInput = ({
           </button>
         ) : (
           <button
-            type={newMessage.trim() || sending ? "submit" : "button"}
+            type={localValue.trim() || sending ? "submit" : "button"}
             onClick={
-              !newMessage.trim() && !sending ? startRecording : undefined
+              !localValue.trim() && !sending ? startRecording : undefined
             }
             disabled={sending && !isRecording}
             className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 ${
-              newMessage.trim() || sending
+              localValue.trim() || sending
                 ? "bg-chat-accent text-white shadow-md shadow-chat-accent/20"
                 : "bg-chat-input text-chat-text-tertiary hover:bg-chat-hover"
             }`}
           >
             {sending ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : newMessage.trim() ? (
+            ) : localValue.trim() ? (
               editingMessage ? (
                 <svg
                   className="w-5 h-5 text-white"

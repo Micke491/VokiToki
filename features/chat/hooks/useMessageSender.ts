@@ -101,7 +101,7 @@ export function useMessageSender({
     };
   }, []);
 
-  const attemptSendMessage = async (tempId: string, text: string, replyToId?: string) => {
+  const attemptSendMessage = useCallback(async (tempId: string, text: string, replyToId?: string) => {
     try {
       const response = await apiFetch("/api/chat/message", {
         method: "POST",
@@ -126,8 +126,6 @@ export function useMessageSender({
 
       offlineQueueRef.current = offlineQueueRef.current.filter((item) => item.tempId !== tempId);
     } catch (error) {
-      console.error("Message sending failed. Queuing for retry:", error);
-      
       setMessages((prev) =>
         prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
       );
@@ -136,9 +134,9 @@ export function useMessageSender({
         offlineQueueRef.current.push({ tempId, text, replyToId });
       }
     }
-  };
+  }, [chatId, currentUserId, setMessages]);
 
-  const attemptSendMedia = async (tempId: string, mediaUrl: string, mediaType: any, mediaPublicId?: string, replyToId?: string) => {
+  const attemptSendMedia = useCallback(async (tempId: string, mediaUrl: string, mediaType: any, mediaPublicId?: string, replyToId?: string) => {
     try {
       const response = await apiFetch("/api/chat/message", {
         method: "POST",
@@ -165,8 +163,6 @@ export function useMessageSender({
 
       offlineQueueRef.current = offlineQueueRef.current.filter((item) => item.tempId !== tempId);
     } catch (error) {
-      console.error("Media sending failed. Queuing for retry:", error);
-      
       setMessages((prev) =>
         prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
       );
@@ -175,9 +171,9 @@ export function useMessageSender({
         offlineQueueRef.current.push({ tempId, mediaUrl, mediaType, mediaPublicId, replyToId });
       }
     }
-  };
+  }, [chatId, currentUserId, setMessages]);
 
-  const retryOfflineQueue = async () => {
+  const retryOfflineQueue = useCallback(async () => {
     if (offlineQueueRef.current.length === 0) return;
     const queue = [...offlineQueueRef.current];
     
@@ -192,9 +188,9 @@ export function useMessageSender({
         await attemptSendMedia(item.tempId, item.mediaUrl, item.mediaType, item.mediaPublicId, item.replyToId);
       }
     }
-  };
+  }, [attemptSendMessage, attemptSendMedia, setMessages]);
 
-  const retrySingleMessage = async (failedMsg: Message) => {
+  const retrySingleMessage = useCallback(async (failedMsg: Message) => {
     setMessages((prev) =>
       prev.map((m) => (m._id === failedMsg._id ? { ...m, status: "sending" } : m))
     );
@@ -204,9 +200,9 @@ export function useMessageSender({
     } else if (failedMsg.mediaUrl) {
       await attemptSendMedia(failedMsg._id, failedMsg.mediaUrl, failedMsg.mediaType, failedMsg.mediaPublicId, failedMsg.replyTo?._id);
     }
-  };
+  }, [attemptSendMessage, attemptSendMedia, setMessages]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
 
@@ -273,9 +269,9 @@ export function useMessageSender({
     setTimeout(() => scrollToBottom(true), 50);
 
     attemptSendMessage(tempId, messageText, replyingTo?._id);
-  };
+  }, [newMessage, sending, editingMessage, chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMessage, setMessages]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -338,9 +334,9 @@ export function useMessageSender({
       if (fileInputRef.current) fileInputRef.current.value = "";
       setTimeout(() => inputRef.current?.focus(), 10);
     }
-  };
+  }, [chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMedia, setMessages]);
 
-  const handleGifSelect = async (url: string) => {
+  const handleGifSelect = useCallback(async (url: string) => {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const optimisticMsg: Message = {
       _id: tempId,
@@ -374,9 +370,9 @@ export function useMessageSender({
     setShowGifPicker(false);
 
     attemptSendMedia(tempId, url, "gif", undefined, replyingTo?._id);
-  };
+  }, [chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMedia, setMessages]);
 
-  const handleStickerSelect = async (url: string) => {
+  const handleStickerSelect = useCallback(async (url: string) => {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const optimisticMsg: Message = {
       _id: tempId,
@@ -410,9 +406,9 @@ export function useMessageSender({
     setShowStickerPicker(false);
 
     attemptSendMedia(tempId, url, "sticker", undefined, replyingTo?._id);
-  };
+  }, [chatId, currentUserId, currentUserUsername, currentUser, replyingTo, scrollToBottom, attemptSendMedia, setMessages]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend(e);
@@ -422,14 +418,14 @@ export function useMessageSender({
       setEditingMessage(null);
       setNewMessage("");
     }
-  };
+  }, [handleSend]);
 
-  const handleDelete = (messageId: string) => {
+  const handleDelete = useCallback((messageId: string) => {
     if (!pusherClient) return;
     setMessageToDelete(messageId);
-  };
+  }, []);
 
-  const confirmDeleteMessage = async () => {
+  const confirmDeleteMessage = useCallback(async () => {
     if (!messageToDelete || !pusherClient) return;
     try {
       await apiFetch(
@@ -443,22 +439,22 @@ export function useMessageSender({
     } finally {
       setMessageToDelete(null);
     }
-  };
+  }, [messageToDelete]);
 
-  const startEdit = (message: Message) => {
+  const startEdit = useCallback((message: Message) => {
     setEditingMessage(message);
     setReplyingTo(null);
     setNewMessage(message.text);
     inputRef.current?.focus();
-  };
+  }, []);
 
-  const startReply = (message: Message) => {
+  const startReply = useCallback((message: Message) => {
     setReplyingTo(message);
     setEditingMessage(null);
     inputRef.current?.focus();
-  };
+  }, []);
 
-  const handlePin = async (message: Message) => {
+  const handlePin = useCallback(async (message: Message) => {
     if (message.isPinned) {
       await apiFetch(`/api/chat/${chatId}/pinned?messageId=${message._id}`, {
         method: "DELETE",
@@ -469,9 +465,9 @@ export function useMessageSender({
         body: JSON.stringify({ messageId: message._id }),
       });
     }
-  };
+  }, [chatId]);
 
-  const handleReaction = async (
+  const handleReaction = useCallback(async (
     emojiData: EmojiClickData,
     messageId: string
   ) => {
@@ -488,9 +484,9 @@ export function useMessageSender({
       console.error("Error adding reaction:", error);
     }
     setShowEmojiPicker(null);
-  };
+  }, [chatId]);
 
-  const removeReaction = async (messageId: string, emoji: string) => {
+  const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!pusherClient) return;
     try {
       await apiFetch(
@@ -502,9 +498,9 @@ export function useMessageSender({
     } catch (error) {
       console.error("Error removing reaction:", error);
     }
-  };
+  }, [chatId]);
 
-  const handleMessageChange = (val: string) => {
+  const handleMessageChange = useCallback((val: string) => {
     setNewMessage(val);
 
     if (pusherClient && val.trim() && !editingMessage) {
@@ -536,7 +532,7 @@ export function useMessageSender({
         }
       }, 2000);
     }
-  };
+  }, [chatId, currentUserUsername, editingMessage]);
 
   useEffect(() => {
     const handleForwardMessage = (e: Event) => {
@@ -555,7 +551,7 @@ export function useMessageSender({
     };
   }, []);
 
-  const handleForwardSelection = async (targetChatIds: string[]) => {
+  const handleForwardSelection = useCallback(async (targetChatIds: string[]) => {
     if (!pusherClient || !forwardingMessage || targetChatIds.length === 0)
       return;
 
@@ -574,7 +570,7 @@ export function useMessageSender({
       });
     }
     setForwardingMessage(null);
-  };
+  }, [forwardingMessage, currentUserId]);
 
   const handleWallpaperChange = (url: string | null) => {
     if (url) {

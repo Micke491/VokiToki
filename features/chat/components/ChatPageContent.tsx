@@ -1,7 +1,7 @@
 "use client";
 
 import { registerServiceWorker } from "@/lib/pushNotifications";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ChatList from "@/features/chat/components/ChatList";
 import ChatWindow from "@/features/chat/components/ChatWindow";
@@ -52,7 +52,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
   const storyInputRef = useRef<HTMLInputElement>(null);
   const [uploadingStory, setUploadingStory] = useState(false);
 
-  const handleStoryClick = (userId: string, stories: Story[], username: string, avatar?: string) => {
+  const handleStoryClick = useCallback((userId: string, stories: Story[], username: string, avatar?: string) => {
     const unviewedIndex = stories.findIndex((s) => {
       const viewedBy = s.viewedBy || [];
       return !viewedBy.some(v => v.userId === currentUser?._id);
@@ -65,9 +65,9 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
       stories,
       currentIndex: unviewedIndex >= 0 ? unviewedIndex : 0,
     });
-  };
+  }, [currentUser]);
 
-  const handleViewStoryById = (storyId: string) => {
+  const handleViewStoryById = useCallback((storyId: string) => {
     const storyUser = allStoriesUsers.find((su) =>
       su.stories.some((s) => s._id === storyId)
     );
@@ -85,7 +85,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
     } else {
       toast.error("Story could not be found or has expired");
     }
-  };
+  }, [allStoriesUsers]);
 
   const handleMyStoryClick = () => {
     setShowStoryManagement(true);
