@@ -46,6 +46,7 @@ export default function ChatWindow({
   // 1. Messages Management Hook
   const {
     messages,
+    setMessages,
     loading,
     loadingMore,
     hasMore,
@@ -118,6 +119,7 @@ export default function ChatWindow({
     handleReaction,
     removeReaction,
     handleForwardSelection,
+    retrySingleMessage,
   } = useMessageSender({
     chatId,
     currentUserId,
@@ -125,6 +127,7 @@ export default function ChatWindow({
     isGroup: !!isGroup,
     scrollToBottom,
     markAllAsRead,
+    setMessages,
   });
 
   // 3. Voice Recorder Hook
@@ -475,6 +478,7 @@ export default function ChatWindow({
                           recipientUsername={recipientUsername}
                           autoPlayGifs={currentUser?.autoPlayGifs ?? true}
                           autoPlayVoice={currentUser?.autoPlayVoice ?? true}
+                          onRetry={retrySingleMessage}
                         />
                       </div>
                     </div>

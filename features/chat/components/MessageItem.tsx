@@ -116,6 +116,7 @@ interface MessageItemProps {
   recipientUsername?: string; 
   autoPlayGifs?: boolean;
   autoPlayVoice?: boolean;
+  onRetry?: (message: Message) => void;
 }
 
 const MessageItem = ({
@@ -149,6 +150,7 @@ const MessageItem = ({
   recipientUsername,
   autoPlayGifs = true,
   autoPlayVoice = true,
+  onRetry,
 }: MessageItemProps) => {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -174,6 +176,9 @@ const MessageItem = ({
       hour12: true,
     });
   };
+
+  const isFailed = message.status === "failed";
+  const isSending = message.status === "sending";
 
   const handleDownload = async (
     e: React.MouseEvent,
@@ -320,6 +325,8 @@ const MessageItem = ({
                           : "bg-chat-bg-secondary text-chat-text-primary rounded-bl-none"
                       }
                       ${message.isDeletedForEveryone ? "italic opacity-60" : ""}
+                      ${isFailed ? "border border-red-500/30" : ""} 
+                      ${isSending ? "opacity-75" : ""} 
                       ${
                         (!isStoryReply && message.mediaUrl && !message.text) || message.mediaType === "call"
                           ? "bg-transparent !p-0 shadow-none border-none"
@@ -622,8 +629,8 @@ const MessageItem = ({
                 )}
               </div>
 
-              {/* Message Actions Menu */}
-              {!message.isDeletedForEveryone && message.mediaType !== "call" && (
+              {/* Message Actions Menu (Disabled when sending or failed) */}
+              {!message.isDeletedForEveryone && message.mediaType !== "call" && !isSending && !isFailed && (
                 <>
                   <div
                     className={`
@@ -899,7 +906,22 @@ const MessageItem = ({
             )}
             <span>{formatTime(message.createdAt)}</span>
             {isOwn && !message.isDeletedForEveryone && (
-              <MessageStatusIcon status={message.status} className="ml-1" />
+              <div 
+                className="flex items-center"
+                onClick={(e) => {
+                  if (isFailed && onRetry) {
+                    e.stopPropagation();
+                    onRetry(message);
+                  }
+                }}
+              >
+                <MessageStatusIcon status={message.status} className="ml-1" />
+                {isFailed && (
+                  <span className="text-[9px] text-red-500 font-bold normal-case cursor-pointer hover:underline ml-1 select-none">
+                    Retry
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </motion.div>

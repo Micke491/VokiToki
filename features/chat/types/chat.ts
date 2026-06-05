@@ -1,7 +1,7 @@
 import { Story, StoryUser } from "@/features/story/types/story";
 
 export interface Message {
-  status: "seen" | "sent" | "delivered";
+  status: "sending" | "failed" | "sent" | "delivered" | "seen";
   read: boolean;
   _id: string;
   chatId: string;

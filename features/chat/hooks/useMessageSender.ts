@@ -6,6 +6,8 @@ import { pusherClient } from '@/lib/pusher-client';
 import { Message } from '@/features/chat/types/chat';
 import { EmojiClickData } from 'emoji-picker-react';
 
+import { useChatSession } from '@/hooks/useChatSession';
+
 interface UseMessageSenderProps {
   chatId: string;
   currentUserId: string;
@@ -13,6 +15,7 @@ interface UseMessageSenderProps {
   isGroup: boolean;
   scrollToBottom: (force: boolean) => void;
   markAllAsRead: () => void;
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>; 
 }
 
 export function useMessageSender({
@@ -22,7 +25,9 @@ export function useMessageSender({
   isGroup,
   scrollToBottom,
   markAllAsRead,
+  setMessages,
 }: UseMessageSenderProps) {
+  const { currentUser } = useChatSession();
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -43,11 +48,11 @@ export function useMessageSender({
   const [reportingMessage, setReportingMessage] = useState<Message | null>(null);
   const [recipientOnline, setRecipientOnline] = useState(false);
   const [recipientLastSeen, setRecipientLastSeen] = useState<string | undefined>(undefined);
-
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
+  const offlineQueueRef = useRef<{ tempId: string; text?: string; mediaUrl?: string; mediaType?: any; mediaPublicId?: string; replyToId?: string }[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -71,6 +76,16 @@ export function useMessageSender({
   }, [chatId, isGroup]);
 
   useEffect(() => {
+    const handleOnline = () => {
+      retryOfflineQueue();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [chatId]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
         (event.target as HTMLElement).closest("[data-more-menu-trigger]") ||
@@ -86,13 +101,117 @@ export function useMessageSender({
     };
   }, []);
 
+  const attemptSendMessage = async (tempId: string, text: string, replyToId?: string) => {
+    try {
+      const response = await apiFetch("/api/chat/message", {
+        method: "POST",
+        body: JSON.stringify({
+          chatId,
+          senderId: currentUserId,
+          text,
+          replyTo: replyToId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send");
+      }
+
+      const data = await response.json();
+      const realMessage = data.message;
+
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...realMessage, status: "sent" } : m))
+      );
+
+      offlineQueueRef.current = offlineQueueRef.current.filter((item) => item.tempId !== tempId);
+    } catch (error) {
+      console.error("Message sending failed. Queuing for retry:", error);
+      
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
+      );
+
+      if (!offlineQueueRef.current.some((item) => item.tempId === tempId)) {
+        offlineQueueRef.current.push({ tempId, text, replyToId });
+      }
+    }
+  };
+
+  const attemptSendMedia = async (tempId: string, mediaUrl: string, mediaType: any, mediaPublicId?: string, replyToId?: string) => {
+    try {
+      const response = await apiFetch("/api/chat/message", {
+        method: "POST",
+        body: JSON.stringify({
+          chatId,
+          senderId: currentUserId,
+          mediaUrl,
+          mediaType,
+          mediaPublicId,
+          replyTo: replyToId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send media");
+      }
+
+      const data = await response.json();
+      const realMessage = data.message;
+
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...realMessage, status: "sent" } : m))
+      );
+
+      offlineQueueRef.current = offlineQueueRef.current.filter((item) => item.tempId !== tempId);
+    } catch (error) {
+      console.error("Media sending failed. Queuing for retry:", error);
+      
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
+      );
+
+      if (!offlineQueueRef.current.some((item) => item.tempId === tempId)) {
+        offlineQueueRef.current.push({ tempId, mediaUrl, mediaType, mediaPublicId, replyToId });
+      }
+    }
+  };
+
+  const retryOfflineQueue = async () => {
+    if (offlineQueueRef.current.length === 0) return;
+    const queue = [...offlineQueueRef.current];
+    
+    for (const item of queue) {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === item.tempId ? { ...m, status: "sending" } : m))
+      );
+
+      if (item.text) {
+        await attemptSendMessage(item.tempId, item.text, item.replyToId);
+      } else if (item.mediaUrl) {
+        await attemptSendMedia(item.tempId, item.mediaUrl, item.mediaType, item.mediaPublicId, item.replyToId);
+      }
+    }
+  };
+
+  const retrySingleMessage = async (failedMsg: Message) => {
+    setMessages((prev) =>
+      prev.map((m) => (m._id === failedMsg._id ? { ...m, status: "sending" } : m))
+    );
+
+    if (failedMsg.text) {
+      await attemptSendMessage(failedMsg._id, failedMsg.text, failedMsg.replyTo?._id);
+    } else if (failedMsg.mediaUrl) {
+      await attemptSendMedia(failedMsg._id, failedMsg.mediaUrl, failedMsg.mediaType, failedMsg.mediaPublicId, failedMsg.replyTo?._id);
+    }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending || !pusherClient) return;
+    if (!newMessage.trim() || sending) return;
 
     const messageText = newMessage.trim();
     setNewMessage("");
-    setSending(true);
 
     if (isTypingRef.current) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -103,43 +222,57 @@ export function useMessageSender({
           username: currentUserUsername || "Someone",
           isTyping: false,
         }),
-      });
+      }).catch(() => {});
       isTypingRef.current = false;
     }
 
-    try {
-      if (editingMessage) {
+    if (editingMessage) {
+      setSending(true);
+      try {
         await apiFetch(`/api/chat/message/messages/${editingMessage._id}/edit`, {
           method: "PATCH",
           body: JSON.stringify({ text: messageText }),
         });
         setEditingMessage(null);
-      } else {
-        const response = await apiFetch("/api/chat/message", {
-          method: "POST",
-          body: JSON.stringify({
-            chatId,
-            senderId: currentUserId,
-            text: messageText,
-            replyTo: replyingTo?._id,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to send message");
-        }
-
-        setReplyingTo(null);
-        scrollToBottom(true);
-        markAllAsRead();
+      } catch (error) {
+        setNewMessage(messageText);
+      } finally {
+        setSending(false);
+        setTimeout(() => inputRef.current?.focus(), 10);
       }
-    } catch (error) {
-      setNewMessage(messageText);
-    } finally {
-      setSending(false);
-      setTimeout(() => inputRef.current?.focus(), 10);
+      return;
     }
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const optimisticMsg: Message = {
+      _id: tempId,
+      chatId,
+      sender: {
+        _id: currentUserId,
+        username: currentUserUsername || "You",
+        email: "",
+        avatar: currentUser?.avatar || "",
+      },
+      senderUsername: currentUserUsername || "You",
+      text: messageText,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: "sending",
+      read: false,
+      reactions: [],
+      readBy: [],
+      deliveredTo: [],
+    };
+
+    if (replyingTo) {
+      optimisticMsg.replyTo = replyingTo;
+    }
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setReplyingTo(null);
+    setTimeout(() => scrollToBottom(true), 50);
+
+    attemptSendMessage(tempId, messageText, replyingTo?._id);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,27 +294,42 @@ export function useMessageSender({
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
+      if (!response.ok) throw new Error("Upload failed");
       const data = await response.json();
 
-      if (pusherClient) {
-        await apiFetch("/api/chat/message", {
-          method: "POST",
-          body: JSON.stringify({
-            chatId,
-            senderId: currentUserId,
-            mediaUrl: data.url,
-            mediaType: data.mediaType,
-            mediaPublicId: data.publicId,
-            replyTo: replyingTo?._id,
-          }),
-        });
-        setReplyingTo(null);
-        scrollToBottom(true);
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const optimisticMsg: Message = {
+        _id: tempId,
+        chatId,
+        sender: {
+          _id: currentUserId,
+          username: currentUserUsername || "You",
+          email: "",
+          avatar: currentUser?.avatar || "",
+        },
+        senderUsername: currentUserUsername || "You",
+        text: "",
+        mediaUrl: data.url,
+        mediaType: data.mediaType,
+        mediaPublicId: data.publicId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: "sending",
+        read: false,
+        reactions: [],
+        readBy: [],
+        deliveredTo: [],
+      };
+
+      if (replyingTo) {
+        optimisticMsg.replyTo = replyingTo;
       }
+
+      setMessages((prev) => [...prev, optimisticMsg]);
+      setReplyingTo(null);
+      setTimeout(() => scrollToBottom(true), 50);
+
+      attemptSendMedia(tempId, data.url, data.mediaType, data.publicId, replyingTo?._id);
     } catch (error) {
       console.error("Upload error:", error);
       alert("Failed to upload file.");
@@ -193,69 +341,75 @@ export function useMessageSender({
   };
 
   const handleGifSelect = async (url: string) => {
-    if (!pusherClient) return;
-    
-    setSending(true);
-    try {
-      const response = await apiFetch("/api/chat/message", {
-        method: "POST",
-        body: JSON.stringify({
-          chatId,
-          senderId: currentUserId,
-          mediaUrl: url,
-          mediaType: "gif",
-          replyTo: replyingTo?._id,
-        }),
-      });
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const optimisticMsg: Message = {
+      _id: tempId,
+      chatId,
+      sender: {
+        _id: currentUserId,
+        username: currentUserUsername || "You",
+        email: "",
+        avatar: currentUser?.avatar || "",
+      },
+      senderUsername: currentUserUsername || "You",
+      text: "",
+      mediaUrl: url,
+      mediaType: "gif",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: "sending",
+      read: false,
+      reactions: [],
+      readBy: [],
+      deliveredTo: [],
+    };
 
-      if (!response.ok) {
-        const errData = await response.json();
-        console.error("Gif error response:", errData);
-        alert(`Failed to send GIF: ${errData.error || response.statusText}`);
-      } else {
-        setReplyingTo(null);
-        scrollToBottom(true);
-        setShowGifPicker(false);
-      }
-    } catch (error) {
-      console.error("Gif upload error:", error);
-    } finally {
-      setSending(false);
-      setTimeout(() => inputRef.current?.focus(), 10);
+    if (replyingTo) {
+      optimisticMsg.replyTo = replyingTo;
     }
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setReplyingTo(null);
+    setTimeout(() => scrollToBottom(true), 50);
+    setShowGifPicker(false);
+
+    attemptSendMedia(tempId, url, "gif", undefined, replyingTo?._id);
   };
 
   const handleStickerSelect = async (url: string) => {
-    if (!pusherClient) return;
-    
-    setSending(true);
-    try {
-      const response = await apiFetch("/api/chat/message", {
-        method: "POST",
-        body: JSON.stringify({
-          chatId,
-          senderId: currentUserId,
-          mediaUrl: url,
-          mediaType: "sticker",
-          replyTo: replyingTo?._id,
-        }),
-      });
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const optimisticMsg: Message = {
+      _id: tempId,
+      chatId,
+      sender: {
+        _id: currentUserId,
+        username: currentUserUsername || "You",
+        email: "",
+        avatar: currentUser?.avatar || "",
+      },
+      senderUsername: currentUserUsername || "You",
+      text: "",
+      mediaUrl: url,
+      mediaType: "sticker",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: "sending",
+      read: false,
+      reactions: [],
+      readBy: [],
+      deliveredTo: [],
+    };
 
-      if (!response.ok) {
-        const errData = await response.json();
-        console.error("Sticker error response:", errData);
-        alert(`Failed to send sticker: ${errData.error || response.statusText}`);
-      } else {
-        setReplyingTo(null);
-        scrollToBottom(true);
-        setShowStickerPicker(false);
-      }
-    } catch (error) {
-      console.error("Sticker upload error:", error);
-    } finally {
-      setSending(false);
-      setTimeout(() => inputRef.current?.focus(), 10);
+    if (replyingTo) {
+      optimisticMsg.replyTo = replyingTo;
     }
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setReplyingTo(null);
+    setTimeout(() => scrollToBottom(true), 50);
+    setShowStickerPicker(false);
+
+    attemptSendMedia(tempId, url, "sticker", undefined, replyingTo?._id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -485,5 +639,6 @@ export function useMessageSender({
     handleReaction,
     removeReaction,
     handleForwardSelection,
+    retrySingleMessage, 
   };
 }

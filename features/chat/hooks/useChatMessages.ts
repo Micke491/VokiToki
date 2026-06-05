@@ -12,7 +12,23 @@ interface UseChatMessagesProps {
 }
 
 export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessagesProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessagesState] = useState<Message[]>([]);
+
+  const setMessages = useCallback((value: React.SetStateAction<Message[]>) => {
+    setMessagesState((prev) => {
+      const resolved = typeof value === 'function' ? (value as any)(prev) : value;
+      const seen = new Map<string, Message>();
+      for (const msg of resolved) {
+        if (!msg || !msg._id) continue;
+        const existing = seen.get(msg._id);
+        if (!existing || existing.status === 'sending' || existing.status === 'failed') {
+          seen.set(msg._id, msg);
+        }
+      }
+      return Array.from(seen.values());
+    });
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -306,6 +322,18 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
             method: "PATCH",
             body: JSON.stringify({ chatId, messageIds: [message._id], status: "seen" }),
           });
+        }
+
+        if (senderId === currentUserId) {
+          const tempMsgIndex = prev.findIndex((m) => 
+            (m._id.startsWith("temp-") || m.status === "sending" || m.status === "failed") &&
+            ((m.text && m.text === message.text) || (m.mediaUrl && m.mediaUrl === message.mediaUrl))
+          );
+          if (tempMsgIndex !== -1) {
+            const updated = [...prev];
+            updated[tempMsgIndex] = message;
+            return updated;
+          }
         }
 
         return [...prev, message];
