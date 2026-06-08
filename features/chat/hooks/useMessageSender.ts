@@ -55,6 +55,42 @@ export function useMessageSender({
   const isTypingRef = useRef<boolean>(false);
   const offlineQueueRef = useRef<{ tempId: string; text?: string; mediaUrl?: string; mediaType?: any; mediaPublicId?: string; replyToId?: string }[]>([]);
 
+  const updateOfflineStorage = useCallback((queue: typeof offlineQueueRef.current) => {
+    localStorage.setItem(`offline-queue-${chatId}`, JSON.stringify(queue));
+  }, [chatId]);
+
+  useEffect(() => {
+    const savedQueue = localStorage.getItem(`offline-queue-${chatId}`);
+    if (savedQueue) {
+      try {
+        const parsed = JSON.parse(savedQueue);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          offlineQueueRef.current = parsed;
+          setMessages((prev) => {
+            const newMessages = parsed.map((item) => ({
+              _id: item.tempId,
+              chatId,
+              sender: { _id: currentUserId, username: currentUserUsername || "You", email: "" },
+              text: item.text || "",
+              mediaUrl: item.mediaUrl,
+              mediaType: item.mediaType,
+              status: "failed" as const,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              read: false,
+              reactions: [],
+              readBy: [],
+              deliveredTo: [],
+            }));
+            const existingIds = new Set(prev.map(m => m._id));
+            const filteredNew = newMessages.filter(m => !existingIds.has(m._id));
+            return [...prev, ...filteredNew];
+          });
+        }
+      } catch (e) {}
+    }
+  }, [chatId, currentUserId, currentUserUsername, setMessages]);
+
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
     setWallpaper(saved || null);
@@ -126,6 +162,7 @@ export function useMessageSender({
       );
 
       offlineQueueRef.current = offlineQueueRef.current.filter((item) => item.tempId !== tempId);
+      updateOfflineStorage(offlineQueueRef.current);
     } catch (error) {
       setMessages((prev) =>
         prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
@@ -133,6 +170,7 @@ export function useMessageSender({
 
       if (!offlineQueueRef.current.some((item) => item.tempId === tempId)) {
         offlineQueueRef.current.push({ tempId, text, replyToId });
+        updateOfflineStorage(offlineQueueRef.current);
       }
     }
   }, [chatId, currentUserId, setMessages]);
@@ -163,6 +201,7 @@ export function useMessageSender({
       );
 
       offlineQueueRef.current = offlineQueueRef.current.filter((item) => item.tempId !== tempId);
+      updateOfflineStorage(offlineQueueRef.current);
     } catch (error) {
       setMessages((prev) =>
         prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
@@ -170,6 +209,7 @@ export function useMessageSender({
 
       if (!offlineQueueRef.current.some((item) => item.tempId === tempId)) {
         offlineQueueRef.current.push({ tempId, mediaUrl, mediaType, mediaPublicId, replyToId });
+        updateOfflineStorage(offlineQueueRef.current);
       }
     }
   }, [chatId, currentUserId, setMessages]);
@@ -277,13 +317,13 @@ export function useMessageSender({
     setReplyingTo(null);
     setTimeout(() => scrollToBottom(true), 50);
 
-    // Connection check: queue text message offline
     if (!navigator.onLine) {
       setMessages((prev) =>
         prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
       );
       if (!offlineQueueRef.current.some((item) => item.tempId === tempId)) {
         offlineQueueRef.current.push({ tempId, text: messageText, replyToId: replyingTo?._id });
+        updateOfflineStorage(offlineQueueRef.current);
       }
       toast.error("Offline: Message queued. It will send automatically upon reconnection.");
       return;
@@ -518,19 +558,44 @@ export function useMessageSender({
       toast.error("Offline: Cannot add reactions without an internet connection.");
       return;
     }
+
+    const emoji = emojiData.emoji;
+    setShowEmojiPicker(null);
+
+    setMessages(prev => prev.map(m => {
+      if (m._id === messageId) {
+        const reactions = m.reactions || [];
+        return {
+          ...m,
+          reactions: [...reactions, { userId: currentUserId, emoji, createdAt: new Date().toISOString() }]
+        };
+      }
+      return m;
+    }));
+
     try {
-      await apiFetch(`/api/chat/message/messages/${messageId}/reaction`, {
+      const response = await apiFetch(`/api/chat/message/messages/${messageId}/reaction`, {
         method: "POST",
         body: JSON.stringify({
           chatId,
-          emoji: emojiData.emoji,
+          emoji,
         }),
       });
+      if (!response.ok) throw new Error();
     } catch (error) {
       console.error("Error adding reaction:", error);
+      setMessages(prev => prev.map(m => {
+        if (m._id === messageId) {
+          return {
+            ...m,
+            reactions: (m.reactions || []).filter(r => !(r.userId === currentUserId && r.emoji === emoji))
+          };
+        }
+        return m;
+      }));
+      toast.error("Failed to add reaction.");
     }
-    setShowEmojiPicker(null);
-  }, [chatId]);
+  }, [chatId, currentUserId, setMessages]);
 
   const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!pusherClient) return;

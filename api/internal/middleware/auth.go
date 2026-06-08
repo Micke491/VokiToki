@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -41,15 +42,30 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		var sess models.Session
-		err = db.SessionCollection.FindOne(c, bson.M{"token": tokenString}).Decode(&sess)
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				c.JSON(http.StatusUnauthorized, gin.H{"message": "Session has been revoked or expired"})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"message": "Database error checking session"})
+		tokenCacheKey := "session_token:" + tokenString
+
+		if db.RedisClient != nil {
+			cachedSess, err := db.RedisClient.Get(c, tokenCacheKey).Result()
+			if err == nil && cachedSess != "" {
+				json.Unmarshal([]byte(cachedSess), &sess)
 			}
-			c.Abort()
-			return
+		}
+
+		if sess.ID.IsZero() {
+			err = db.SessionCollection.FindOne(c, bson.M{"token": tokenString}).Decode(&sess)
+			if err != nil {
+				if err == mongo.ErrNoDocuments {
+					c.JSON(http.StatusUnauthorized, gin.H{"message": "Session has been revoked or expired"})
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"message": "Database error checking session"})
+				}
+				c.Abort()
+				return
+			}
+			if db.RedisClient != nil {
+				sessJSON, _ := json.Marshal(sess)
+				db.RedisClient.Set(c, tokenCacheKey, sessJSON, 7*24*time.Hour)
+			}
 		}
 
 		c.Set("sessionId", sess.ID)

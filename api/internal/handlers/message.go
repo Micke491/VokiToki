@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -141,19 +143,41 @@ func SendMessage(c *gin.Context) {
 		UpdatedAt:      time.Now(),
 	}
 
-	_, err = db.MessageCollection.InsertOne(c, newMessage)
+	session, err := db.MongoClient.StartSession()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start database session"})
+		return
+	}
+	defer session.EndSession(c.Request.Context())
+
+	err = mongo.WithSession(c.Request.Context(), session, func(sc context.Context) error {
+		if err := session.StartTransaction(); err != nil {
+			return err
+		}
+
+		_, err := db.MessageCollection.InsertOne(sc, newMessage)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.ChatCollection.UpdateOne(sc, bson.M{"_id": chatID}, bson.M{
+			"$set": bson.M{
+				"lastMessage": newMessage.ID,
+				"updatedAt":   time.Now(),
+				"hiddenBy":    []bson.ObjectID{},
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		return session.CommitTransaction(sc)
+	})
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create message"})
 		return
 	}
-
-	db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
-		"$set": bson.M{
-			"lastMessage": newMessage.ID,
-			"updatedAt":   time.Now(),
-			"hiddenBy":    []bson.ObjectID{},
-		},
-	})
 
 	var populatedSender models.User
 	db.UserCollection.FindOne(c, bson.M{"_id": newMessage.Sender}, options.FindOne().SetProjection(bson.M{"username": 1, "email": 1, "avatar": 1})).Decode(&populatedSender)

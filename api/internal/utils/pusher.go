@@ -1,93 +1,42 @@
 package utils
 
 import (
-	"bytes"
-	"crypto/hmac"
-	"crypto/md5"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 
 	"chat-app/internal/config"
+
+	"github.com/pusher/pusher-http-go/v5"
 )
 
-func TriggerPusher(channel, event string, data interface{}) {
-	go func() {
+var pusherClient *pusher.Client
+
+func getPusherClient() *pusher.Client {
+	if pusherClient == nil {
 		cfg := config.AppConfig
 		if cfg.PusherAppID == "" || cfg.PusherKey == "" || cfg.PusherSecret == "" {
-			return
+			return nil
 		}
+		pusherClient = &pusher.Client{
+			AppID:   cfg.PusherAppID,
+			Key:     cfg.PusherKey,
+			Secret:  cfg.PusherSecret,
+			Cluster: cfg.PusherCluster,
+			Secure:  true,
+		}
+	}
+	return pusherClient
+}
 
-		payload, err := json.Marshal(map[string]interface{}{
-			"name":     event,
-			"channel":  channel,
-			"data":     mustMarshalString(data),
-		})
+func TriggerPusher(channel, event string, data interface{}) {
+	client := getPusherClient()
+	if client == nil {
+		return
+	}
+
+	go func() {
+		err := client.Trigger(channel, event, data)
 		if err != nil {
-			log.Printf("TriggerPusher marshal error: %v", err)
-			return
-		}
-
-		bodyMD5 := md5Hex(payload)
-		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-		path := fmt.Sprintf("/apps/%s/events", cfg.PusherAppID)
-
-		params := map[string]string{
-			"auth_key":       cfg.PusherKey,
-			"auth_timestamp": timestamp,
-			"auth_version":   "1.0",
-			"body_md5":       bodyMD5,
-		}
-
-		keys := make([]string, 0, len(params))
-		for k := range params {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		parts := make([]string, 0, len(keys))
-		for _, k := range keys {
-			parts = append(parts, k+"="+params[k])
-		}
-		queryString := strings.Join(parts, "&")
-
-		stringToSign := "POST\n" + path + "\n" + queryString
-		mac := hmac.New(sha256.New, []byte(cfg.PusherSecret))
-		mac.Write([]byte(stringToSign))
-		authSignature := hex.EncodeToString(mac.Sum(nil))
-
-		cluster := cfg.PusherCluster
-		if cluster == "" {
-			cluster = "mt1"
-		}
-		host := fmt.Sprintf("https://api-%s.pusher.com", cluster)
-		url := fmt.Sprintf("%s%s?%s&auth_signature=%s", host, path, queryString, authSignature)
-
-		resp, err := http.Post(url, "application/json", bytes.NewReader(payload))
-		if err != nil {
-			log.Printf("TriggerPusher request error: %v", err)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode >= 300 {
-			log.Printf("TriggerPusher non-2xx status: %d", resp.StatusCode)
+			log.Printf("Pusher trigger error on channel %s: %v", channel, err)
 		}
 	}()
-}
-
-func md5Hex(data []byte) string {
-	h := md5.Sum(data)
-	return hex.EncodeToString(h[:])
-}
-
-func mustMarshalString(v interface{}) string {
-	b, _ := json.Marshal(v)
-	return string(b)
 }

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -184,14 +185,21 @@ func VerifyLogin2FA(c *gin.Context) {
 	}
 
 	ctxBg := context.Background()
-	db.SessionCollection.InsertOne(ctxBg, models.Session{
+	session := models.Session{
 		ID:         bson.NewObjectID(),
 		UserID:     user.ID,
 		Token:      token,
 		Device:     c.Request.UserAgent(),
 		IP:         c.ClientIP(),
 		LastActive: time.Now(),
-	})
+	}
+	db.SessionCollection.InsertOne(ctxBg, session)
+
+	if db.RedisClient != nil {
+		tokenCacheKey := "session_token:" + token
+		sessJSON, _ := json.Marshal(session)
+		db.RedisClient.Set(ctxBg, tokenCacheKey, sessJSON, 7*24*time.Hour)
+	}
 
 	if req.RememberDevice {
 		trustedToken, err := services.GenerateTrustedDeviceToken(user.ID.Hex())

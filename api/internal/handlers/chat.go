@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -444,7 +446,53 @@ func UpdateGroupChat(c *gin.Context) {
 		systemMsg = currentUser.Username + " promoted " + newAdmin.Username + " to admin"
 	}
 
-	_, err = db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, update)
+	var newSysMsg models.Message
+	if systemMsg != "" {
+		newSysMsg = models.Message{
+			ID:              bson.NewObjectID(),
+			ChatID:          chatID,
+			Sender:          currentUser.ID,
+			SenderUsername: currentUser.Username,
+			Text:            systemMsg,
+			IsSystemMessage: true,
+			Status:         "sent",
+			Read:           false,
+			ReadBy:         []models.ReadByEntry{},
+			DeliveredTo:    []bson.ObjectID{},
+			Reactions:      []models.Reaction{},
+			DeletedBy:      []bson.ObjectID{},
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+	}
+
+	session, err := db.MongoClient.StartSession()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start database session"})
+		return
+	}
+	defer session.EndSession(c.Request.Context())
+
+	err = mongo.WithSession(c.Request.Context(), session, func(sc context.Context) error {
+		if err := session.StartTransaction(); err != nil {
+			return err
+		}
+
+		_, err = db.ChatCollection.UpdateOne(sc, bson.M{"_id": chatID}, update)
+		if err != nil {
+			return err
+		}
+
+		if systemMsg != "" {
+			_, err = db.MessageCollection.InsertOne(sc, newSysMsg)
+			if err != nil {
+				return err
+			}
+		}
+
+		return session.CommitTransaction(sc)
+	})
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update chat"})
 		return
@@ -478,24 +526,6 @@ func UpdateGroupChat(c *gin.Context) {
 
 	var populatedSysMsg gin.H
 	if systemMsg != "" {
-		newSysMsg := models.Message{
-			ID:              bson.NewObjectID(),
-			ChatID:          chatID,
-			Sender:          currentUser.ID,
-			SenderUsername: currentUser.Username,
-			Text:            systemMsg,
-			IsSystemMessage: true,
-			Status:         "sent",
-			Read:           false,
-			ReadBy:         []models.ReadByEntry{},
-			DeliveredTo:    []bson.ObjectID{},
-			Reactions:      []models.Reaction{},
-			DeletedBy:      []bson.ObjectID{},
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
-		}
-		db.MessageCollection.InsertOne(c, newSysMsg)
-		
 		populatedSysMsg = gin.H{
 			"_id":             newSysMsg.ID.Hex(),
 			"chatId":          chatIDStr,
@@ -567,13 +597,58 @@ func RemoveParticipant(c *gin.Context) {
 		}
 	}
 
-	_, err = db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
-		"$set": bson.M{
-			"participants":         newParticipants,
-			"participantUsernames": newUsernames,
-			"updatedAt":            time.Now(),
-		},
+	newSysMsg := models.Message{
+		ID:              bson.NewObjectID(),
+		ChatID:          chatID,
+		Sender:          currentUser.ID,
+		SenderUsername: currentUser.Username,
+		Text:            systemMsg,
+		IsSystemMessage: true,
+		Status:         "sent",
+		Read:           false,
+		ReadBy:         []models.ReadByEntry{},
+		DeliveredTo:    []bson.ObjectID{},
+		Reactions:      []models.Reaction{},
+		DeletedBy:      []bson.ObjectID{},
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	session, err := db.MongoClient.StartSession()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start database session"})
+		return
+	}
+	defer session.EndSession(c.Request.Context())
+
+	err = mongo.WithSession(c.Request.Context(), session, func(sc context.Context) error {
+		if err := session.StartTransaction(); err != nil {
+			return err
+		}
+
+		_, err = db.ChatCollection.UpdateOne(sc, bson.M{"_id": chatID}, bson.M{
+			"$set": bson.M{
+				"participants":         newParticipants,
+				"participantUsernames": newUsernames,
+				"updatedAt":            time.Now(),
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		_, err = db.MessageCollection.InsertOne(sc, newSysMsg)
+		if err != nil {
+			return err
+		}
+
+		return session.CommitTransaction(sc)
 	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove participant"})
+		return
+	}
 
 	var updatedChat models.Chat
 	db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&updatedChat)
@@ -598,25 +673,6 @@ func RemoveParticipant(c *gin.Context) {
 	if updatedChat.GroupAdmin != nil {
 		chatMap["groupAdmin"] = updatedChat.GroupAdmin.Hex()
 	}
-
-	systemMsg = currentUser.Username + " removed " + targetUser.Username + " from the chat"
-	newSysMsg := models.Message{
-		ID:              bson.NewObjectID(),
-		ChatID:          chatID,
-		Sender:          currentUser.ID,
-		SenderUsername: currentUser.Username,
-		Text:            systemMsg,
-		IsSystemMessage: true,
-		Status:         "sent",
-		Read:           false,
-		ReadBy:         []models.ReadByEntry{},
-		DeliveredTo:    []bson.ObjectID{},
-		Reactions:      []models.Reaction{},
-		DeletedBy:      []bson.ObjectID{},
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-	db.MessageCollection.InsertOne(c, newSysMsg)
 
 	populatedSysMsg := gin.H{
 		"_id":             newSysMsg.ID.Hex(),
@@ -694,18 +750,6 @@ func LeaveChat(c *gin.Context) {
 		}
 	}
 
-	db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
-		"$set": bson.M{
-			"participants":         newParticipants,
-			"participantUsernames": newUsernames,
-			"groupAdmin":           newAdmin,
-			"updatedAt":            time.Now(),
-		},
-	})
-
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chat)
-	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
-
 	systemMsg := currentUser.Username + " left the chat"
 	newSysMsg := models.Message{
 		ID:              bson.NewObjectID(),
@@ -723,7 +767,46 @@ func LeaveChat(c *gin.Context) {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
-	db.MessageCollection.InsertOne(c, newSysMsg)
+
+	session, err := db.MongoClient.StartSession()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start database session"})
+		return
+	}
+	defer session.EndSession(c.Request.Context())
+
+	err = mongo.WithSession(c.Request.Context(), session, func(sc context.Context) error {
+		if err := session.StartTransaction(); err != nil {
+			return err
+		}
+
+		_, err = db.ChatCollection.UpdateOne(sc, bson.M{"_id": chatID}, bson.M{
+			"$set": bson.M{
+				"participants":         newParticipants,
+				"participantUsernames": newUsernames,
+				"groupAdmin":           newAdmin,
+				"updatedAt":            time.Now(),
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		_, err = db.MessageCollection.InsertOne(sc, newSysMsg)
+		if err != nil {
+			return err
+		}
+
+		return session.CommitTransaction(sc)
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to leave chat"})
+		return
+	}
+
+	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chat)
+	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
 	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", newSysMsg)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Left chat"})
