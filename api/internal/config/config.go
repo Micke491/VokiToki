@@ -28,6 +28,7 @@ type Config struct {
 	LiveKitAPIKey    string
 	LiveKitAPISecret string
 	LiveKitURL       string
+	AppURL           string
 }
 
 var AppConfig *Config
@@ -58,6 +59,7 @@ func LoadConfig() {
 		LiveKitAPIKey:    getEnv("LIVEKIT_API_KEY", ""),
 		LiveKitAPISecret: getEnv("LIVEKIT_API_SECRET", ""),
 		LiveKitURL:       getEnv("NEXT_PUBLIC_LIVEKIT_URL", ""),
+		AppURL:           getEnv("APP_URL", "https://chat-app-gules-six-81.vercel.app"),
 	}
 
 	requiredVars := map[string]string{

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"chat-app/internal/config"
 	"chat-app/internal/db"
 	"chat-app/internal/models"
 	"chat-app/internal/services"
@@ -71,7 +72,7 @@ func RequestPasswordReset(c *gin.Context) {
 		return
 	}
 
-	resetURL := fmt.Sprintf("https://chat-app-gules-six-81.vercel.app/auth-pages/reset-password/%s", resetToken)
+	resetURL := fmt.Sprintf("%s/auth-pages/reset-password/%s", config.AppConfig.AppURL, resetToken)
 
 	emailBody := services.GeneratePasswordResetEmail(user.Username, resetURL)
 	err = services.SendEmail(user.Email, "Password Reset Request", emailBody)

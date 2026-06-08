@@ -13,6 +13,7 @@ import (
 	"chat-app/internal/config"
 	"chat-app/internal/db"
 	"chat-app/internal/models"
+	"chat-app/internal/services"
 	"chat-app/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -120,14 +121,18 @@ func InitiateCall(c *gin.Context) {
 		setCache("user_status:"+req.CalleeID, "busy", 60*time.Second)
 	}
 
+	var callRecipients []bson.ObjectID
+	var chatOID bson.ObjectID
 	if isGroupCall {
 		chatID, _ := bson.ObjectIDFromHex(req.ChatID)
+		chatOID = chatID
 		var chat models.Chat
 		db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 		for _, pID := range chat.Participants {
 			if pID.Hex() == req.CallerID {
 				continue
 			}
+			callRecipients = append(callRecipients, pID)
 			utils.TriggerPusher("user-"+pID.Hex(), "incoming_call", map[string]interface{}{
 				"call_id":       callID,
 				"caller_id":     req.CallerID,
@@ -138,6 +143,13 @@ func InitiateCall(c *gin.Context) {
 			})
 		}
 	} else {
+		calleeOID, err := bson.ObjectIDFromHex(req.CalleeID)
+		if err == nil {
+			callRecipients = append(callRecipients, calleeOID)
+		}
+		if req.ChatID != "" {
+			chatOID, _ = bson.ObjectIDFromHex(req.ChatID)
+		}
 		utils.TriggerPusher("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
 			"call_id":       callID,
 			"caller_id":     req.CallerID,
@@ -146,6 +158,20 @@ func InitiateCall(c *gin.Context) {
 			"caller_avatar": req.CallerAvatar,
 			"chat_id":       req.ChatID,
 		})
+	}
+
+	if len(callRecipients) > 0 {
+		title := "Incoming Call"
+		bodyText := fmt.Sprintf("%s is calling you (%s call)", req.CallerName, req.CallType)
+		data := map[string]string{
+			"type":       "call",
+			"callId":     callID,
+			"callerId":   req.CallerID,
+			"callType":   req.CallType,
+			"callerName": req.CallerName,
+			"chatId":     req.ChatID,
+		}
+		services.SendPushNotification(context.Background(), callRecipients, chatOID, title, bodyText, data)
 	}
 
 	userObj, _ := c.Get("user")

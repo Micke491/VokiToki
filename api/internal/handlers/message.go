@@ -8,6 +8,7 @@ import (
 
 	"chat-app/internal/db"
 	"chat-app/internal/models"
+	"chat-app/internal/services"
 	"chat-app/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -220,6 +221,29 @@ func SendMessage(c *gin.Context) {
 			"chatId":      body.ChatID,
 			"lastMessage": populatedMsg,
 		})
+	}
+
+	var fcmRecipients []bson.ObjectID
+	for _, pid := range chat.Participants {
+		if pid != currentUser.ID {
+			fcmRecipients = append(fcmRecipients, pid)
+		}
+	}
+	if len(fcmRecipients) > 0 {
+		title := currentUser.Username
+		if chat.IsGroupChat && chat.Name != nil && *chat.Name != "" {
+			title = *chat.Name + " (" + currentUser.Username + ")"
+		}
+		bodyText := newMessage.Text
+		if bodyText == "" && newMessage.MediaType != "" {
+			bodyText = "Sent a " + newMessage.MediaType
+		}
+		data := map[string]string{
+			"type":      "message",
+			"chatId":    body.ChatID,
+			"messageId": newMessage.ID.Hex(),
+		}
+		services.SendPushNotification(context.Background(), fcmRecipients, chat.ID, title, bodyText, data)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": populatedMsg})

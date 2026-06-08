@@ -8,6 +8,7 @@ import (
 	"chat-app/internal/db"
 	"chat-app/internal/handlers"
 	"chat-app/internal/middleware"
+	"chat-app/internal/services"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,7 @@ func main() {
 	config.LoadConfig()
 	db.ConnectMongo()
 	db.ConnectRedis()
+	services.InitFCM()
 
 	r := gin.Default()
 
@@ -26,6 +28,9 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type", "Accept", "Cache-Control"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
+		AllowOriginFunc: func(origin string) bool {
+			return true 
+		},
 		MaxAge:           12 * time.Hour,
 	}))
 
@@ -45,6 +50,7 @@ func main() {
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	{
+		api.POST("/users/device-token", handlers.UpdateDeviceToken)
 		api.GET("/users/current_user", handlers.GetCurrentUser)
 		api.PATCH("/users/current_user", handlers.UpdateCurrentUser)
 		api.DELETE("/users/current_user", handlers.DeleteCurrentUser)
