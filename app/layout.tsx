@@ -24,6 +24,9 @@ export const viewport = {
 export const metadata: Metadata = {
   title: "VokiToki",
   description: "A modern real-time chat application",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
