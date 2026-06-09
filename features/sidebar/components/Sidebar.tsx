@@ -72,14 +72,24 @@ export default function SideBar({ currentUser, isMobileDrawerOpen, onCloseMobile
       >
         {/* Sidebar Header */}
         <div className="p-5 border-b border-chat-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center shadow-lg shadow-chat-accent/20">
-              <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-                <path d="M16 8L8 16L16 24M16 8L24 16L16 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <div className="flex items-center gap-2.5">
+            <div className="shrink-0 w-8 h-8 flex items-center justify-center text-chat-accent">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="stroke-current">
+                {/* Antenna */}
+                <path d="M16 3V6" strokeWidth="2.2" strokeLinecap="round"/>
+                {/* Signal waves */}
+                <path d="M13 1.5C14.5 0.7 17.5 0.7 19 1.5" strokeWidth="1.5" strokeLinecap="round" className="opacity-80" />
+                {/* Body */}
+                <rect x="6" y="6" width="12" height="15" rx="3" strokeWidth="2.2" strokeLinejoin="round"/>
+                {/* Screen */}
+                <rect x="9" y="9" width="6" height="3" rx="1" strokeWidth="1.5" className="opacity-90"/>
+                {/* Speaker Grill */}
+                <line x1="9" y1="15" x2="15" y2="15" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="9" y1="17" x2="13" y2="17" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-chat-text-primary to-chat-text-secondary tracking-tight">
-              ChatApp
+              VokiToki
             </span>
           </div>
         </div>

@@ -19,13 +19,23 @@ import {
 
 const Logo = () => (
   <div className="flex items-center gap-2.5">
-    <div className="shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center shadow-lg shadow-blue-600/20">
-      <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-        <path d="M16 8L8 16L16 24M16 8L24 16L16 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <div className="shrink-0 w-8 h-8 flex items-center justify-center text-blue-500">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="stroke-current">
+        {/* Antenna */}
+        <path d="M16 3V6" strokeWidth="2.2" strokeLinecap="round"/>
+        {/* Signal waves */}
+        <path d="M13 1.5C14.5 0.7 17.5 0.7 19 1.5" strokeWidth="1.5" strokeLinecap="round" className="opacity-80 animate-pulse-dot" />
+        {/* Body */}
+        <rect x="6" y="6" width="12" height="15" rx="3" strokeWidth="2.2" strokeLinejoin="round"/>
+        {/* Screen */}
+        <rect x="9" y="9" width="6" height="3" rx="1" strokeWidth="1.5" className="opacity-90"/>
+        {/* Speaker Grill */}
+        <line x1="9" y1="15" x2="15" y2="15" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="9" y1="17" x2="13" y2="17" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     </div>
     <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 to-zinc-400 tracking-tight">
-      ChatApp
+      VokiToki
     </span>
   </div>
 );
@@ -315,7 +325,7 @@ export default function LandingPage() {
             Everything you need to connect
           </h2>
           <p className="text-center text-zinc-500 max-w-[480px] mx-auto mb-12 leading-relaxed text-sm">
-            From instant DMs to group calls, ChatApp packs a full production-grade feature set into a fast, beautiful interface.
+            From instant DMs to group calls, VokiToki packs a full production-grade feature set into a fast, beautiful interface.
           </p>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
             {FEATURES.map((f) => (
@@ -428,7 +438,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="pt-8 border-t border-zinc-800/50 flex flex-wrap items-center justify-between gap-4 max-sm:justify-center max-sm:text-center">
-              <span className="text-xs text-zinc-600">© 2026 ChatApp · Built with Next.js & MongoDB</span>
+              <span className="text-xs text-zinc-600">© 2026 VokiToki · Built with Next.js & MongoDB</span>
               <span className="text-xs text-zinc-600 italic">MIT License</span>
             </div>
           </div>

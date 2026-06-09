@@ -1,4 +1,4 @@
-# ChatApp
+# VokiToki
 
 Real-time chat application with support for direct messages, group conversations, media sharing, and voice/video calls.
 
@@ -8,7 +8,7 @@ Built with **Next.js 16**, **MongoDB**, **Pusher**, and **LiveKit**.
 
 ## Overview
 
-ChatApp is a full-stack messaging platform designed for seamless real-time communication. It provides a modern, responsive interface with theme support and a comprehensive feature set comparable to production chat applications.
+VokiToki is a full-stack messaging platform designed for seamless real-time communication. It provides a modern, responsive interface with theme support and a comprehensive feature set comparable to production chat applications.
 
 **Live demo:** [chat-app-gules-six-81.vercel.app](https://chat-app-gules-six-81.vercel.app/)
 

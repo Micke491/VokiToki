@@ -22,7 +22,7 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "ChatApp",
+  title: "VokiToki",
   description: "A modern real-time chat application",
 };
 

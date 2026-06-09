@@ -24,7 +24,7 @@ func SearchLocation(c *gin.Context) {
 		return
 	}
 
-	req.Header.Set("User-Agent", "ChatApp/1.0 (chatapp-development-agent)")
+	req.Header.Set("User-Agent", "VokiToki/1.0 (vokitoki-development-agent)")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)

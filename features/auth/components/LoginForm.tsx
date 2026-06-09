@@ -57,7 +57,7 @@ export function LoginForm() {
               <MessageCircle className="w-8 h-8 text-zinc-100" />
             </div>
             <h1 className="text-3xl font-black text-zinc-100 tracking-tight">Welcome Back</h1>
-            <p className="text-zinc-400 font-medium mt-2">Sign in to continue to ChatApp</p>
+            <p className="text-zinc-400 font-medium mt-2">Sign in to continue to VokiToki</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
