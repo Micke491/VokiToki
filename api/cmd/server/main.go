@@ -62,6 +62,9 @@ func main() {
 		api.GET("/chats/muted", handlers.GetMutedChats)
 		api.POST("/chats/mute", handlers.MuteChat)
 		api.POST("/chats/unmute", handlers.UnmuteChat)
+		api.GET("/chats/pinned", handlers.GetPinnedChats)
+		api.POST("/chats/pin", handlers.PinChat)
+		api.POST("/chats/unpin", handlers.UnpinChat)
 
 		api.GET("/users/sessions", handlers.GetActiveSessions)
 		api.DELETE("/users/sessions/:id", handlers.RevokeSession)

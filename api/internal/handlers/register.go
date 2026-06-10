@@ -69,6 +69,7 @@ func Register(c *gin.Context) {
 		Theme:            "dark",
 		BlockedUsers:     []bson.ObjectID{},
 		MutedChats:       []models.MutedChat{},
+		PinnedChats:      []bson.ObjectID{},
 		Links:            []models.UserLink{},
 		TwoFactorEnabled: false,
 		AutoPlayGifs:     true,

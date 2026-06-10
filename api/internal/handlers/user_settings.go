@@ -180,3 +180,94 @@ func RevokeSession(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Session revoked"})
 }
+
+type PinRequest struct {
+	ChatID string `json:"chatId" binding:"required"`
+}
+
+func PinChat(c *gin.Context) {
+	authUser := c.MustGet("user").(models.User)
+	var req PinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	chatOID, err := bson.ObjectIDFromHex(req.ChatID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, _ = db.UserCollection.UpdateOne(ctx,
+		bson.M{"_id": authUser.ID},
+		bson.M{"$pull": bson.M{"pinnedChats": chatOID}},
+	)
+	_, err = db.UserCollection.UpdateOne(ctx,
+		bson.M{"_id": authUser.ID},
+		bson.M{"$push": bson.M{"pinnedChats": chatOID}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to pin chat"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chat pinned successfully"})
+}
+
+func UnpinChat(c *gin.Context) {
+	authUser := c.MustGet("user").(models.User)
+	
+	chatIDStr := c.Query("chatId")
+	if chatIDStr == "" {
+		var req PinRequest
+		if err := c.ShouldBindJSON(&req); err == nil {
+			chatIDStr = req.ChatID
+		}
+	}
+
+	chatOID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = db.UserCollection.UpdateOne(ctx,
+		bson.M{"_id": authUser.ID},
+		bson.M{"$pull": bson.M{"pinnedChats": chatOID}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unpin chat"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chat unpinned"})
+}
+
+func GetPinnedChats(c *gin.Context) {
+	authUser := c.MustGet("user").(models.User)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user models.User
+	err := db.UserCollection.FindOne(ctx, bson.M{"_id": authUser.ID}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user preferences"})
+		return
+	}
+
+	pinnedChats := []string{}
+	for _, id := range user.PinnedChats {
+		pinnedChats = append(pinnedChats, id.Hex())
+	}
+
+	c.JSON(http.StatusOK, gin.H{"pinnedChats": pinnedChats})
+}
+

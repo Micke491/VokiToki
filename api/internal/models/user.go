@@ -23,6 +23,7 @@ type User struct {
 	Theme                string               `bson:"theme" json:"theme"`
 	IsBanned             bool                 `bson:"isBanned" json:"isBanned"`
 	MutedChats           []MutedChat          `bson:"mutedChats" json:"mutedChats"`
+	PinnedChats          []bson.ObjectID      `bson:"pinnedChats" json:"pinnedChats"`
 	ResetPasswordToken   *string              `bson:"resetPasswordToken,omitempty" json:"resetPasswordToken,omitempty"`
 	ResetPasswordExpires *time.Time           `bson:"resetPasswordExpires,omitempty" json:"resetPasswordExpires,omitempty"`
 	Links                []UserLink           `bson:"links" json:"links"`

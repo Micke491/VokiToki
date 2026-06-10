@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import StoryRing from "@/features/story/components/StoryRing";
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ReportModal from '@/components/ui/ReportModal';
-import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff } from 'lucide-react';
+import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff, Pin } from 'lucide-react';
 import { useChatList, ChatListItem } from '../hooks/useChatList';
 import { AnimatePresence } from 'framer-motion';
 import { apiFetch } from '@/lib/api';
@@ -32,6 +32,7 @@ export default function ChatList({
 }: ChatListProps) {
   const [muteSelectChat, setMuteSelectChat] = useState<{ chatId: string; username: string } | null>(null);
   const [mutedChatIds, setMutedChatIds] = React.useState<string[]>([]);
+  const [pinnedChatIds, setPinnedChatIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     const fetchMuted = async () => {
@@ -48,7 +49,19 @@ export default function ChatList({
         console.error(err);
       }
     };
+    const fetchPinned = async () => {
+      try {
+        const res = await apiFetch('/api/chats/pinned');
+        if (res.ok) {
+          const data = await res.json();
+          setPinnedChatIds(data.pinnedChats || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
     fetchMuted();
+    fetchPinned();
   }, []);
 
   const handleUnmute = async (chatId: string, chatName: string) => {
@@ -63,6 +76,45 @@ export default function ChatList({
         toast.success(`Unmuted ${chatName}`);
       } else {
         toast.error('Failed to unmute chat');
+      }
+    } catch (err) {
+      toast.error('Network error');
+    }
+  };
+
+  const handlePin = async (chatId: string, chatName: string) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot pin chat without an internet connection.");
+      return;
+    }
+    try {
+      const res = await apiFetch('/api/chats/pin', {
+        method: 'POST',
+        body: JSON.stringify({ chatId })
+      });
+      if (res.ok) {
+        setPinnedChatIds(prev => [...prev, chatId]);
+        toast.success(`Pinned ${chatName}`);
+      } else {
+        toast.error('Failed to pin chat');
+      }
+    } catch (err) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleUnpin = async (chatId: string, chatName: string) => {
+    if (!navigator.onLine) {
+      toast.error("Offline: Cannot unpin chat without an internet connection.");
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/chats/unpin?chatId=${chatId}`, { method: 'POST' });
+      if (res.ok) {
+        setPinnedChatIds(prev => prev.filter(id => id !== chatId));
+        toast.success(`Unpinned ${chatName}`);
+      } else {
+        toast.error('Failed to unpin chat');
       }
     } catch (err) {
       toast.error('Network error');
@@ -89,6 +141,16 @@ export default function ChatList({
     getOtherParticipant,
     fetchChats,
   } = useChatList(currentUserId, selectedChatId);
+
+  const sortedChats = React.useMemo(() => {
+    return [...filteredChats].sort((a, b) => {
+      const aPinned = pinnedChatIds.includes(a._id);
+      const bPinned = pinnedChatIds.includes(b._id);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return 0;
+    });
+  }, [filteredChats, pinnedChatIds]);
 
   const renderMessagePreview = (msg: any, chatName: string) => {
     if (!msg) return 'No messages yet';
@@ -158,6 +220,7 @@ export default function ChatList({
     );
   }
 
+
   return (
     <div className="flex flex-col h-full bg-transparent transition-colors duration-300">
       {/* Header */}
@@ -196,9 +259,9 @@ export default function ChatList({
 
       {/* List Items */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-safe">
-        {filteredChats.length === 0 && searchQuery ? (
+        {sortedChats.length === 0 && searchQuery ? (
           <div className="p-5 text-center text-chat-text-tertiary">No chats found</div>
-        ) : filteredChats.length === 0 ? (
+        ) : sortedChats.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-5 py-16 text-center text-chat-text-tertiary">
             <svg className="w-16 h-16 mb-5 opacity-40 text-chat-text-tertiary" viewBox="0 0 64 64" fill="none">
               <path d="M32 8C18.745 8 8 17.969 8 30c0 4.5 1.5 8.7 4 12.2V56l12.8-6.4c2.4.6 4.8 1 7.2 1 13.255 0 24-9.969 24-22S45.255 8 32 8z" stroke="currentColor" strokeWidth="2"/>
@@ -212,7 +275,7 @@ export default function ChatList({
             </button>
           </div>
         ) : (
-          filteredChats.map(chat => {
+          sortedChats.map(chat => {
             const otherUser = getOtherParticipant(chat);
             const isSelected = selectedChatId === chat._id;
             const isUnread = (chat.unreadCount || 0) > 0;
@@ -274,6 +337,9 @@ export default function ChatList({
                   <div className="flex items-center justify-between">
                     <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'} flex items-center gap-1.5`}>
                       {chatName}
+                      {pinnedChatIds.includes(chat._id) && (
+                        <Pin className="w-3.5 h-3.5 text-chat-accent shrink-0 fill-chat-accent/20" />
+                      )}
                       {mutedChatIds.includes(chat._id) && (
                         <BellOff className="w-3.5 h-3.5 text-chat-text-tertiary shrink-0" />
                       )}
@@ -316,6 +382,38 @@ export default function ChatList({
                     onClick={(e) => e.stopPropagation()}
                     className="absolute right-4 top-12 z-50 w-44 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
                   >
+                    {/* Pin / Unpin Option */}
+                    {(() => {
+                      const isCurrentlyPinned = pinnedChatIds.includes(chat._id);
+                      return (
+                        <>
+                          {isCurrentlyPinned ? (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleUnpin(chat._id, chatName || 'Chat');
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                            >
+                              <Pin className="w-4 h-4 text-chat-accent shrink-0 rotate-45" />
+                              Unpin Chat
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handlePin(chat._id, chatName || 'Chat');
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                            >
+                              <Pin className="w-4 h-4 text-chat-text-tertiary shrink-0" />
+                              Pin Chat
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                    <div className="h-px bg-chat-border mx-2" />
                     {/* Add Mute / Unmute Option */}
                     {(() => {
                       const isCurrentlyMuted = mutedChatIds.includes(chat._id);
