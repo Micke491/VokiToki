@@ -22,7 +22,7 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "VokiToki",
+  title: "Vokitoki",
   description: "A modern real-time chat application",
   icons: {
     icon: "/icon.svg",

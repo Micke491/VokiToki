@@ -18,24 +18,18 @@ import {
 } from "lucide-react";
 
 const Logo = () => (
-  <div className="flex items-center gap-2.5">
-    <div className="shrink-0 w-8 h-8 flex items-center justify-center text-blue-500">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="stroke-current">
-        {/* Antenna */}
-        <path d="M16 3V6" strokeWidth="2.2" strokeLinecap="round"/>
-        {/* Signal waves */}
-        <path d="M13 1.5C14.5 0.7 17.5 0.7 19 1.5" strokeWidth="1.5" strokeLinecap="round" className="opacity-80 animate-pulse-dot" />
-        {/* Body */}
-        <rect x="6" y="6" width="12" height="15" rx="3" strokeWidth="2.2" strokeLinejoin="round"/>
-        {/* Screen */}
-        <rect x="9" y="9" width="6" height="3" rx="1" strokeWidth="1.5" className="opacity-90"/>
-        {/* Speaker Grill */}
-        <line x1="9" y1="15" x2="15" y2="15" strokeWidth="1.5" strokeLinecap="round"/>
-        <line x1="9" y1="17" x2="13" y2="17" strokeWidth="1.5" strokeLinecap="round"/>
+  <div className="flex items-center gap-3">
+    <div className="shrink-0 w-10 h-10 flex items-center justify-center">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="4" fill="#6366F1"/>
+        <path d="M12 10 Q7 16 12 22" fill="none" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round" opacity="0.75"/>
+        <path d="M9 7 Q2 16 9 25" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" opacity="0.45"/>
+        <path d="M20 10 Q25 16 20 22" fill="none" stroke="#818CF8" strokeWidth="2.5" strokeLinecap="round" opacity="0.75"/>
+        <path d="M23 7 Q30 16 23 25" fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round" opacity="0.45"/>
       </svg>
     </div>
     <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 to-zinc-400 tracking-tight">
-      VokiToki
+      Vokitoki
     </span>
   </div>
 );
@@ -259,8 +253,8 @@ export default function LandingPage() {
             The chat app<br />built for <span className="gradient-text">real people</span>
           </h1>
 
-          <p className="animate-fadeSlideUp-2 text-[clamp(1rem,2.5vw,1.25rem)] text-zinc-400 max-w-[560px] leading-relaxed mb-10">
-            Instant messages, crystal-clear calls, rich media sharing and bulletproof security, all in one beautifully designed platform.
+          <p className="text-center text-zinc-500 max-w-[480px] mx-auto mb-12 leading-relaxed text-sm">
+            From instant DMs to group calls, Vokitoki packs a full production-grade feature set into a fast, beautiful interface.
           </p>
 
           <div className="animate-fadeSlideUp-3 flex flex-wrap gap-3.5 justify-center">
@@ -438,7 +432,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="pt-8 border-t border-zinc-800/50 flex flex-wrap items-center justify-between gap-4 max-sm:justify-center max-sm:text-center">
-              <span className="text-xs text-zinc-600">© 2026 VokiToki · Built with Next.js & MongoDB</span>
+              <span className="text-xs text-zinc-600">© 2026 Vokitoki · Built with Next.js & MongoDB</span>
               <span className="text-xs text-zinc-600 italic">MIT License</span>
             </div>
           </div>
