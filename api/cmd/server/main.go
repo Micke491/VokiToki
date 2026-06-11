@@ -133,6 +133,10 @@ func main() {
 		api.GET("/chat/media/list", handlers.ListMedia)
 		api.POST("/chat/media/upload", handlers.UploadMedia)
 
+		api.PUT("/chat/draft", handlers.UpsertDraft)
+		api.GET("/chat/draft", handlers.GetDraft)
+		api.DELETE("/chat/draft", handlers.DeleteDraft)
+
 		api.POST("/call/initiate", handlers.InitiateCall)
 		api.POST("/call/accept", handlers.AcceptCall)
 		api.POST("/call/reject", handlers.RejectCall)

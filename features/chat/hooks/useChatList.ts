@@ -50,6 +50,7 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
   const [blockConfirm, setBlockConfirm] = useState<{ chatId: string; userId: string; username: string } | null>(null);
   const [reportData, setReportData] = useState<{ userId: string; username: string } | null>(null);
   const [blocking, setBlocking] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const selectedChatIdRef = useRef(selectedChatId);
   useEffect(() => {
@@ -83,6 +84,40 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
   useEffect(() => {
     fetchChats();
   }, [fetchChats]);
+
+  useEffect(() => {
+    if (chats.length === 0) return;
+    const initialDrafts: Record<string, string> = {};
+    chats.forEach(chat => {
+      const saved = localStorage.getItem(`chat-draft-${chat._id}`);
+      if (saved && saved.trim()) {
+        initialDrafts[chat._id] = saved.trim();
+      }
+    });
+    setDrafts(initialDrafts);
+  }, [chats]);
+
+  useEffect(() => {
+    const handleDraftUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.chatId) {
+        setDrafts(prev => {
+          const next = { ...prev };
+          if (detail.text) {
+            next[detail.chatId] = detail.text;
+          } else {
+            delete next[detail.chatId];
+          }
+          return next;
+        });
+      }
+    };
+
+    window.addEventListener("local-draft-updated", handleDraftUpdate);
+    return () => {
+      window.removeEventListener("local-draft-updated", handleDraftUpdate);
+    };
+  }, []);
 
   // Real-time Pusher Event Bindings
   useEffect(() => {
@@ -340,5 +375,6 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
     handleBlockUser,
     handleChatClick,
     getOtherParticipant,
+    drafts,
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useCallback } from "react";
+import { getWallpaperStyle } from "@/lib/wallpaperPresets";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Message, ChatWindowProps } from "@/features/chat/types/chat";
@@ -221,8 +222,38 @@ export default function ChatWindow({
 
   const filteredMessages = messages; // Search filter not requested or used globally
 
+  const isGradientWallpaper = activeWallpaper && (activeWallpaper.startsWith('linear-gradient') || activeWallpaper.startsWith('radial-gradient'));
+  const isImageWallpaper = activeWallpaper && !activeWallpaper.startsWith('#') && !activeWallpaper.startsWith('rgb') && !activeWallpaper.startsWith('hsl') && !isGradientWallpaper;
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative transition-colors duration-300">
+    <div
+      className="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300"
+      style={activeWallpaper ? getWallpaperStyle(activeWallpaper) : undefined}
+    >
+      {/* Decorative pattern overlay for gradient wallpapers */}
+      {isGradientWallpaper && (
+        <div className="absolute inset-0 pointer-events-none z-0">
+          {/* Geometric dot grid */}
+          <div className="absolute inset-0 opacity-[0.035]" style={{
+            backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+          }} />
+          {/* Soft light orbs for depth */}
+          <div className="absolute inset-0 opacity-[0.07]" style={{
+            backgroundImage: `radial-gradient(ellipse 600px 600px at 15% 20%, rgba(255,255,255,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 500px 500px at 85% 75%, rgba(255,255,255,0.1) 0%, transparent 70%),
+              radial-gradient(ellipse 300px 300px at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 60%)`,
+          }} />
+          {/* Diagonal subtle lines */}
+          <div className="absolute inset-0 opacity-[0.015]" style={{
+            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.5) 40px, rgba(255,255,255,0.5) 41px)`,
+          }} />
+        </div>
+      )}
+      {/* Ambient overlay for image wallpapers */}
+      {isImageWallpaper && (
+        <div className="absolute inset-0 bg-chat-bg-primary/40 backdrop-blur-[2px] pointer-events-none z-0" />
+      )}
       {forwardingMessage && (
         <ForwardMessageModal
           currentUserId={currentUserId}
@@ -288,21 +319,10 @@ export default function ChatWindow({
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 relative">
           <div
-            className="flex-1 overflow-y-auto custom-scrollbar relative"
+            className="flex-1 overflow-y-auto custom-scrollbar relative z-[1]"
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            style={{
-              backgroundColor: activeWallpaper && (activeWallpaper.startsWith('#') || activeWallpaper.startsWith('rgb') || activeWallpaper.startsWith('hsl')) ? activeWallpaper : undefined,
-              backgroundImage: activeWallpaper && !(activeWallpaper.startsWith('#') || activeWallpaper.startsWith('rgb') || activeWallpaper.startsWith('hsl')) ? `url(${activeWallpaper})` : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundAttachment: "fixed",
-            }}
           >
-            {/* Ambient Overlay for Wallpaper */}
-            {activeWallpaper && !(activeWallpaper.startsWith('#') || activeWallpaper.startsWith('rgb') || activeWallpaper.startsWith('hsl')) && (
-              <div className="absolute inset-0 bg-chat-bg-primary/40 backdrop-blur-[2px] pointer-events-none" />
-            )}
 
             {pinnedMessages.length > 0 && (
               <div className="sticky top-0 z-30 mb-6 bg-chat-bg-primary/90 backdrop-blur-md rounded-xl shadow-sm border border-chat-border overflow-hidden text-sm">
@@ -577,14 +597,14 @@ export default function ChatWindow({
 
           {/* READ-ONLY BANNER OR MESSAGE INPUT */}
           {isBlockedChat ? (
-            <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">
-              <span className="px-4 py-2.5 bg-chat-bg-secondary rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
+            <div className="p-4 bg-transparent border-t border-white/[0.06] shrink-0 flex items-center justify-center relative z-[1]">
+              <span className="px-4 py-2.5 bg-chat-bg-secondary/80 backdrop-blur-sm rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
                 You can&apos;t send messages to this conversation. A block exists between you and this user.
               </span>
             </div>
           ) : isRecipientDeleted ? (
-            <div className="p-4 bg-chat-bg-primary border-t border-chat-border shrink-0 flex items-center justify-center">
-              <span className="px-4 py-2.5 bg-chat-bg-secondary rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
+            <div className="p-4 bg-transparent border-t border-white/[0.06] shrink-0 flex items-center justify-center relative z-[1]">
+              <span className="px-4 py-2.5 bg-chat-bg-secondary/80 backdrop-blur-sm rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
                 This account has been deleted. You can no longer send messages or call.
               </span>
             </div>

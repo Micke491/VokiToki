@@ -1,8 +1,9 @@
 // features/settings/components/AppearanceSettingsTab.tsx
 'use client';
 
-import { Palette, Sun, Moon, Image as ImageIcon, Volume2, Film } from 'lucide-react';
+import { Palette, Sun, Moon, Image as ImageIcon, Volume2, Film, Check } from 'lucide-react';
 import { useAppearanceSettings } from '../hooks/useAppearanceSettings';
+import { WALLPAPER_PRESETS } from '@/lib/wallpaperPresets';
 
 interface User {
   _id: string;
@@ -47,14 +48,6 @@ export default function AppearanceSettingsTab({
     onUserUpdate,
     setFeedback,
   });
-
-  const WALLPAPER_PRESETS = [
-    { name: 'Dark Solid', value: '#09090b' },
-    { name: 'Deep Space', value: '#111115' },
-    { name: 'Classic Slate', value: '#1e293b' },
-    { name: 'Forest', value: '#064e3b' },
-    { name: 'Oceanic', value: '#0c4a6e' },
-  ];
 
   return (
     <div className="space-y-8">
@@ -101,33 +94,80 @@ export default function AppearanceSettingsTab({
           <ImageIcon className="w-5 h-5 text-chat-accent" />
           Default Chat Wallpaper
         </h3>
-        <p className="text-sm text-chat-text-secondary mb-4">
-          Choose a default theme color for chat interfaces where a custom wallpaper hasn't been set:
+        <p className="text-sm text-chat-text-secondary mb-5">
+          Choose a default background for your chat conversations:
         </p>
-        <div className="flex flex-wrap gap-3">
-          {WALLPAPER_PRESETS.map(preset => (
-            <button
-              key={preset.value}
-              onClick={() => setWallpaper(preset.value)}
-              className={`px-4 py-2.5 rounded-xl border font-semibold text-xs transition-all ${
-                wallpaper === preset.value
-                  ? 'bg-chat-accent border-chat-accent text-white shadow-lg'
-                  : 'bg-chat-input border-chat-border text-chat-text-secondary hover:bg-chat-hover'
-              }`}
-            >
-              {preset.name}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+          {/* System Default option */}
           <button
             onClick={() => setWallpaper('')}
-            className={`px-4 py-2.5 rounded-xl border font-semibold text-xs transition-all ${
+            className={`group relative aspect-[3/4] rounded-2xl border-2 overflow-hidden transition-all duration-200 ${
               !wallpaper
-                ? 'bg-chat-accent border-chat-accent text-white shadow-lg'
-                : 'bg-chat-input border-chat-border text-chat-text-secondary hover:bg-chat-hover'
+                ? 'border-chat-accent shadow-lg shadow-chat-accent/20 scale-[1.02]'
+                : 'border-chat-border hover:border-chat-text-tertiary hover:scale-[1.02]'
             }`}
           >
-            System Default
+            <div className="absolute inset-0 bg-chat-bg-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-dashed border-chat-text-tertiary/50 flex items-center justify-center">
+                <span className="text-chat-text-tertiary text-lg">✕</span>
+              </div>
+            </div>
+            {!wallpaper && (
+              <div className="absolute top-2 right-2 w-5 h-5 bg-chat-accent rounded-full flex items-center justify-center shadow-md">
+                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+              </div>
+            )}
+            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6">
+              <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">Default</span>
+            </div>
           </button>
+
+          {/* Wallpaper preset options */}
+          {WALLPAPER_PRESETS.map(preset => {
+            const isSelected = wallpaper === preset.value;
+            return (
+              <button
+                key={preset.name}
+                onClick={() => setWallpaper(preset.value)}
+                className={`group relative aspect-[3/4] rounded-2xl border-2 overflow-hidden transition-all duration-200 ${
+                  isSelected
+                    ? 'border-chat-accent shadow-lg shadow-chat-accent/20 scale-[1.02]'
+                    : 'border-chat-border hover:border-chat-text-tertiary hover:scale-[1.02]'
+                }`}
+              >
+                {/* Gradient preview fill */}
+                <div
+                  className="absolute inset-0"
+                  style={{ backgroundImage: preset.preview }}
+                />
+                {/* Subtle pattern overlay for depth */}
+                <div
+                  className="absolute inset-0 opacity-[0.04]"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 20% 50%, rgba(255,255,255,0.8) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 20%, rgba(255,255,255,0.5) 0%, transparent 40%)`,
+                  }}
+                />
+                {/* Chat bubble mockup for preview */}
+                <div className="absolute inset-x-0 top-0 bottom-0 flex flex-col justify-center items-center gap-1.5 px-2 py-3">
+                  <div className="self-start w-[65%] h-2 rounded-full bg-white/10 ml-1" />
+                  <div className="self-start w-[45%] h-2 rounded-full bg-white/8 ml-1" />
+                  <div className="self-end w-[55%] h-2 rounded-full bg-white/15 mr-1" />
+                  <div className="self-end w-[35%] h-2 rounded-full bg-white/10 mr-1" />
+                </div>
+                {/* Selected checkmark */}
+                {isSelected && (
+                  <div className="absolute top-2 right-2 w-5 h-5 bg-chat-accent rounded-full flex items-center justify-center shadow-md">
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  </div>
+                )}
+                {/* Label overlay */}
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6">
+                  <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">{preset.name}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

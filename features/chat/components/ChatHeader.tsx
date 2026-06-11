@@ -70,7 +70,7 @@ const ChatHeader = ({
   }, [showDropdown]);
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-chat-border bg-transparent shrink-0 z-10">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-transparent shrink-0 z-10 relative">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {!showSearch ? (
           <>

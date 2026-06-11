@@ -140,6 +140,7 @@ export default function ChatList({
     handleChatClick,
     getOtherParticipant,
     fetchChats,
+    drafts,
   } = useChatList(currentUserId, selectedChatId);
 
   const sortedChats = React.useMemo(() => {
@@ -284,6 +285,8 @@ export default function ChatList({
             const chatAvatar = isGroup ? chat.avatar : otherUser.avatar;
             const isDeleted = !isGroup && (otherUser.username === "Unknown User" || !otherUser.username || otherUser.username === "Unknown");
 
+            const chatDraft = !isSelected && drafts ? drafts[chat._id] : undefined;
+
             return (
               <div
                 key={chat._id}
@@ -361,18 +364,27 @@ export default function ChatList({
                       </button>
                     </div>
                   </div>
-                  <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
-                    {chat.lastMessage && 
-                     !chat.lastMessage.isSystemMessage && 
-                     !chat.lastMessage.storyId && 
-                     !chat.lastMessage.storyMediaUrl && 
-                     !chat.lastMessage.isDeletedForEveryone && (
-                      <span className="shrink-0">
-                        {chat.lastMessage.sender?._id === currentUserId ? 'You: ' :
-                         isGroup ? `${chat.lastMessage.sender?.username || 'Unknown User'}: ` : ''}
-                      </span>
+                  <div className={`text-sm truncate flex items-center gap-1 ${isUnread && !chatDraft ? 'font-bold text-chat-text-secondary' : 'text-chat-text-secondary'}`}>
+                    {chatDraft ? (
+                      <>
+                        <span className="text-red-500 dark:text-red-400 font-bold shrink-0">Draft:</span>
+                        <span className="truncate text-chat-text-secondary">{chatDraft}</span>
+                      </>
+                    ) : (
+                      <>
+                        {chat.lastMessage && 
+                         !chat.lastMessage.isSystemMessage && 
+                         !chat.lastMessage.storyId && 
+                         !chat.lastMessage.storyMediaUrl && 
+                         !chat.lastMessage.isDeletedForEveryone && (
+                          <span className="shrink-0">
+                            {chat.lastMessage.sender?._id === currentUserId ? 'You: ' :
+                             isGroup ? `${chat.lastMessage.sender?.username || 'Unknown User'}: ` : ''}
+                          </span>
+                        )}
+                        {renderMessagePreview(chat.lastMessage, chatName || '')}
+                      </>
                     )}
-                    {renderMessagePreview(chat.lastMessage, chatName || '')}
                   </div>
                 </div>
 

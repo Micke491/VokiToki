@@ -54,6 +54,8 @@ export function useMessageSender({
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
   const offlineQueueRef = useRef<{ tempId: string; text?: string; mediaUrl?: string; mediaType?: any; mediaPublicId?: string; replyToId?: string }[]>([]);
+  const draftSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const draftLocalKey = `chat-draft-${chatId}`;
 
   const updateOfflineStorage = useCallback((queue: typeof offlineQueueRef.current) => {
     localStorage.setItem(`offline-queue-${chatId}`, JSON.stringify(queue));
@@ -90,6 +92,43 @@ export function useMessageSender({
       } catch (e) {}
     }
   }, [chatId, currentUserId, currentUserUsername, setMessages]);
+
+  useEffect(() => {
+    const localDraft = localStorage.getItem(draftLocalKey);
+    if (localDraft) {
+      setNewMessage(localDraft);
+      window.dispatchEvent(new CustomEvent("local-draft-updated", {
+        detail: { chatId, text: localDraft.trim() }
+      }));
+    }
+
+    apiFetch(`/api/chat/draft?chatId=${chatId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.text) {
+          if (!localDraft) {
+            setNewMessage(data.text);
+            localStorage.setItem(draftLocalKey, data.text);
+            window.dispatchEvent(new CustomEvent("local-draft-updated", {
+              detail: { chatId, text: data.text.trim() }
+            }));
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      if (draftSyncTimeoutRef.current) {
+        clearTimeout(draftSyncTimeoutRef.current);
+        const currentDraft = localStorage.getItem(draftLocalKey);
+        if (currentDraft) {
+          apiFetch('/api/chat/draft', {
+            method: 'PUT',
+            body: JSON.stringify({ chatId, text: currentDraft }),
+          }).catch(() => {});
+        }
+      }
+    };
+  }, [chatId]);
 
   useEffect(() => {
     const saved = localStorage.getItem(`chat-wallpaper-${chatId}`);
@@ -253,6 +292,14 @@ export function useMessageSender({
 
     const messageText = newMessage.trim();
     setNewMessage("");
+
+    localStorage.removeItem(draftLocalKey);
+    window.dispatchEvent(new CustomEvent("local-draft-updated", {
+      detail: { chatId, text: "" }
+    }));
+
+    if (draftSyncTimeoutRef.current) clearTimeout(draftSyncTimeoutRef.current);
+    apiFetch(`/api/chat/draft?chatId=${chatId}`, { method: 'DELETE' }).catch(() => {});
 
     if (isTypingRef.current) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -617,6 +664,24 @@ export function useMessageSender({
 
   const handleMessageChange = useCallback((val: string) => {
     setNewMessage(val);
+
+    if (val.trim()) {
+      localStorage.setItem(draftLocalKey, val);
+    } else {
+      localStorage.removeItem(draftLocalKey);
+    }
+
+    window.dispatchEvent(new CustomEvent("local-draft-updated", {
+      detail: { chatId, text: val.trim() }
+    }));
+
+    if (draftSyncTimeoutRef.current) clearTimeout(draftSyncTimeoutRef.current);
+    draftSyncTimeoutRef.current = setTimeout(() => {
+      apiFetch('/api/chat/draft', {
+        method: 'PUT',
+        body: JSON.stringify({ chatId, text: val.trim() }),
+      }).catch(() => {});
+    }, 500);
 
     if (pusherClient && val.trim() && !editingMessage) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);

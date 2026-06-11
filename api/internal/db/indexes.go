@@ -129,6 +129,28 @@ func CreateIndexes(ctx context.Context) error {
 		log.Printf("Warning: Failed to create session indexes: %v\n", err)
 	}
 
+	draftUserChatIndexModel := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "chatId", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	}
+
+	draftTTLIndexModel := mongo.IndexModel{
+		Keys:    bson.M{"updatedAt": 1},
+		Options: options.Index().SetExpireAfterSeconds(7 * 24 * 60 * 60), // 7 days
+	}
+
+	draftIndexes := []mongo.IndexModel{
+		draftUserChatIndexModel,
+		draftTTLIndexModel,
+	}
+
+	if _, err := DraftCollection.Indexes().CreateMany(ctx, draftIndexes); err != nil {
+		log.Printf("Warning: Failed to create draft indexes: %v\n", err)
+	}
+
 	log.Println("Database index migration completed successfully.")
 	return nil
 }

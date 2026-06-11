@@ -74,7 +74,7 @@ const MessageInput = ({
   };
 
   return (
-    <footer className="p-4 pb-safe bg-transparent border-t border-chat-border shrink-0 relative z-10 transition-all duration-300">
+    <footer className="p-4 pb-safe bg-transparent border-t border-white/[0.06] shrink-0 relative z-10 transition-all duration-300">
       {(replyingTo || editingMessage) && (
         <div className="w-full max-w-7xl mx-auto mb-2 flex items-center justify-between px-4 py-2 bg-chat-input rounded-lg border-l-4 border-chat-accent animate-in slide-in-from-bottom-2">
           <div className="flex items-center gap-3 flex-1 min-w-0">
