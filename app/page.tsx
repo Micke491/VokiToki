@@ -17,7 +17,8 @@ import {
   Shield,
   Activity,
   CheckCircle2,
-  Server
+  Server,
+  Smartphone
 } from "lucide-react";
 
 function useScrollProgress() {
@@ -201,6 +202,33 @@ function ComingSoonModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function MobileAppModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 animate-fadeIn" onClick={onClose}>
+      <div className="bg-[#111113] border border-zinc-800 rounded-3xl p-6 md:p-8 text-center max-w-sm w-full shadow-2xl relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-center mb-6 text-blue-500 relative">
+          <Smartphone size={48} className="relative z-10 animate-pulse" />
+        </div>
+        <h2 className="text-2xl font-bold text-zinc-50 mb-3 tracking-tight">Use Mobile App</h2>
+        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+          The web platform registration is optimized exclusively for desktop/PC environments. To connect via mobile or tablet devices, please use our mobile app.
+        </p>
+        <div className="flex flex-col gap-3">
+          <div className="bg-zinc-900 border border-zinc-800 text-zinc-400 py-3 rounded-xl text-xs font-mono font-medium">
+            Mobile Releases Under Testing
+          </div>
+          <button 
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] cursor-pointer" 
+            onClick={onClose}
+          >
+            Acknowledge
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const FEATURES = [
   { icon: <MessageSquare className="text-blue-400" size={24} />, title: "Real-Time Protocol", desc: "Built on optimized WebSocket channels ensuring messages are delivered and synchronized instantaneously across all devices." },
   { icon: <Video className="text-blue-400" size={24} />, title: "High-Fidelity Calling", desc: "Enterprise-grade WebRTC infrastructure for uninterrupted, crystal-clear voice and high-definition video conferences." },
@@ -219,6 +247,7 @@ const STATS = [
 
 export default function LandingPage() {
   const [showModal, setShowModal] = useState(false);
+  const [showMobileModal, setShowMobileModal] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   
   const scrollProgress = useScrollProgress();
@@ -285,6 +314,7 @@ export default function LandingPage() {
         </div>
 
         {showModal && <ComingSoonModal onClose={() => setShowModal(false)} />}
+        {showMobileModal && <MobileAppModal onClose={() => setShowMobileModal(false)} />}
 
         {/* Navigation */}
         <nav
@@ -296,8 +326,8 @@ export default function LandingPage() {
             <Logo />
           </a>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-6">
+          {/* Desktop Nav (Only visible on screens 1024px and wider) */}
+          <div className="hidden lg:flex items-center gap-6">
             <Link href="/auth-pages/login" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer">
               Sign In
             </Link>
@@ -315,20 +345,14 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Mobile Nav */}
-          <div className="flex md:hidden items-center gap-3">
-            <Link
-              href="/auth-pages/login"
-              className="text-sm font-medium text-zinc-300"
+          {/* Mobile/Tablet Nav (Visible on screens smaller than 1024px; removes web registration/login links) */}
+          <div className="flex lg:hidden items-center gap-3">
+            <button
+              onClick={() => setShowMobileModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer"
             >
-              Login
-            </Link>
-            <Link
-              href="/auth-pages/register"
-              className="bg-white text-black px-4 py-2 rounded-full text-sm font-bold"
-            >
-              Start
-            </Link>
+              <Smartphone size={16} /> Get App
+            </button>
           </div>
         </nav>
 
@@ -353,13 +377,32 @@ export default function LandingPage() {
             Experience real-time messaging, crystal-clear voice integration, and high-definition video conferencing in a single, secure platform designed for modern teams and communities.
           </p>
 
-          <div className="animate-fadeSlideUp-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto px-4 sm:px-0">
+          {/* Desktop CTAs (Only visible on screens 1024px and wider) */}
+          <div className="hidden lg:flex animate-fadeSlideUp-3 flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto px-4 sm:px-0">
             <Link
               href="/auth-pages/register"
               className="bg-white text-black px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors shadow-lg"
             >
               Launch Platform <ArrowRight size={18} />
             </Link>
+            <a
+              href="https://github.com/Micke491/chat-app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="glass-panel text-white px-8 py-4 rounded-xl text-base font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+            >
+              <Github size={18} /> Source Repository
+            </a>
+          </div>
+
+          {/* Mobile/Tablet CTAs (Visible on screens smaller than 1024px; replaced platform links with mobile app prompt) */}
+          <div className="flex lg:hidden animate-fadeSlideUp-3 flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto px-4 sm:px-0">
+            <button
+              onClick={() => setShowMobileModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-colors shadow-lg cursor-pointer"
+            >
+              <Smartphone size={18} /> Download Mobile App <ArrowRight size={18} />
+            </button>
             <a
               href="https://github.com/Micke491/chat-app"
               target="_blank"
@@ -495,7 +538,7 @@ export default function LandingPage() {
 
             <div className="relative border-l border-zinc-800 ml-4 md:ml-6 space-y-12 pb-4">
               {[
-                { title: "Secure Registration", desc: "Create an account in seconds. Protect your profile with industry-standard Two-Factor Authentication." },
+                { title: "Secure Account Setup", desc: "Create your workspace parameters in seconds and establish protective configurations." },
                 { title: "Establish Connections", desc: "Locate peers securely through our optimized directory and construct your secure contact network." },
                 { title: "Initiate Communication", desc: "Deploy real-time messaging, share critical files, or launch encrypted WebRTC calls seamlessly." }
               ].map((step, idx) => (
@@ -523,7 +566,8 @@ export default function LandingPage() {
               </p>
             </ScrollReveal>
 
-            <ScrollReveal delay={150} className="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center w-full">
+            {/* Desktop final CTA (Only visible on screens 1024px and wider) */}
+            <ScrollReveal delay={150} className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center w-full">
               <Link
                 href="/auth-pages/register"
                 className="bg-blue-600 text-white px-8 py-4 rounded-xl text-sm md:text-base font-bold shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
@@ -537,6 +581,16 @@ export default function LandingPage() {
                 <Download size={18} /> Download Client
               </button>
             </ScrollReveal>
+
+            {/* Mobile/Tablet final CTA (Visible on screens smaller than 1024px) */}
+            <ScrollReveal delay={150} className="flex lg:hidden flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center w-full">
+              <button
+                onClick={() => setShowMobileModal(true)}
+                className="bg-blue-600 text-white px-8 py-4 rounded-xl text-sm md:text-base font-bold shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 cursor-pointer w-full"
+              >
+                <Smartphone size={18} /> Download Mobile App <ArrowRight size={18} />
+              </button>
+            </ScrollReveal>
           </div>
         </section>
 
@@ -545,16 +599,31 @@ export default function LandingPage() {
           <div className="px-6 md:px-10 py-12 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
               <Logo />
-              <div className="flex flex-wrap gap-6 justify-center">
+              
+              {/* Desktop Footer Options */}
+              <div className="hidden lg:flex flex-wrap gap-6 justify-center">
                 <a href="https://github.com/Micke491/chat-app" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
                   Documentation / Repository
                 </a>
-                <Link href="/auth-pages/login" className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors hidden md:block">
+                <Link href="/auth-pages/login" className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
                   System Login
                 </Link>
-                <Link href="/auth-pages/register" className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors hidden md:block">
+                <Link href="/auth-pages/register" className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
                   Registration
                 </Link>
+              </div>
+
+              {/* Mobile/Tablet Footer Options (Removes login and sign-up) */}
+              <div className="flex lg:hidden flex-wrap gap-6 justify-center">
+                <a href="https://github.com/Micke491/chat-app" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+                  Documentation / Repository
+                </a>
+                <button 
+                  onClick={() => setShowMobileModal(true)} 
+                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                >
+                  Get Mobile App
+                </button>
               </div>
             </div>
             <div className="pt-8 border-t border-zinc-900 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
