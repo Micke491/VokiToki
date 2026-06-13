@@ -70,7 +70,7 @@ export default function NotificationSettingsTab() {
                 Push Notifications
               </h3>
               <p className="text-sm text-chat-text-secondary mt-1 max-w-sm">
-                Receive browser notifications for new messages and incoming calls.
+                Receive browser notifications for new messages, incoming calls, and connection requests.
               </p>
             </div>
             <button

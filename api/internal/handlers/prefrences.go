@@ -20,6 +20,7 @@ type PreferencesRequest struct {
 	DefaultWallpaper *string `json:"defaultWallpaper"`
 	AutoPlayGifs     *bool   `json:"autoPlayGifs"`
 	AutoPlayVoice    *bool   `json:"autoPlayVoice"`
+	StoryPrivacy     *string `json:"storyPrivacy"`
 }
 
 func UpdatePreferences(c *gin.Context) {
@@ -46,6 +47,9 @@ func UpdatePreferences(c *gin.Context) {
 	}
 	if req.AutoPlayVoice != nil {
 		updates["autoPlayVoice"] = *req.AutoPlayVoice
+	}
+	if req.StoryPrivacy != nil {
+		updates["storyPrivacy"] = *req.StoryPrivacy
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

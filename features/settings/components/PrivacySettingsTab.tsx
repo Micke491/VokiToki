@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, Shield, Lock, Eye, EyeOff, UserX, Smartphone } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrivacySettings } from '@/features/settings/hooks/usePrivacySettings';
 import BlockedUsersModal from '@/features/settings/components/BlockedUsersModal';
@@ -137,6 +138,29 @@ export default function PrivacySettingsTab({
             >
               Manage List
             </button>
+          </div>
+
+          <div className="bg-chat-input border border-chat-border rounded-2xl p-6 flex items-center justify-between gap-4 mt-4">
+            <div>
+              <h3 className="font-bold text-chat-text-primary text-base flex items-center gap-2">
+                <Eye className="w-4 h-4 text-chat-accent" /> Highlights Privacy
+              </h3>
+              <p className="text-sm text-chat-text-secondary mt-1 max-w-sm">
+                Choose who can view your highlights.
+              </p>
+            </div>
+            <select 
+              value={(currentUser as any).storyPrivacy || 'everyone'} 
+              onChange={async (e) => {
+                const val = e.target.value;
+                onUserUpdate({ ...currentUser, storyPrivacy: val } as any);
+                await apiFetch('/api/users/preferences', { method: 'PATCH', body: JSON.stringify({ storyPrivacy: val }) });
+              }} 
+              className="bg-chat-bg-primary text-chat-text-primary border border-chat-border rounded-xl px-4 py-2.5 text-sm outline-none font-medium cursor-pointer"
+            >
+              <option value="everyone">Everyone</option>
+              <option value="followers">Connections</option>
+            </select>
           </div>
         </div>
       </div>

@@ -8,4 +8,9 @@ export interface UserProfile {
   location?: string;
   createdAt: string;
   activeStoriesCount: number;
+  followersCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
+  isRequested?: boolean;
+  isFollower?: boolean;
 }

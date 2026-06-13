@@ -208,15 +208,13 @@ const ChatSidebar = ({
                  <Users className="w-3.5 h-3.5" />
                  Participants
                </h4>
-               {isAdmin && (
-                  <button
-                     onClick={() => setShowAddModal(true)}
-                     className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors flex items-center gap-1"
-                     title="Add user"
-                  >
-                     <UserPlus className="w-4 h-4" />
-                  </button>
-               )}
+               <button
+                  onClick={() => setShowAddModal(true)}
+                  className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors flex items-center gap-1"
+                  title="Add user"
+               >
+                  <UserPlus className="w-4 h-4" />
+               </button>
             </div>
             <div className="space-y-3">
               {localParticipants.map((user, index) => (
@@ -387,6 +385,7 @@ const ChatSidebar = ({
         onClose={() => setShowAddModal(false)} 
         chatId={chatId} 
         existingParticipantIds={localParticipants.map(p => p._id)} 
+        currentUserId={currentUserId}
       />
     )}
 

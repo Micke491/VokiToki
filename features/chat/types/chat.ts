@@ -66,4 +66,5 @@ export interface ChatWindowProps {
   onStoryClick?: (userId: string, stories: Story[], username: string, avatar?: string) => void;
   onChatUpdated?: (updatedChat: any) => void;
   onViewStory?: (storyId: string) => void;
+  selectedChat?: any;
 }

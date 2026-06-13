@@ -35,6 +35,11 @@ type User struct {
 	DefaultWallpaper     string               `bson:"defaultWallpaper" json:"defaultWallpaper"`
 	AutoPlayGifs         bool                 `bson:"autoPlayGifs" json:"autoPlayGifs"`
 	AutoPlayVoice        bool                 `bson:"autoPlayVoice" json:"autoPlayVoice"`
+	Followers            []bson.ObjectID      `bson:"followers" json:"followers"`
+	Following            []bson.ObjectID      `bson:"following" json:"following"`
+	FollowRequests       []bson.ObjectID      `bson:"followRequests" json:"followRequests"`
+	SentFollowRequests   []bson.ObjectID      `bson:"sentFollowRequests" json:"sentFollowRequests"`
+	StoryPrivacy         string               `bson:"storyPrivacy" json:"storyPrivacy"`
 }
 
 type MutedChat struct {

@@ -47,6 +47,9 @@ func GetAllStories(c *gin.Context) {
 			}
 		}
 	}
+	for _, f := range authUser.Following {
+		contactSet[f.Hex()] = true
+	}
 	contactOIDs := make([]bson.ObjectID, 0, len(contactSet))
 	for id := range contactSet {
 		if oid, err := bson.ObjectIDFromHex(id); err == nil {
@@ -87,16 +90,39 @@ func GetAllStories(c *gin.Context) {
 		CreatedAt time.Time           `bson:"createdAt"`
 		ExpiresAt time.Time           `bson:"expiresAt"`
 		User      struct {
-			ID       bson.ObjectID `bson:"_id"`
-			Username string        `bson:"username"`
-			Avatar   string        `bson:"avatar"`
+			ID           bson.ObjectID   `bson:"_id"`
+			Username     string          `bson:"username"`
+			Avatar       string          `bson:"avatar"`
+			StoryPrivacy string          `bson:"storyPrivacy"`
+			Followers    []bson.ObjectID `bson:"followers"`
 		} `bson:"user"`
 	}
 
-	var results []storyAggResult
-	if err := cursor.All(ctx, &results); err != nil {
+	var rawResults []storyAggResult
+	if err := cursor.All(ctx, &rawResults); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stories"})
 		return
+	}
+
+	var results []storyAggResult
+	for _, s := range rawResults {
+		if s.User.ID == authUser.ID {
+			results = append(results, s)
+			continue
+		}
+		if s.User.StoryPrivacy == "followers" {
+			isFollower := false
+			for _, followerID := range s.User.Followers {
+				if followerID == authUser.ID {
+					isFollower = true
+					break
+				}
+			}
+			if !isFollower {
+				continue
+			}
+		}
+		results = append(results, s)
 	}
 
 	viewerIDs := map[string]bool{}
@@ -243,7 +269,7 @@ func CreateStory(c *gin.Context) {
 		mediaType = "video"
 	}
 
-	expiresAt := time.Now().Add(24 * time.Hour)
+	expiresAt := time.Now().Add(3 * time.Hour)
 	story := models.Story{
 		UserID:    authUser.ID,
 		MediaURL:  uploadResult.SecureURL,
@@ -341,6 +367,32 @@ func GetUserStories(c *gin.Context) {
 		}
 	}
 
+	var targetUser models.User
+	db.UserCollection.FindOne(ctx, bson.M{"_id": targetID},
+		options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1, "storyPrivacy": 1, "followers": 1}),
+	).Decode(&targetUser)
+
+	if targetUser.StoryPrivacy == "followers" && authUser.ID != targetID {
+		isFollower := false
+		for _, followerID := range targetUser.Followers {
+			if followerID == authUser.ID {
+				isFollower = true
+				break
+			}
+		}
+		if !isFollower {
+			c.JSON(http.StatusOK, gin.H{
+				"user": gin.H{
+					"_id":      targetUser.ID,
+					"username": targetUser.Username,
+					"avatar":   targetUser.Avatar,
+				},
+				"stories": []bson.M{},
+			})
+			return
+		}
+	}
+
 	now := time.Now()
 	cursor, err := db.StoryCollection.Find(ctx, bson.M{
 		"userId":    targetID,
@@ -357,11 +409,6 @@ func GetUserStories(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stories"})
 		return
 	}
-
-	var targetUser models.User
-	db.UserCollection.FindOne(ctx, bson.M{"_id": targetID},
-		options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1}),
-	).Decode(&targetUser)
 
 	currentUID := authUser.ID.Hex()
 	storiesOut := make([]bson.M, 0, len(stories))

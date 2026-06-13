@@ -14,6 +14,8 @@ export interface Chat {
   avatar?: string;
   participants: User[];
   groupAdmin?: string;
+  status?: string;
+  initiatorId?: string;
 }
 
 export function useChatDetails(chatId: string | undefined, currentUser: User | null) {

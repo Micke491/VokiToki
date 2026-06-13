@@ -223,12 +223,22 @@ func SendMessage(c *gin.Context) {
 		}
 	}
 
-	utils.TriggerPusher("chat-"+body.ChatID, "receive-message", populatedMsg)
-	for _, pid := range chat.Participants {
-		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
-			"chatId":      body.ChatID,
-			"lastMessage": populatedMsg,
-		})
+	if chat.Status == "pending" {
+		for _, pid := range chat.Participants {
+			if pid != currentUser.ID {
+				utils.TriggerPusher("user-"+pid.Hex(), "chat-request-received", gin.H{"chatId": body.ChatID})
+			} else {
+				utils.TriggerPusher("chat-"+body.ChatID, "receive-message", populatedMsg)
+			}
+		}
+	} else {
+		utils.TriggerPusher("chat-"+body.ChatID, "receive-message", populatedMsg)
+		for _, pid := range chat.Participants {
+			utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+				"chatId":      body.ChatID,
+				"lastMessage": populatedMsg,
+			})
+		}
 	}
 
 	var fcmRecipients []bson.ObjectID
@@ -239,10 +249,13 @@ func SendMessage(c *gin.Context) {
 	}
 	if len(fcmRecipients) > 0 {
 		title := currentUser.Username
-		if chat.IsGroupChat && chat.Name != nil && *chat.Name != "" {
+		bodyText := newMessage.Text
+		if chat.Status == "pending" {
+			title = "Chat Request"
+			bodyText = currentUser.Username + " requested to chat with you"
+		} else if chat.IsGroupChat && chat.Name != nil && *chat.Name != "" {
 			title = *chat.Name + " (" + currentUser.Username + ")"
 		}
-		bodyText := newMessage.Text
 		if bodyText == "" && newMessage.MediaType != "" {
 			bodyText = "Sent a " + newMessage.MediaType
 		}

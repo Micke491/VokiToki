@@ -121,13 +121,16 @@ func InitiateCall(c *gin.Context) {
 		setCache("user_status:"+req.CalleeID, "busy", 60*time.Second)
 	}
 
+	var chat models.Chat
+	if req.ChatID != "" {
+		chatID, _ := bson.ObjectIDFromHex(req.ChatID)
+		db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	}
+
 	var callRecipients []bson.ObjectID
 	var chatOID bson.ObjectID
 	if isGroupCall {
-		chatID, _ := bson.ObjectIDFromHex(req.ChatID)
-		chatOID = chatID
-		var chat models.Chat
-		db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+		chatOID = chat.ID
 		for _, pID := range chat.Participants {
 			if pID.Hex() == req.CallerID {
 				continue
@@ -148,23 +151,35 @@ func InitiateCall(c *gin.Context) {
 			callRecipients = append(callRecipients, calleeOID)
 		}
 		if req.ChatID != "" {
-			chatOID, _ = bson.ObjectIDFromHex(req.ChatID)
+			chatOID = chat.ID
 		}
-		utils.TriggerPusher("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
-			"call_id":       callID,
-			"caller_id":     req.CallerID,
-			"call_type":     req.CallType,
-			"caller_name":   req.CallerName,
-			"caller_avatar": req.CallerAvatar,
-			"chat_id":       req.ChatID,
-		})
+		if chat.Status == "pending" {
+			utils.TriggerPusher("user-"+req.CalleeID, "chat-request-received", map[string]interface{}{
+				"chatId": req.ChatID,
+			})
+		} else {
+			utils.TriggerPusher("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
+				"call_id":       callID,
+				"caller_id":     req.CallerID,
+				"call_type":     req.CallType,
+				"caller_name":   req.CallerName,
+				"caller_avatar": req.CallerAvatar,
+				"chat_id":       req.ChatID,
+			})
+		}
 	}
 
 	if len(callRecipients) > 0 {
 		title := "Incoming Call"
 		bodyText := fmt.Sprintf("%s is calling you (%s call)", req.CallerName, req.CallType)
+		dataType := "call"
+		if chat.Status == "pending" {
+			title = "Chat Request"
+			bodyText = fmt.Sprintf("%s requested to chat with you", req.CallerName)
+			dataType = "message"
+		}
 		data := map[string]string{
-			"type":       "call",
+			"type":       dataType,
 			"callId":     callID,
 			"callerId":   req.CallerID,
 			"callType":   req.CallType,
@@ -219,12 +234,17 @@ func InitiateCall(c *gin.Context) {
 					"status":         callMsg.Status,
 					"createdAt":      callMsg.CreatedAt.Format(time.RFC3339),
 				}
-				utils.TriggerPusher("chat-"+req.ChatID, "receive-message", populatedMsg)
-				utils.TriggerPusher("user-"+req.CalleeID, "chat-update", gin.H{
-					"chatId":      req.ChatID,
-					"lastMessage": populatedMsg,
-					"unreadCount": 1,
-				})
+				if chat.Status == "pending" {
+					utils.TriggerPusher("user-"+req.CalleeID, "chat-request-received", gin.H{"chatId": req.ChatID})
+					utils.TriggerPusher("chat-"+req.ChatID, "receive-message", populatedMsg)
+				} else {
+					utils.TriggerPusher("chat-"+req.ChatID, "receive-message", populatedMsg)
+					utils.TriggerPusher("user-"+req.CalleeID, "chat-update", gin.H{
+						"chatId":      req.ChatID,
+						"lastMessage": populatedMsg,
+						"unreadCount": 1,
+					})
+				}
 			} else {
 				log.Printf("Failed to insert call message: %v\n", insertErr)
 			}

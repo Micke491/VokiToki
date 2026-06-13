@@ -250,6 +250,7 @@ export default function ChatPageContent({ chatId }: ChatPageContentProps) {
               onStoryClick={handleStoryClick}
               onChatUpdated={handleChatUpdated}
               onViewStory={handleViewStoryById}
+              selectedChat={selectedChat}
             />
           ) : (
             /* Empty State */

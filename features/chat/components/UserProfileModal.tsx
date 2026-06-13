@@ -140,6 +140,30 @@ export default function UserProfileModal({
                     </p>
                   )}
 
+
+
+                  <div className="flex justify-center gap-3 mb-6">
+                    {profile.isFollowing ? (
+                      <button onClick={async () => {
+                        await apiFetch(`/api/users/${userId}/unfollow`, { method: 'POST' });
+                        fetchProfile();
+                        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+                      }} className="px-5 py-2 bg-chat-bg-secondary text-chat-text-primary border border-chat-border rounded-xl font-bold text-sm transition-colors hover:bg-chat-hover">Connected</button>
+                    ) : profile.isRequested ? (
+                      <button onClick={async () => {
+                        await apiFetch(`/api/users/${userId}/unfollow`, { method: 'POST' });
+                        fetchProfile();
+                        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+                      }} className="px-5 py-2 bg-chat-bg-secondary text-chat-text-primary border border-chat-border hover:bg-chat-hover rounded-xl font-bold text-sm transition-colors">Pending</button>
+                    ) : (
+                      <button onClick={async () => {
+                        await apiFetch(`/api/users/${userId}/follow`, { method: 'POST' });
+                        fetchProfile();
+                        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+                      }} className="px-5 py-2 bg-chat-accent hover:bg-chat-accent-hover text-white rounded-xl font-bold text-sm transition-colors">Connect</button>
+                    )}
+                  </div>
+
                   {/* Info grid */}
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     {profile.location && (
@@ -172,8 +196,8 @@ export default function UserProfileModal({
                   {profile.activeStoriesCount > 0 && (
                     <div className="pt-4 border-t border-chat-border">
                       <p className="text-center text-chat-text-tertiary text-sm">
-                        {profile.activeStoriesCount} active story
-                        {profile.activeStoriesCount > 1 ? 'ies' : ''}
+                        {profile.activeStoriesCount} active highlight
+                        {profile.activeStoriesCount > 1 ? 's' : ''}
                       </p>
                     </div>
                   )}

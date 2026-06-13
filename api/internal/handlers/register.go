@@ -74,6 +74,11 @@ func Register(c *gin.Context) {
 		TwoFactorEnabled: false,
 		AutoPlayGifs:     true,
 		AutoPlayVoice:    true,
+		Followers:        []bson.ObjectID{},
+		Following:        []bson.ObjectID{},
+		FollowRequests:   []bson.ObjectID{},
+		SentFollowRequests: []bson.ObjectID{},
+		StoryPrivacy:     "everyone",
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)

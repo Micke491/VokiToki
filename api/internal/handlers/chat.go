@@ -29,6 +29,11 @@ func GetChats(c *gin.Context) {
 	filter := bson.M{
 		"participants": currentUser.ID,
 		"hiddenBy":     bson.M{"$nin": []bson.ObjectID{currentUser.ID}},
+		"$or": []bson.M{
+			{"status": "accepted"},
+			{"status": bson.M{"$exists": false}}, // Fallback for old chats
+			{"initiatorId": currentUser.ID},
+		},
 	}
 
 	opts := options.Find().SetSort(bson.M{"updatedAt": -1})
@@ -240,6 +245,8 @@ func CreateChat(c *gin.Context) {
 			"_id":          chat.ID,
 			"participants": populatedParticipants,
 			"isGroupChat":  chat.IsGroupChat,
+			"status":       chat.Status,
+			"initiatorId":  chat.InitiatorID,
 			"createdAt":    chat.CreatedAt,
 			"updatedAt":    chat.UpdatedAt,
 		})
@@ -252,6 +259,8 @@ func CreateChat(c *gin.Context) {
 		Participants:         []bson.ObjectID{currentUser.ID, recipientID},
 		ParticipantUsernames: []string{currentUser.Username, recipient.Username},
 		HiddenBy:             []bson.ObjectID{},
+		Status:               "pending",
+		InitiatorID:          &currentUser.ID,
 		CreatedAt:            time.Now(),
 		UpdatedAt:            time.Now(),
 	}
@@ -316,9 +325,22 @@ func CreateGroupChat(c *gin.Context) {
 		return
 	}
 
-	var usernames []string
+	var activeIDs []bson.ObjectID
+	var activeUsernames []string
+	var pendingIDs []bson.ObjectID
+	var pendingUsernames []string
+
 	for _, u := range users {
-		usernames = append(usernames, u.Username)
+		if u.ID == currentUser.ID {
+			activeIDs = append(activeIDs, u.ID)
+			activeUsernames = append(activeUsernames, u.Username)
+		} else if hasConnection(currentUser, u.ID) {
+			activeIDs = append(activeIDs, u.ID)
+			activeUsernames = append(activeUsernames, u.Username)
+		} else {
+			pendingIDs = append(pendingIDs, u.ID)
+			pendingUsernames = append(pendingUsernames, u.Username)
+		}
 	}
 
 	newChat := models.Chat{
@@ -327,8 +349,12 @@ func CreateGroupChat(c *gin.Context) {
 		IsGroupChat:          true,
 		GroupAdmin:           &currentUser.ID,
 		Avatar:               body.Avatar,
-		Participants:         finalIDs,
-		ParticipantUsernames: usernames,
+		Participants:         activeIDs,
+		ParticipantUsernames: activeUsernames,
+		PendingParticipants:  pendingIDs,
+		PendingUsernames:     pendingUsernames,
+		Status:               "accepted",
+		InitiatorID:          &currentUser.ID,
 		CreatedAt:            time.Now(),
 		UpdatedAt:            time.Now(),
 	}
@@ -863,13 +889,28 @@ func AddParticipant(c *gin.Context) {
 		return
 	}
 
-	if !chat.IsGroupChat || chat.GroupAdmin == nil || *chat.GroupAdmin != currentUser.ID {
+	if !chat.IsGroupChat {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not a group chat"})
+		return
+	}
+
+	isParticipant := false
+	for _, p := range chat.Participants {
+		if p == currentUser.ID {
+			isParticipant = true
+			break
+		}
+	}
+	if !isParticipant {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	var newObjIDs []bson.ObjectID
-	var newUsernames []string
+	var newActiveIDs []bson.ObjectID
+	var newActiveUsernames []string
+	var newPendingIDs []bson.ObjectID
+	var newPendingUsernames []string
+
 	for _, idStr := range body.UserIDs {
 		id, err := bson.ObjectIDFromHex(idStr)
 		if err != nil {
@@ -883,26 +924,42 @@ func AddParticipant(c *gin.Context) {
 				break
 			}
 		}
+		for _, p := range chat.PendingParticipants {
+			if p == id {
+				exists = true
+				break
+			}
+		}
+
 		if !exists {
-			newObjIDs = append(newObjIDs, id)
 			var u models.User
 			db.UserCollection.FindOne(c, bson.M{"_id": id}).Decode(&u)
-			newUsernames = append(newUsernames, u.Username)
+			if hasConnection(currentUser, id) {
+				newActiveIDs = append(newActiveIDs, id)
+				newActiveUsernames = append(newActiveUsernames, u.Username)
+			} else {
+				newPendingIDs = append(newPendingIDs, id)
+				newPendingUsernames = append(newPendingUsernames, u.Username)
+			}
 		}
 	}
 
-	if len(newObjIDs) == 0 {
+	if len(newActiveIDs) == 0 && len(newPendingIDs) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No new users to add"})
 		return
 	}
 
-	allParticipants := append(chat.Participants, newObjIDs...)
-	allUsernames := append(chat.ParticipantUsernames, newUsernames...)
+	allParticipants := append(chat.Participants, newActiveIDs...)
+	allUsernames := append(chat.ParticipantUsernames, newActiveUsernames...)
+	allPending := append(chat.PendingParticipants, newPendingIDs...)
+	allPendingUsernames := append(chat.PendingUsernames, newPendingUsernames...)
 
 	db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
 		"$set": bson.M{
 			"participants":         allParticipants,
 			"participantUsernames": allUsernames,
+			"pendingParticipants":  allPending,
+			"pendingUsernames":     allPendingUsernames,
 			"updatedAt":            time.Now(),
 		},
 	})
@@ -931,42 +988,45 @@ func AddParticipant(c *gin.Context) {
 		chatMap["groupAdmin"] = updatedChat.GroupAdmin.Hex()
 	}
 
-	systemMsg := "@" + currentUser.Username + " added " + joinStrings(newUsernames) + " to the chat"
-	newSysMsg := models.Message{
-		ID:              bson.NewObjectID(),
-		ChatID:          chatID,
-		Sender:          currentUser.ID,
-		SenderUsername: currentUser.Username,
-		Text:            systemMsg,
-		IsSystemMessage: true,
-		Status:         "sent",
-		Read:           false,
-		ReadBy:         []models.ReadByEntry{},
-		DeliveredTo:    []bson.ObjectID{},
-		Reactions:      []models.Reaction{},
-		DeletedBy:      []bson.ObjectID{},
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-	db.MessageCollection.InsertOne(c, newSysMsg)
+	var populatedSysMsg gin.H
+	if len(newActiveIDs) > 0 {
+		systemMsg := "@" + currentUser.Username + " added " + joinStrings(newActiveUsernames) + " to the chat"
+		newSysMsg := models.Message{
+			ID:              bson.NewObjectID(),
+			ChatID:          chatID,
+			Sender:          currentUser.ID,
+			SenderUsername: currentUser.Username,
+			Text:            systemMsg,
+			IsSystemMessage: true,
+			Status:         "sent",
+			Read:           false,
+			ReadBy:         []models.ReadByEntry{},
+			DeliveredTo:    []bson.ObjectID{},
+			Reactions:      []models.Reaction{},
+			DeletedBy:      []bson.ObjectID{},
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+		db.MessageCollection.InsertOne(c, newSysMsg)
 
-	populatedSysMsg := gin.H{
-		"_id":             newSysMsg.ID.Hex(),
-		"chatId":          chatIDStr,
-		"sender": gin.H{
-			"_id":      currentUser.ID.Hex(),
-			"username": currentUser.Username,
-			"avatar":   currentUser.Avatar,
-			"email":    currentUser.Email,
-		},
-		"text":            newSysMsg.Text,
-		"isSystemMessage": true,
-		"createdAt":       newSysMsg.CreatedAt,
-		"updatedAt":       newSysMsg.UpdatedAt,
-		"status":          "sent",
-		"read":            false,
+		populatedSysMsg = gin.H{
+			"_id":             newSysMsg.ID.Hex(),
+			"chatId":          chatIDStr,
+			"sender": gin.H{
+				"_id":      currentUser.ID.Hex(),
+				"username": currentUser.Username,
+				"avatar":   currentUser.Avatar,
+				"email":    currentUser.Email,
+			},
+			"text":            newSysMsg.Text,
+			"isSystemMessage": true,
+			"createdAt":       newSysMsg.CreatedAt,
+			"updatedAt":       newSysMsg.UpdatedAt,
+			"status":          "sent",
+			"read":            false,
+		}
+		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 	}
-	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 
 	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
 	for _, pid := range updatedChat.Participants {
@@ -976,6 +1036,16 @@ func AddParticipant(c *gin.Context) {
 			"avatar":       updatedChat.Avatar,
 			"participants": formatParticipants(participants),
 			"lastMessage":  populatedSysMsg,
+		})
+	}
+
+	for _, pid := range newPendingIDs {
+		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			"chatId":       chatIDStr,
+			"name":         updatedChat.Name,
+			"avatar":       updatedChat.Avatar,
+			"participants": formatParticipants(participants),
+			"lastMessage":  nil,
 		})
 	}
 
@@ -1068,4 +1138,343 @@ func usernameCheck(username string) string {
 		return "Unknown User"
 	}
 	return username
+}
+
+func GetChatRequests(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser, ok := userObj.(models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
+		return
+	}
+
+	filter := bson.M{
+		"hiddenBy": bson.M{"$nin": []bson.ObjectID{currentUser.ID}},
+		"$or": []bson.M{
+			{
+				"participants": currentUser.ID,
+				"isGroupChat":  false,
+				"status":       "pending",
+				"initiatorId":  bson.M{"$ne": currentUser.ID},
+			},
+			{
+				"pendingParticipants": currentUser.ID,
+				"isGroupChat":         true,
+			},
+		},
+	}
+
+	opts := options.Find().SetSort(bson.M{"updatedAt": -1})
+	cursor, err := db.ChatCollection.Find(c, filter, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to fetch chat requests"})
+		return
+	}
+	defer cursor.Close(c)
+
+	var chats []bson.M
+	if err = cursor.All(c, &chats); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode chats"})
+		return
+	}
+
+	userIDsMap := make(map[bson.ObjectID]bool)
+	var chatIDs []bson.ObjectID
+
+	for _, chat := range chats {
+		if chatID, ok := chat["_id"].(bson.ObjectID); ok {
+			chatIDs = append(chatIDs, chatID)
+		}
+		if participantIDs, ok := chat["participants"].(bson.A); ok {
+			for _, pid := range participantIDs {
+				if id, valid := pid.(bson.ObjectID); valid {
+					userIDsMap[id] = true
+				}
+			}
+		}
+	}
+
+	var userIDs []bson.ObjectID
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+
+	userCache := make(map[bson.ObjectID]models.User)
+	if len(userIDs) > 0 {
+		cursor, err := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": userIDs}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+		if err == nil {
+			var users []models.User
+			cursor.All(c, &users)
+			for _, u := range users {
+				userCache[u.ID] = u
+			}
+			cursor.Close(c)
+		}
+	}
+
+	result := []gin.H{} 
+	for _, chat := range chats {
+		if participantIDs, ok := chat["participants"].(bson.A); ok {
+			var participants []models.User
+			for _, pid := range participantIDs {
+				if id, valid := pid.(bson.ObjectID); valid {
+					if user, found := userCache[id]; found {
+						participants = append(participants, user)
+					}
+				}
+			}
+			chat["participants"] = participants
+		}
+		result = append(result, gin.H(chat))
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func AcceptChatRequest(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+	chatIDStr := c.Param("id")
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID"})
+		return
+	}
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+
+	if chat.IsGroupChat {
+		isPending := false
+		for _, p := range chat.PendingParticipants {
+			if p == currentUser.ID {
+				isPending = true
+				break
+			}
+		}
+		if !isPending {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "You do not have a pending invitation to this group chat"})
+			return
+		}
+
+		newPending := []bson.ObjectID{}
+		for _, p := range chat.PendingParticipants {
+			if p != currentUser.ID {
+				newPending = append(newPending, p)
+			}
+		}
+
+		newPendingUsernames := []string{}
+		for _, u := range chat.PendingUsernames {
+			if u != currentUser.Username {
+				newPendingUsernames = append(newPendingUsernames, u)
+			}
+		}
+
+		newParticipants := append(chat.Participants, currentUser.ID)
+		newParticipantUsernames := append(chat.ParticipantUsernames, currentUser.Username)
+
+		_, err = db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
+			"$set": bson.M{
+				"participants":         newParticipants,
+				"participantUsernames": newParticipantUsernames,
+				"pendingParticipants":  newPending,
+				"pendingUsernames":     newPendingUsernames,
+				"updatedAt":            time.Now(),
+			},
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to accept group chat request"})
+			return
+		}
+
+		systemMsg := "@" + currentUser.Username + " joined the chat"
+		newSysMsg := models.Message{
+			ID:              bson.NewObjectID(),
+			ChatID:          chatID,
+			Sender:          currentUser.ID,
+			SenderUsername: currentUser.Username,
+			Text:            systemMsg,
+			IsSystemMessage: true,
+			Status:         "sent",
+			Read:           false,
+			ReadBy:         []models.ReadByEntry{},
+			DeliveredTo:    []bson.ObjectID{},
+			Reactions:      []models.Reaction{},
+			DeletedBy:      []bson.ObjectID{},
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+		db.MessageCollection.InsertOne(c, newSysMsg)
+
+		populatedSysMsg := gin.H{
+			"_id":             newSysMsg.ID.Hex(),
+			"chatId":          chatIDStr,
+			"sender": gin.H{
+				"_id":      currentUser.ID.Hex(),
+				"username": currentUser.Username,
+				"avatar":   currentUser.Avatar,
+				"email":    currentUser.Email,
+			},
+			"text":            newSysMsg.Text,
+			"isSystemMessage": true,
+			"createdAt":       newSysMsg.CreatedAt,
+			"updatedAt":       newSysMsg.UpdatedAt,
+			"status":          "sent",
+			"read":            false,
+		}
+
+		var participants []models.User
+		pCursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": newParticipants}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+		if pCursor != nil {
+			pCursor.All(c, &participants)
+		}
+
+		chatMap := gin.H{
+			"_id":                  chat.ID.Hex(),
+			"name":                 chat.Name,
+			"isGroupChat":          chat.IsGroupChat,
+			"groupAdmin":           nil,
+			"avatar":               chat.Avatar,
+			"participants":         formatParticipants(participants),
+			"participantUsernames": newParticipantUsernames,
+			"createdAt":            chat.CreatedAt,
+			"updatedAt":            time.Now(),
+		}
+		if chat.GroupAdmin != nil {
+			chatMap["groupAdmin"] = chat.GroupAdmin.Hex()
+		}
+
+		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+		utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+
+		for _, pid := range newParticipants {
+			utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+				"chatId":       chatIDStr,
+				"name":         chat.Name,
+				"avatar":       chat.Avatar,
+				"participants": formatParticipants(participants),
+				"lastMessage":  populatedSysMsg,
+			})
+		}
+		utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-accepted", gin.H{"chatId": chatIDStr})
+
+		c.JSON(http.StatusOK, gin.H{"message": "Joined group chat"})
+		return
+	}
+
+	_, err = db.ChatCollection.UpdateOne(c, bson.M{
+		"_id":          chatID,
+		"participants": currentUser.ID,
+		"status":       "pending",
+	}, bson.M{
+		"$set": bson.M{"status": "accepted", "updatedAt": time.Now()},
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to accept chat"})
+		return
+	}
+
+	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-accepted", gin.H{"chatId": chatIDStr})
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chat accepted"})
+}
+
+func RejectChatRequest(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+	chatIDStr := c.Param("id")
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID"})
+		return
+	}
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+
+	if chat.IsGroupChat {
+		isPending := false
+		for _, p := range chat.PendingParticipants {
+			if p == currentUser.ID {
+				isPending = true
+				break
+			}
+		}
+		if !isPending {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "You do not have a pending invitation to this group chat"})
+			return
+		}
+
+		newPending := []bson.ObjectID{}
+		for _, p := range chat.PendingParticipants {
+			if p != currentUser.ID {
+				newPending = append(newPending, p)
+			}
+		}
+
+		newPendingUsernames := []string{}
+		for _, u := range chat.PendingUsernames {
+			if u != currentUser.Username {
+				newPendingUsernames = append(newPendingUsernames, u)
+			}
+		}
+
+		_, err = db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
+			"$set": bson.M{
+				"pendingParticipants": newPending,
+				"pendingUsernames":    newPendingUsernames,
+				"updatedAt":           time.Now(),
+			},
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject group chat request"})
+			return
+		}
+
+		utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-rejected", gin.H{"chatId": chatIDStr})
+
+		c.JSON(http.StatusOK, gin.H{"message": "Group invitation rejected"})
+		return
+	}
+
+	_, err = db.ChatCollection.UpdateOne(c, bson.M{
+		"_id":          chatID,
+		"participants": currentUser.ID,
+		"status":       "pending",
+	}, bson.M{
+		"$set": bson.M{"status": "rejected", "updatedAt": time.Now()},
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to reject chat"})
+		return
+	}
+
+	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-rejected", gin.H{"chatId": chatIDStr})
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chat rejected"})
+}
+
+func hasConnection(u1 models.User, u2ID bson.ObjectID) bool {
+	for _, id := range u1.Followers {
+		if id == u2ID {
+			return true
+		}
+	}
+	for _, id := range u1.Following {
+		if id == u2ID {
+			return true
+		}
+	}
+	return false
 }

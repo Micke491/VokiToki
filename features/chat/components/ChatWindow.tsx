@@ -4,6 +4,7 @@ import React, { useMemo, useCallback } from "react";
 import { getWallpaperStyle } from "@/lib/wallpaperPresets";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 import { Message, ChatWindowProps } from "@/features/chat/types/chat";
 import ChatHeader from "@/features/chat/components/ChatHeader";
 import MessageItem from "@/features/chat/components/MessageItem";
@@ -42,6 +43,7 @@ export default function ChatWindow({
   onStoryClick,
   onChatUpdated,
   onViewStory,
+  selectedChat,
 }: ChatWindowProps) {
   const router = useRouter();
   const { currentUser } = useChatSession();
@@ -596,20 +598,53 @@ export default function ChatWindow({
           </div>
 
           {/* READ-ONLY BANNER OR MESSAGE INPUT */}
-          {isBlockedChat ? (
-            <div className="p-4 bg-transparent border-t border-white/[0.06] shrink-0 flex items-center justify-center relative z-[1]">
-              <span className="px-4 py-2.5 bg-chat-bg-secondary/80 backdrop-blur-sm rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
-                You can&apos;t send messages to this conversation. A block exists between you and this user.
-              </span>
-            </div>
-          ) : isRecipientDeleted ? (
-            <div className="p-4 bg-transparent border-t border-white/[0.06] shrink-0 flex items-center justify-center relative z-[1]">
-              <span className="px-4 py-2.5 bg-chat-bg-secondary/80 backdrop-blur-sm rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
-                This account has been deleted. You can no longer send messages or call.
-              </span>
-            </div>
-          ) : (
-            <MessageInput
+          {(() => {
+            const isPending = selectedChat?.status === 'pending';
+            const isInitiator = selectedChat?.initiatorId === currentUserId;
+            const mustAccept = isPending && !isInitiator && !isGroup;
+
+            if (mustAccept) {
+              return (
+                <div className="p-6 bg-chat-bg-secondary border-t border-chat-border shrink-0 flex flex-col items-center justify-center gap-3 relative z-[1]">
+                  <p className="text-sm text-chat-text-primary text-center">
+                    {recipientUsername} wants to chat with you. Accept to reply.
+                  </p>
+                  <div className="flex gap-4 w-full max-w-sm">
+                    <button onClick={async () => {
+                        await apiFetch(`/api/chats/${chatId}/reject`, { method: 'POST' });
+                        router.push('/chat');
+                      }} className="flex-1 py-2.5 rounded-xl font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all">Decline</button>
+                    <button onClick={async () => {
+                        await apiFetch(`/api/chats/${chatId}/accept`, { method: 'POST' });
+                        onChatUpdated?.({ ...selectedChat, status: 'accepted' });
+                      }} className="flex-1 py-2.5 rounded-xl font-bold bg-chat-accent text-white hover:bg-chat-accent-hover transition-all">Accept</button>
+                  </div>
+                </div>
+              );
+            }
+
+            if (isBlockedChat) {
+              return (
+                <div className="p-4 bg-transparent border-t border-white/[0.06] shrink-0 flex items-center justify-center relative z-[1]">
+                  <span className="px-4 py-2.5 bg-chat-bg-secondary/80 backdrop-blur-sm rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
+                    You can&apos;t send messages to this conversation. A block exists between you and this user.
+                  </span>
+                </div>
+              );
+            }
+
+            if (isRecipientDeleted) {
+              return (
+                <div className="p-4 bg-transparent border-t border-white/[0.06] shrink-0 flex items-center justify-center relative z-[1]">
+                  <span className="px-4 py-2.5 bg-chat-bg-secondary/80 backdrop-blur-sm rounded-xl text-sm text-chat-text-secondary font-medium border border-chat-border shadow-sm text-center">
+                    This account has been deleted. You can no longer send messages or call.
+                  </span>
+                </div>
+              );
+            }
+
+            return (
+              <MessageInput
               newMessage={newMessage}
               setNewMessage={setNewMessage}
               replyingTo={replyingTo}
@@ -654,7 +689,7 @@ export default function ChatWindow({
                 }
               }}
             />
-          )}
+          )})()}
         </div>
 
         {showSidebar && (

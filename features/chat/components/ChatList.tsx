@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import StoryRing from "@/features/story/components/StoryRing";
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ReportModal from '@/components/ui/ReportModal';
-import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff, Pin } from 'lucide-react';
+import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff, Pin, UserCheck, UserPlus, UserMinus } from 'lucide-react';
 import { useChatList, ChatListItem } from '../hooks/useChatList';
 import { AnimatePresence } from 'framer-motion';
+import { useChatSession } from '@/hooks/useChatSession';
 import { apiFetch } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -33,6 +34,8 @@ export default function ChatList({
   const [muteSelectChat, setMuteSelectChat] = useState<{ chatId: string; username: string } | null>(null);
   const [mutedChatIds, setMutedChatIds] = React.useState<string[]>([]);
   const [pinnedChatIds, setPinnedChatIds] = React.useState<string[]>([]);
+  const { currentUser } = useChatSession();
+  const [showFollowRequestsModal, setShowFollowRequestsModal] = useState(false);
 
   React.useEffect(() => {
     const fetchMuted = async () => {
@@ -141,6 +144,16 @@ export default function ChatList({
     getOtherParticipant,
     fetchChats,
     drafts,
+    requests,
+    activeTab,
+    setActiveTab,
+    handleAcceptRequest,
+    handleRejectRequest,
+    followRequests,
+    handleAcceptFollow,
+    handleRejectFollow,
+    handleFollowUser,
+    handleUnfollowUser,
   } = useChatList(currentUserId, selectedChatId);
 
   const sortedChats = React.useMemo(() => {
@@ -163,9 +176,9 @@ export default function ChatList({
     if (msg.storyId || msg.storyMediaUrl) {
       const amISender = msg.sender?._id === currentUserId || msg.sender === currentUserId;
       if (amISender) {
-        return `You replied to ${chatName}'s story`;
+        return `You replied to ${chatName}'s highlight`;
       } else {
-        return `${msg.sender?.username || chatName} replied to your story`;
+        return `${msg.sender?.username || chatName} replied to your highlight`;
       }
     }
 
@@ -222,6 +235,8 @@ export default function ChatList({
   }
 
 
+  const displayChats = activeTab === 'chats' ? sortedChats : requests;
+
   return (
     <div className="flex flex-col h-full bg-transparent transition-colors duration-300">
       {/* Header */}
@@ -229,6 +244,18 @@ export default function ChatList({
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-chat-text-primary tracking-tight">Messages</h2>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowFollowRequestsModal(true)}
+              className="relative p-2 text-chat-accent hover:bg-chat-accent/10 rounded-full transition-all"
+              title="Connection Requests"
+            >
+              <UserCheck className="w-6 h-6" />
+              {followRequests && followRequests.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-md">
+                  {followRequests.length}
+                </span>
+              )}
+            </button>
             <button
               onClick={onNewChat}
               className="p-2 text-chat-accent hover:bg-chat-accent/10 rounded-full transition-all"
@@ -256,27 +283,35 @@ export default function ChatList({
             </button>
           )}
         </div>
+        <div className="flex gap-4 pt-2">
+          <button onClick={() => setActiveTab('chats')} className={`pb-2 text-sm transition-all ${activeTab === 'chats' ? 'border-b-2 border-chat-accent font-bold text-chat-text-primary' : 'text-chat-text-secondary hover:text-chat-text-primary'}`}>Chats</button>
+          <button onClick={() => setActiveTab('requests')} className={`pb-2 text-sm transition-all flex items-center gap-1.5 ${activeTab === 'requests' ? 'border-b-2 border-chat-accent font-bold text-chat-text-primary' : 'text-chat-text-secondary hover:text-chat-text-primary'}`}>
+            Requests {requests.length > 0 && <span className="bg-chat-accent text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">{requests.length}</span>}
+          </button>
+        </div>
       </div>
 
       {/* List Items */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-safe">
-        {sortedChats.length === 0 && searchQuery ? (
+        {displayChats.length === 0 && searchQuery ? (
           <div className="p-5 text-center text-chat-text-tertiary">No chats found</div>
-        ) : sortedChats.length === 0 ? (
+        ) : displayChats.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-5 py-16 text-center text-chat-text-tertiary">
             <svg className="w-16 h-16 mb-5 opacity-40 text-chat-text-tertiary" viewBox="0 0 64 64" fill="none">
               <path d="M32 8C18.745 8 8 17.969 8 30c0 4.5 1.5 8.7 4 12.2V56l12.8-6.4c2.4.6 4.8 1 7.2 1 13.255 0 24-9.969 24-22S45.255 8 32 8z" stroke="currentColor" strokeWidth="2"/>
             </svg>
-            <p className="mb-5 text-base">No conversations yet</p>
-            <button
-              className="px-6 py-2.5 font-medium text-white bg-chat-accent rounded-lg hover:bg-chat-accent-hover transition-colors"
-              onClick={onNewChat}
-            >
-              Start a chat
-            </button>
+            <p className="mb-5 text-base">No {activeTab} yet</p>
+            {activeTab === 'chats' && (
+              <button
+                className="px-6 py-2.5 font-medium text-white bg-chat-accent rounded-lg hover:bg-chat-accent-hover transition-colors"
+                onClick={onNewChat}
+              >
+                Start a chat
+              </button>
+            )}
           </div>
         ) : (
-          sortedChats.map(chat => {
+          displayChats.map(chat => {
             const otherUser = getOtherParticipant(chat);
             const isSelected = selectedChatId === chat._id;
             const isUnread = (chat.unreadCount || 0) > 0;
@@ -312,9 +347,10 @@ export default function ChatList({
                       const su = storiesUsers.find(u => u.user._id === otherUser._id);
                       const hasStories = (su?.stories.length || 0) > 0;
                       const hasUnviewed = hasStories && su.stories.some((s: any) => !(s.viewedBy || []).some((v: any) => v.userId === currentUserId));
+                      const isFollowing = currentUser?.following?.includes(otherUser._id) ?? false;
 
                       return (
-                        <div className="relative">
+                        <div className="relative flex flex-col items-center">
                            <StoryRing
                              size="sm"
                              avatarUrl={otherUser.avatar}
@@ -329,6 +365,11 @@ export default function ChatList({
                                }
                              }}
                            />
+                           {!isFollowing && (
+                             <span className="text-[9px] font-bold text-red-500 mt-1 bg-red-500/10 px-1 py-0.5 rounded leading-none whitespace-nowrap">
+                               Not Connected
+                             </span>
+                           )}
                         </div>
                       );
                     })()
@@ -386,6 +427,12 @@ export default function ChatList({
                       </>
                     )}
                   </div>
+                  {activeTab === 'requests' && (
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); handleAcceptRequest(chat._id); }} className="text-xs bg-chat-accent text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-chat-accent-hover transition-colors">Accept</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleRejectRequest(chat._id); }} className="text-xs bg-chat-bg-secondary text-chat-text-primary border border-chat-border px-3 py-1.5 rounded-lg font-semibold hover:bg-chat-hover transition-colors">Decline</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Dropdown Menu */}
@@ -486,6 +533,43 @@ export default function ChatList({
                           View Profile
                         </button>
                         <div className="h-px bg-chat-border mx-2" />
+                        {!isDeleted && (
+                          currentUser?.following?.includes(otherUser._id) ? (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleUnfollowUser(otherUser._id);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                               Disconnect
+                            </button>
+                          ) : currentUser?.sentFollowRequests?.includes(otherUser._id) ? (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleUnfollowUser(otherUser._id);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-secondary hover:bg-chat-hover transition-colors"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                               Cancel Request
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleFollowUser(otherUser._id);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-accent hover:bg-chat-accent/10 transition-colors"
+                            >
+                              <UserPlus className="w-4 h-4" />
+                               Send Connection Request
+                            </button>
+                          )
+                        )}
+                        <div className="h-px bg-chat-border mx-2" />
                         <button
                           onClick={() => handleRemoveChat(chat._id)}
                           className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
@@ -583,8 +667,8 @@ export default function ChatList({
                       }
                       try {
                         const response = await apiFetch('/api/chats/mute', {
-                          method: 'POST',
-                          body: JSON.stringify({ chatId: muteSelectChat.chatId, durationHours: option.value }),
+                           method: 'POST',
+                           body: JSON.stringify({ chatId: muteSelectChat.chatId, durationHours: option.value }),
                         });
                         if (response.ok) {
                           toast.success(`Muted ${muteSelectChat.username}`);
@@ -609,6 +693,69 @@ export default function ChatList({
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Follow Requests Modal */}
+      <AnimatePresence>
+        {showFollowRequestsModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFollowRequestsModal(false)} />
+            <div className="relative w-full max-w-md bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                <h3 className="text-xl font-bold text-chat-text-primary">Connection Requests</h3>
+                <button
+                  onClick={() => setShowFollowRequestsModal(false)}
+                  className="p-1.5 hover:bg-chat-hover text-chat-text-tertiary hover:text-chat-text-primary rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                {!followRequests || followRequests.length === 0 ? (
+                  <div className="text-center py-8 text-chat-text-tertiary">
+                    No pending connection requests
+                  </div>
+                ) : (
+                  followRequests.map((reqUser: any) => (
+                    <div
+                      key={reqUser._id}
+                      className="flex items-center justify-between bg-chat-bg-secondary p-3.5 rounded-xl border border-chat-border hover:border-chat-border/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-chat-accent flex items-center justify-center text-white font-bold overflow-hidden shrink-0">
+                          {reqUser.avatar ? (
+                            <img src={reqUser.avatar} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            (reqUser.username || "U").charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-chat-text-primary truncate">{reqUser.name || reqUser.username}</span>
+                          <span className="text-xs text-chat-text-tertiary truncate">@{reqUser.username}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleRejectFollow(reqUser._id)}
+                          className="px-3 py-1.5 bg-chat-bg-primary hover:bg-chat-hover border border-chat-border text-chat-text-secondary rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Decline
+                        </button>
+                        <button
+                          onClick={() => handleAcceptFollow(reqUser._id)}
+                          className="px-3 py-1.5 bg-chat-accent hover:bg-chat-accent-hover text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}

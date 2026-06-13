@@ -147,7 +147,7 @@ export default function StoryBar({
           </button>
         </div>
         <span className="text-[10px] md:text-xs font-medium text-chat-text-secondary">
-          {uploading ? 'Uploading...' : 'My Story'}
+          {uploading ? 'Uploading...' : 'My Highlights'}
         </span>
         <input
           ref={fileInputRef}

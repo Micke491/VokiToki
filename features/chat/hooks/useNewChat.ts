@@ -124,7 +124,7 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim().length < 1) {
+    if (searchQuery.trim().length < 1 || isGroup) {
       setAllSearchedUsers([]);
       setPage(1);
       setHasMore(false);
@@ -145,7 +145,7 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, searchUsers]);
+  }, [searchQuery, searchUsers, isGroup]);
 
   const startChat = useCallback(async (recipientId: string) => {
     if (!navigator.onLine) {
@@ -254,6 +254,23 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
   const listItems = useMemo<ListItem[]>(() => {
     const items: ListItem[] = [];
     
+    if (isGroup) {
+      const contactsToUse = searchQuery.trim().length >= 1 
+        ? suggestedContacts.filter(u => 
+            u.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase()))
+          )
+        : suggestedContacts;
+
+      if (contactsToUse.length > 0) {
+        items.push({ type: 'header', id: 'h-suggested', label: 'Suggested Contacts' });
+        contactsToUse.forEach(u => {
+          items.push({ type: 'user', id: `s-${u._id}`, user: u });
+        });
+      }
+      return items;
+    }
+
     if (searchQuery.trim().length >= 1) {
       allSearchedUsers.forEach(u => {
         items.push({ type: 'user', id: u._id, user: u });
@@ -275,7 +292,7 @@ export function useNewChat({ isOpen, onClose }: UseNewChatProps) {
     }
     
     return items;
-  }, [searchQuery, allSearchedUsers, suggestedContacts, recommendedUsers]);
+  }, [searchQuery, allSearchedUsers, suggestedContacts, recommendedUsers, isGroup]);
 
   const virtualScrollData = useMemo(() => ({
     items: listItems,

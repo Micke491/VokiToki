@@ -17,14 +17,18 @@ interface AddParticipantModalProps {
   onClose: () => void;
   chatId: string;
   existingParticipantIds: string[];
+  currentUserId?: string;
 }
 
-export default function AddParticipantModal({ isOpen, onClose, chatId, existingParticipantIds }: AddParticipantModalProps) {
+export default function AddParticipantModal({ isOpen, onClose, chatId, existingParticipantIds, currentUserId }: AddParticipantModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [activeTab, setActiveTab] = useState<'chats' | 'global'>('chats');
+  const [chatListUsers, setChatListUsers] = useState<User[]>([]);
+  const [loadingChats, setLoadingChats] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -32,10 +36,47 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
       setSearchQuery('');
       setUsers([]);
       setSelectedUsers([]);
+      setActiveTab('chats');
     }
   }, [isOpen]);
 
   useEffect(() => {
+    if (isOpen && currentUserId && activeTab === 'chats') {
+      const fetchChatListUsers = async () => {
+        try {
+          setLoadingChats(true);
+          const response = await apiFetch('/api/chats');
+          if (response.ok) {
+            const chatsData = await response.json();
+            const usersMap = new Map<string, User>();
+            chatsData.forEach((chat: any) => {
+              if (!chat.isGroupChat && chat.participants) {
+                chat.participants.forEach((p: any) => {
+                  if (p._id !== currentUserId) {
+                    usersMap.set(p._id, {
+                      _id: p._id,
+                      username: p.username,
+                      name: p.name,
+                      avatar: p.avatar
+                    });
+                  }
+                });
+              }
+            });
+            setChatListUsers(Array.from(usersMap.values()));
+          }
+        } catch (error) {
+          console.error("Failed to fetch chat list users:", error);
+        } finally {
+          setLoadingChats(false);
+        }
+      };
+      fetchChatListUsers();
+    }
+  }, [isOpen, currentUserId, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'global') return;
     if (searchQuery.trim().length < 2) {
       setUsers([]);
       return;
@@ -54,7 +95,25 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery]);
+  }, [searchQuery, activeTab]);
+
+  const filteredChatListUsers = chatListUsers.filter(u => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      u.username.toLowerCase().includes(query) ||
+      (u.name && u.name.toLowerCase().includes(query))
+    );
+  }).filter(u => 
+    !existingParticipantIds.includes(u._id) && 
+    !selectedUsers.some(selected => selected._id === u._id)
+  );
+
+  const handleTabChange = (tab: 'chats' | 'global') => {
+    setActiveTab(tab);
+    setSearchQuery('');
+    setUsers([]);
+  };
 
   const searchUsers = async (query: string) => {
     try {
@@ -147,6 +206,30 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-chat-border px-5">
+          <button
+            onClick={() => handleTabChange('chats')}
+            className={`py-2.5 text-sm font-semibold border-b-2 mr-6 transition-all ${
+              activeTab === 'chats'
+                ? 'border-chat-accent text-chat-accent'
+                : 'border-transparent text-chat-text-secondary hover:text-chat-text-primary'
+            }`}
+          >
+            From Chats
+          </button>
+          <button
+            onClick={() => handleTabChange('global')}
+            className={`py-2.5 text-sm font-semibold border-b-2 transition-all ${
+              activeTab === 'global'
+                ? 'border-chat-accent text-chat-accent'
+                : 'border-transparent text-chat-text-secondary hover:text-chat-text-primary'
+            }`}
+          >
+            Global Search
+          </button>
+        </div>
+
         {/* Selected Users (Chips) */}
         {selectedUsers.length > 0 && (
             <div className="px-5 pt-4 pb-2 flex flex-wrap gap-2 max-h-[100px] overflow-y-auto border-b border-chat-border">
@@ -168,7 +251,7 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
           </svg>
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder={activeTab === 'chats' ? "Search contacts..." : "Search users..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
@@ -178,46 +261,86 @@ export default function AddParticipantModal({ isOpen, onClose, chatId, existingP
 
         {/* Users List */}
         <div className="flex-1 overflow-y-auto min-h-[150px]">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-chat-text-secondary gap-3">
-              <div className="w-6 h-6 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
-              <p className="text-sm">Searching...</p>
-            </div>
-          ) : users.length === 0 && searchQuery.trim().length >= 2 ? (
-            <div className="flex items-center justify-center py-10 text-chat-text-secondary">
-              <p className="text-sm italic">No users found to add</p>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="flex items-center justify-center py-10 text-chat-text-tertiary">
-              <p className="text-sm">Type to search for users</p>
-            </div>
-          ) : (
-            <div className="border-t border-chat-border">
-              {users.map(user => (
-                <div 
-                  key={user._id} 
-                  className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors hover:bg-chat-hover ${(adding) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  onClick={() => !adding && toggleUserSelection(user)}
-                >
-                  {/* Avatar */}
-                  <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center font-semibold text-white text-lg shadow-sm">
-                    {user.username.charAt(0).toUpperCase()}
-                  </div>
-                  
-                  {/* User Details */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-medium truncate text-chat-text-primary">
-                      {user.username}
-                    </p>
-                    {user.name && (
-                      <p className="text-xs truncate text-chat-text-secondary">
-                        {user.name}
+          {activeTab === 'chats' ? (
+            loadingChats ? (
+              <div className="flex flex-col items-center justify-center py-10 text-chat-text-secondary gap-3">
+                <div className="w-6 h-6 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
+                <p className="text-sm">Loading contacts...</p>
+              </div>
+            ) : filteredChatListUsers.length === 0 ? (
+              <div className="flex items-center justify-center py-10 text-chat-text-secondary">
+                <p className="text-sm italic">No contacts found to add</p>
+              </div>
+            ) : (
+              <div className="border-t border-chat-border">
+                {filteredChatListUsers.map(user => (
+                  <div 
+                    key={user._id} 
+                    className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors hover:bg-chat-hover ${(adding) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    onClick={() => !adding && toggleUserSelection(user)}
+                  >
+                    {/* Avatar */}
+                    <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center font-semibold text-white text-lg shadow-sm">
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                    
+                    {/* User Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-medium truncate text-chat-text-primary">
+                        {user.username}
                       </p>
-                    )}
+                      {user.name && (
+                        <p className="text-xs truncate text-chat-text-secondary">
+                          {user.name}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
+          ) : (
+            loading ? (
+              <div className="flex flex-col items-center justify-center py-10 text-chat-text-secondary gap-3">
+                <div className="w-6 h-6 border-2 border-chat-border border-t-chat-accent rounded-full animate-spin" />
+                <p className="text-sm">Searching...</p>
+              </div>
+            ) : users.length === 0 && searchQuery.trim().length >= 2 ? (
+              <div className="flex items-center justify-center py-10 text-chat-text-secondary">
+                <p className="text-sm italic">No users found to add</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="flex items-center justify-center py-10 text-chat-text-tertiary">
+                <p className="text-sm">Type to search for users</p>
+              </div>
+            ) : (
+              <div className="border-t border-chat-border">
+                {users.map(user => (
+                  <div 
+                    key={user._id} 
+                    className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors hover:bg-chat-hover ${(adding) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    onClick={() => !adding && toggleUserSelection(user)}
+                  >
+                    {/* Avatar */}
+                    <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-chat-accent to-chat-accent-secondary flex items-center justify-center font-semibold text-white text-lg shadow-sm">
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                    
+                    {/* User Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-medium truncate text-chat-text-primary">
+                        {user.username}
+                      </p>
+                      {user.name && (
+                        <p className="text-xs truncate text-chat-text-secondary">
+                          {user.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
         </div>
 

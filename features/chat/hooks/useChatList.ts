@@ -51,11 +51,36 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
   const [reportData, setReportData] = useState<{ userId: string; username: string } | null>(null);
   const [blocking, setBlocking] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<'chats' | 'requests'>('chats');
+  const [requests, setRequests] = useState<ChatListItem[]>([]);
+  const [followRequests, setFollowRequests] = useState<any[]>([]);
 
   const selectedChatIdRef = useRef(selectedChatId);
   useEffect(() => {
     selectedChatIdRef.current = selectedChatId;
   }, [selectedChatId]);
+
+  const fetchRequests = useCallback(async () => {
+    try {
+      const response = await apiFetch('/api/chats/requests', { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(data);
+      }
+    } catch (err) {}
+  }, []);
+
+  const fetchFollowRequests = useCallback(async () => {
+    try {
+      const response = await apiFetch('/api/users/requests', { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setFollowRequests(data.requests || []);
+      }
+    } catch (err) {
+      console.error('Error fetching follow requests:', err);
+    }
+  }, []);
 
   const fetchChats = useCallback(async () => {
     try {
@@ -83,7 +108,73 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
 
   useEffect(() => {
     fetchChats();
-  }, [fetchChats]);
+    fetchRequests();
+    fetchFollowRequests();
+  }, [fetchChats, fetchRequests, fetchFollowRequests]);
+
+  const handleAcceptRequest = async (chatId: string) => {
+    await apiFetch(`/api/chats/${chatId}/accept`, { method: 'POST' });
+    fetchChats();
+    fetchRequests();
+    if (selectedChatId === chatId) {
+        window.dispatchEvent(new CustomEvent('chat-status-updated', { detail: { chatId, status: 'accepted' } }));
+    }
+  };
+
+  const handleRejectRequest = async (chatId: string) => {
+    await apiFetch(`/api/chats/${chatId}/reject`, { method: 'POST' });
+    fetchRequests();
+    if (selectedChatId === chatId) {
+        router.push('/chat');
+    }
+  };
+
+  const handleAcceptFollow = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/users/requests/${id}/accept`, { method: 'POST' });
+      if (res.ok) {
+        setFollowRequests(prev => prev.filter(r => r._id !== id));
+        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+        fetchChats();
+      }
+    } catch (err) {
+      console.error('Error accepting follow request:', err);
+    }
+  };
+
+  const handleRejectFollow = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/users/requests/${id}/reject`, { method: 'POST' });
+      if (res.ok) {
+        setFollowRequests(prev => prev.filter(r => r._id !== id));
+        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+      }
+    } catch (err) {
+      console.error('Error rejecting follow request:', err);
+    }
+  };
+
+  const handleFollowUser = async (userId: string) => {
+    try {
+      const res = await apiFetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+      }
+    } catch (err) {
+      console.error('Error following user:', err);
+    }
+  };
+
+  const handleUnfollowUser = async (userId: string) => {
+    try {
+      const res = await apiFetch(`/api/users/${userId}/unfollow`, { method: 'POST' });
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('user-follow-updated'));
+      }
+    } catch (err) {
+      console.error('Error unfollowing user:', err);
+    }
+  };
 
   useEffect(() => {
     if (chats.length === 0) return;
@@ -229,16 +320,31 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
       }));
     };
 
+    const onFollowRequestReceived = () => {
+      fetchFollowRequests();
+      window.dispatchEvent(new CustomEvent('user-follow-updated'));
+    };
+
+    const onFollowUpdated = () => {
+      fetchChats();
+      fetchFollowRequests();
+      window.dispatchEvent(new CustomEvent('user-follow-updated'));
+    };
+
     channel.bind('chat-update', onChatUpdate);
     channel.bind('chat-removed', onChatRemoved);
     channel.bind('chat-new', onChatNew);
     channel.bind('profile-updated', onProfileUpdate);
+    channel.bind('follow-request-received', onFollowRequestReceived);
+    channel.bind('follow-updated', onFollowUpdated);
 
     return () => {
       channel.unbind('chat-update', onChatUpdate);
       channel.unbind('chat-removed', onChatRemoved);
       channel.unbind('chat-new', onChatNew);
       channel.unbind('profile-updated', onProfileUpdate);
+      channel.unbind('follow-request-received', onFollowRequestReceived);
+      channel.unbind('follow-updated', onFollowUpdated);
     };
   }, [currentUserId, fetchChats, router]);
 
@@ -376,5 +482,15 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
     handleChatClick,
     getOtherParticipant,
     drafts,
+    requests,
+    activeTab,
+    setActiveTab,
+    handleAcceptRequest,
+    handleRejectRequest,
+    followRequests,
+    handleAcceptFollow,
+    handleRejectFollow,
+    handleFollowUser,
+    handleUnfollowUser,
   };
 }
