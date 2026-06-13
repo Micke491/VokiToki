@@ -106,13 +106,35 @@ func SendPushNotification(ctx context.Context, userIDs []bson.ObjectID, chatID b
 		return
 	}
 
+	var androidConfig *messaging.AndroidConfig
+	var apnsConfig *messaging.APNSConfig
+
+	if data != nil && data["type"] == "call" {
+		androidConfig = &messaging.AndroidConfig{
+			Priority: "high",
+		}
+		apnsConfig = &messaging.APNSConfig{
+			Headers: map[string]string{
+				"apns-priority": "10",
+				"apns-topic":    "your.app.bundle.id.voip",
+			},
+			Payload: &messaging.APNSPayload{
+				Aps: &messaging.Aps{
+					ContentAvailable: true,
+				},
+			},
+		}
+	}
+
 	message := &messaging.MulticastMessage{
 		Tokens: tokens,
 		Notification: &messaging.Notification{
 			Title: title,
 			Body:  body,
 		},
-		Data: data,
+		Data:    data,
+		Android: androidConfig,
+		APNS:    apnsConfig,
 	}
 
 	go func() {

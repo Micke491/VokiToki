@@ -46,9 +46,13 @@ func SendMessage(c *gin.Context) {
 		return
 	}
 
-	chatID, _ := bson.ObjectIDFromHex(body.ChatID)
+	chatID, err := bson.ObjectIDFromHex(body.ChatID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -98,7 +102,11 @@ func SendMessage(c *gin.Context) {
 
 	var replyToID *bson.ObjectID
 	if body.ReplyTo != nil {
-		id, _ := bson.ObjectIDFromHex(*body.ReplyTo)
+		id, err := bson.ObjectIDFromHex(*body.ReplyTo)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid replyTo ID format"})
+			return
+		}
 		replyToID = &id
 	}
 
@@ -257,11 +265,15 @@ func GetMessages(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "30")
 	beforeStr := c.Query("before")
 
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 	limit, _ := strconv.Atoi(limitStr)
 
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -520,7 +532,11 @@ func UpdateMessageStatus(c *gin.Context) {
 
 	var objIDs []bson.ObjectID
 	for _, id := range body.MessageIDs {
-		oid, _ := bson.ObjectIDFromHex(id)
+		oid, err := bson.ObjectIDFromHex(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
+			return
+		}
 		objIDs = append(objIDs, oid)
 	}
 
@@ -573,7 +589,25 @@ func ManageReaction(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	messageIDStr := c.Param("messageId")
-	messageID, _ := bson.ObjectIDFromHex(messageIDStr)
+	messageID, err := bson.ObjectIDFromHex(messageIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
+		return
+	}
+
+	var msg models.Message
+	err = db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": msg.ChatID, "participants": currentUser.ID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: you are not in this conversation"})
+		return
+	}
 
 	if c.Request.Method == "POST" {
 		var body struct {
@@ -628,7 +662,11 @@ func EditMessage(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	messageIDStr := c.Param("messageId")
-	messageID, _ := bson.ObjectIDFromHex(messageIDStr)
+	messageID, err := bson.ObjectIDFromHex(messageIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
+		return
+	}
 
 	var body struct {
 		Text string `json:"text"`
@@ -636,9 +674,16 @@ func EditMessage(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 
 	var msg models.Message
-	err := db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	err = db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": msg.ChatID, "participants": currentUser.ID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: you are not in this conversation"})
 		return
 	}
 
@@ -698,14 +743,25 @@ func DeleteMessage(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	messageIDStr := c.Param("messageId")
-	messageID, _ := bson.ObjectIDFromHex(messageIDStr)
+	messageID, err := bson.ObjectIDFromHex(messageIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
+		return
+	}
 
 	forEveryone := c.Query("forEveryone") == "true"
 
 	var msg models.Message
-	err := db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	err = db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": msg.ChatID, "participants": currentUser.ID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: you are not in this conversation"})
 		return
 	}
 
@@ -737,7 +793,21 @@ func DeleteMessage(c *gin.Context) {
 
 func GetPinnedMessages(c *gin.Context) {
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
+
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID, "participants": currentUser.ID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: you are not in this conversation"})
+		return
+	}
 
 	var messages []models.Message
 	cursor, _ := db.MessageCollection.Find(c, bson.M{"chatId": chatID, "isPinned": true}, options.Find().SetSort(bson.M{"createdAt": -1}).SetLimit(1))
@@ -770,19 +840,47 @@ func GetPinnedMessages(c *gin.Context) {
 
 func PinMessage(c *gin.Context) {
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
+
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID, "participants": currentUser.ID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: you are not in this conversation"})
+		return
+	}
 
 	var body struct {
 		MessageID string `json:"messageId"`
 	}
 	c.ShouldBindJSON(&body)
-	msgID, _ := bson.ObjectIDFromHex(body.MessageID)
+	msgID, err := bson.ObjectIDFromHex(body.MessageID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
+		return
+	}
+
+	var msg models.Message
+	err = db.MessageCollection.FindOne(c, bson.M{"_id": msgID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+	if msg.ChatID != chatID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message does not belong to this chat"})
+		return
+	}
 
 	db.MessageCollection.UpdateMany(c, bson.M{"chatId": chatID, "isPinned": true}, bson.M{"$set": bson.M{"isPinned": false}})
 
 	db.MessageCollection.UpdateOne(c, bson.M{"_id": msgID}, bson.M{"$set": bson.M{"isPinned": true}})
 
-	var msg models.Message
 	db.MessageCollection.FindOne(c, bson.M{"_id": msgID}).Decode(&msg)
 
 	var sender models.User
@@ -811,8 +909,39 @@ func PinMessage(c *gin.Context) {
 
 func UnpinMessage(c *gin.Context) {
 	chatIDStr := c.Param("chatId")
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
+
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
+	var chat models.Chat
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID, "participants": currentUser.ID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: you are not in this conversation"})
+		return
+	}
+
 	msgIDStr := c.Query("messageId")
-	msgID, _ := bson.ObjectIDFromHex(msgIDStr)
+	msgID, err := bson.ObjectIDFromHex(msgIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
+		return
+	}
+
+	var msg models.Message
+	err = db.MessageCollection.FindOne(c, bson.M{"_id": msgID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+	if msg.ChatID != chatID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message does not belong to this chat"})
+		return
+	}
 
 	db.MessageCollection.UpdateOne(c, bson.M{"_id": msgID}, bson.M{"$set": bson.M{"isPinned": false}})
 	utils.TriggerPusher("chat-"+chatIDStr, "message-unpinned", gin.H{"messageId": msgIDStr, "chatId": chatIDStr})

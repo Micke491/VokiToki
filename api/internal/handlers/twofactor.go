@@ -201,8 +201,10 @@ func VerifyLogin2FA(c *gin.Context) {
 		db.RedisClient.Set(ctxBg, tokenCacheKey, sessJSON, 7*24*time.Hour)
 	}
 
+	var trustedToken string
 	if req.RememberDevice {
-		trustedToken, err := services.GenerateTrustedDeviceToken(user.ID.Hex())
+		var err error
+		trustedToken, err = services.GenerateTrustedDeviceToken(user.ID.Hex())
 		if err == nil {
 			c.SetSameSite(http.SameSiteNoneMode)
 			c.SetCookie("trusted_device", trustedToken, 7*24*3600, "/", "", true, true)
@@ -210,8 +212,9 @@ func VerifyLogin2FA(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"token":   token,
-		"user":    user,
+		"message":              "Login successful",
+		"token":                token,
+		"user":                 user,
+		"trusted_device_token": trustedToken,
 	})
 }

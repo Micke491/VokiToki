@@ -132,6 +132,9 @@ func main() {
 
 		api.GET("/chat/media/list", handlers.ListMedia)
 		api.POST("/chat/media/upload", handlers.UploadMedia)
+		api.GET("/chat/media/signature", handlers.GetUploadSignature)
+
+		api.GET("/sync", handlers.SyncData)
 
 		api.PUT("/chat/draft", handlers.UpsertDraft)
 		api.GET("/chat/draft", handlers.GetDraft)

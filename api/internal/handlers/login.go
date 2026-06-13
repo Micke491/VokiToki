@@ -56,8 +56,14 @@ func Login(c *gin.Context) {
 	}
 
 	if user.TwoFactorEnabled {
-		trustedCookie, err := c.Cookie("trusted_device")
-		if err == nil && services.ValidateTrustedDeviceToken(trustedCookie, user.ID.Hex()) {
+		trustedToken := c.GetHeader("X-Trusted-Device-Token")
+		if trustedToken == "" {
+			if cookie, err := c.Cookie("trusted_device"); err == nil {
+				trustedToken = cookie
+			}
+		}
+
+		if trustedToken != "" && services.ValidateTrustedDeviceToken(trustedToken, user.ID.Hex()) {
 		} else {
 			timeoutKey := "2fa_login_timeout:" + user.ID.Hex()
 			if _, err := services.Get2FACode(ctx, timeoutKey); err == nil {

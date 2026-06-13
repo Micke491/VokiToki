@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"net/url"
+	"strconv"
+	"time"
 
 	"chat-app/internal/db"
 	"chat-app/internal/models"
@@ -11,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2/api"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 )
 
@@ -115,5 +119,25 @@ func UploadMedia(c *gin.Context) {
 		"url":       resp.SecureURL,
 		"mediaType": mediaType,
 		"publicId":  resp.PublicID,
+	})
+}
+
+func GetUploadSignature(c *gin.Context) {
+	timestamp := time.Now().Unix()
+	params := url.Values{}
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
+	params.Set("folder", "chat_media")
+
+	signature, err := api.SignParameters(params, config.AppConfig.CloudinaryAPISecret)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate signature"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"signature":  signature,
+		"timestamp":  timestamp,
+		"api_key":    config.AppConfig.CloudinaryAPIKey,
+		"cloud_name": config.AppConfig.CloudinaryCloudName,
 	})
 }

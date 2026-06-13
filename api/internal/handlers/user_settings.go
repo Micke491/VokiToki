@@ -41,6 +41,12 @@ func MuteChat(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	count, _ := db.ChatCollection.CountDocuments(ctx, bson.M{"_id": chatOID, "participants": authUser.ID})
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found or access denied"})
+		return
+	}
+
 	_, _ = db.UserCollection.UpdateOne(ctx,
 		bson.M{"_id": authUser.ID},
 		bson.M{"$pull": bson.M{"mutedChats": bson.M{"chatId": chatOID}}},
@@ -201,6 +207,12 @@ func PinChat(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	count, _ := db.ChatCollection.CountDocuments(ctx, bson.M{"_id": chatOID, "participants": authUser.ID})
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found or access denied"})
+		return
+	}
 
 	_, _ = db.UserCollection.UpdateOne(ctx,
 		bson.M{"_id": authUser.ID},

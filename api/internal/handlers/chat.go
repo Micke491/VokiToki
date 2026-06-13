@@ -346,10 +346,14 @@ func GetChatById(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -389,7 +393,11 @@ func UpdateGroupChat(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 
 	var body struct {
 		Name       *string `json:"name"`
@@ -399,7 +407,7 @@ func UpdateGroupChat(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -558,16 +566,24 @@ func RemoveParticipant(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 
 	var body struct {
 		UserID string `json:"userId"`
 	}
 	c.ShouldBindJSON(&body)
-	targetID, _ := bson.ObjectIDFromHex(body.UserID)
+	targetID, err := bson.ObjectIDFromHex(body.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target User ID format"})
+		return
+	}
 
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -711,10 +727,23 @@ func LeaveChat(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count, _ := db.ChatCollection.CountDocuments(ctx, bson.M{"_id": chatID, "participants": currentUser.ID})
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found or access denied"})
+		return
+	}
 
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -816,7 +845,11 @@ func AddParticipant(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	chatIDStr := c.Param("chatId")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 
 	var body struct {
 		UserIDs []string `json:"userIds"`
@@ -824,7 +857,7 @@ func AddParticipant(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 
 	var chat models.Chat
-	err := db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
+	err = db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&chat)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
 		return
@@ -838,7 +871,11 @@ func AddParticipant(c *gin.Context) {
 	var newObjIDs []bson.ObjectID
 	var newUsernames []string
 	for _, idStr := range body.UserIDs {
-		id, _ := bson.ObjectIDFromHex(idStr)
+		id, err := bson.ObjectIDFromHex(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+			return
+		}
 		exists := false
 		for _, p := range chat.Participants {
 			if p == id {
@@ -949,9 +986,22 @@ func HideChat(c *gin.Context) {
 	userObj, _ := c.Get("user")
 	currentUser := userObj.(models.User)
 	chatIDStr := c.Param("id")
-	chatID, _ := bson.ObjectIDFromHex(chatIDStr)
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
 
-	_, err := db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count, _ := db.ChatCollection.CountDocuments(ctx, bson.M{"_id": chatID, "participants": currentUser.ID})
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found or access denied"})
+		return
+	}
+
+	_, err = db.ChatCollection.UpdateOne(c, bson.M{"_id": chatID}, bson.M{
 		"$addToSet": bson.M{"hiddenBy": currentUser.ID},
 	})
 	if err != nil {

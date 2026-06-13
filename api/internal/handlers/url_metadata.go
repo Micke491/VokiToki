@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -40,6 +41,19 @@ func GetURLMetadata(c *gin.Context) {
 	if strings.HasPrefix(hostname, "10.") || strings.HasPrefix(hostname, "192.168.") || strings.HasPrefix(hostname, "172.") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Private/internal URLs are not allowed"})
 		return
+	}
+
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not resolve hostname"})
+		return
+	}
+
+	for _, ip := range ips {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsPrivate() {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Private/internal IPs are not allowed"})
+			return
+		}
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}

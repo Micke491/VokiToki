@@ -20,6 +20,9 @@ type Config struct {
 	RedisURL      string
 	RedisToken    string
 	CloudinaryURL string
+	CloudinaryCloudName string
+	CloudinaryAPIKey    string
+	CloudinaryAPISecret string
 	PusherAppID   string
 	PusherKey     string
 	PusherSecret  string
@@ -51,6 +54,9 @@ func LoadConfig() {
 		RedisURL:      getEnv("REDIS_URL", ""),
 		RedisToken:    getEnv("REDIS_TOKEN", ""),
 		CloudinaryURL: getEnv("CLOUDINARY_URL", ""),
+		CloudinaryCloudName: getEnv("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryAPIKey:    getEnv("CLOUDINARY_API_KEY", ""),
+		CloudinaryAPISecret: getEnv("CLOUDINARY_API_SECRET", ""),
 		PusherAppID:   getEnv("PUSHER_APP_ID", ""),
 		PusherKey:     getEnv("PUSHER_KEY", ""),
 		PusherSecret:  getEnv("PUSHER_SECRET", ""),

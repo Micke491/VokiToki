@@ -235,9 +235,17 @@ func InitiateCall(c *gin.Context) {
 }
 
 func AcceptCall(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
 	var req CallActionReq
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if req.UserID != currentUser.ID.Hex() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You cannot perform call actions for another user"})
 		return
 	}
 
@@ -274,10 +282,7 @@ func AcceptCall(c *gin.Context) {
 	isCaller := req.UserID == state.CallerID
 
 	var participantName string
-	userObjID, _ := bson.ObjectIDFromHex(req.UserID)
-	var user models.User
-	db.UserCollection.FindOne(c, bson.M{"_id": userObjID}).Decode(&user)
-	participantName = user.Username
+	participantName = currentUser.Username
 	if participantName == "" {
 		participantName = "User"
 	}
@@ -298,9 +303,17 @@ func AcceptCall(c *gin.Context) {
 }
 
 func RejectCall(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
 	var req CallActionReq
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if req.UserID != currentUser.ID.Hex() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You cannot perform call actions for another user"})
 		return
 	}
 
@@ -349,9 +362,17 @@ func RejectCall(c *gin.Context) {
 }
 
 func EndCall(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
 	var req CallActionReq
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if req.UserID != currentUser.ID.Hex() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You cannot perform call actions for another user"})
 		return
 	}
 
