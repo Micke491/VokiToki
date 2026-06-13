@@ -110,6 +110,7 @@ func main() {
 		api.POST("/users/requests/:id/accept", handlers.AcceptFollowRequest)
 		api.POST("/users/requests/:id/reject", handlers.RejectFollowRequest)
 		api.GET("/users/requests", handlers.GetFollowRequests)
+		api.GET("/users/connections", handlers.GetConnections)
 
 		api.GET("/chats/requests", handlers.GetChatRequests)
 		api.POST("/chats/:id/accept", handlers.AcceptChatRequest)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"chat-app/internal/db"
@@ -176,4 +177,79 @@ func GetFollowRequests(c *gin.Context) {
 	cursor.All(ctx, &requests)
 
 	c.JSON(http.StatusOK, gin.H{"requests": requests})
+}
+
+func GetConnections(c *gin.Context) {
+	authUser := c.MustGet("user").(models.User)
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "20")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 20
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var user models.User
+	err = db.UserCollection.FindOne(ctx, bson.M{"_id": authUser.ID}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+
+	total := len(user.Following)
+	if total == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"connections": []models.User{},
+			"total":       0,
+			"page":        page,
+			"limit":       limit,
+		})
+		return
+	}
+
+	startIndex := (page - 1) * limit
+	if startIndex >= total {
+		c.JSON(http.StatusOK, gin.H{
+			"connections": []models.User{},
+			"total":       total,
+			"page":        page,
+			"limit":       limit,
+		})
+		return
+	}
+
+	endIndex := startIndex + limit
+	if endIndex > total {
+		endIndex = total
+	}
+
+	slicedIDs := user.Following[startIndex:endIndex]
+
+	cursor, err := db.UserCollection.Find(ctx, bson.M{"_id": bson.M{"$in": slicedIDs}}, options.Find().SetProjection(bson.M{"username": 1, "avatar": 1, "name": 1, "bio": 1}))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch connections"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var connections []models.User
+	if err = cursor.All(ctx, &connections); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode connections"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"connections": connections,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+	})
 }

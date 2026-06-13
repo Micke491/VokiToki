@@ -350,7 +350,7 @@ export default function ChatList({
                       const isFollowing = currentUser?.following?.includes(otherUser._id) ?? false;
 
                       return (
-                        <div className="relative flex flex-col items-center">
+                        <div className="flex flex-col items-center">
                            <StoryRing
                              size="sm"
                              avatarUrl={otherUser.avatar}
@@ -365,11 +365,6 @@ export default function ChatList({
                                }
                              }}
                            />
-                           {!isFollowing && (
-                             <span className="text-[9px] font-bold text-red-500 mt-1 bg-red-500/10 px-1 py-0.5 rounded leading-none whitespace-nowrap">
-                               Not Connected
-                             </span>
-                           )}
                         </div>
                       );
                     })()
@@ -381,6 +376,42 @@ export default function ChatList({
                   <div className="flex items-center justify-between">
                     <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'} flex items-center gap-1.5`}>
                       {chatName}
+
+                      {/* Connection Action Display */}
+                      {!isGroup && !isDeleted && (() => {
+                        const isFollowing = currentUser?.following?.includes(otherUser._id) ?? false;
+                        const isRequested = currentUser?.sentFollowRequests?.includes(otherUser._id) ?? false;
+
+                        if (!isFollowing) {
+                          if (isRequested) {
+                            return (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await handleUnfollowUser(otherUser._id);
+                                }}
+                                className="text-[11px] text-chat-text-tertiary hover:text-red-500 font-bold shrink-0 ml-1.5 cursor-pointer transition-colors"
+                                title="Cancel Connection Request"
+                              >
+                                Pending
+                              </button>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await handleFollowUser(otherUser._id);
+                              }}
+                              className="text-[11px] font-black text-blue-500 hover:text-blue-400 transition-colors shrink-0 ml-1.5 cursor-pointer"
+                            >
+                              Connect
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
+
                       {pinnedChatIds.includes(chat._id) && (
                         <Pin className="w-3.5 h-3.5 text-chat-accent shrink-0 fill-chat-accent/20" />
                       )}
@@ -532,42 +563,33 @@ export default function ChatList({
                           </svg>
                           View Profile
                         </button>
-                        <div className="h-px bg-chat-border mx-2" />
-                        {!isDeleted && (
-                          currentUser?.following?.includes(otherUser._id) ? (
-                            <button
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                handleUnfollowUser(otherUser._id);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
-                            >
-                              <UserMinus className="w-4 h-4" />
-                               Disconnect
-                            </button>
-                          ) : currentUser?.sentFollowRequests?.includes(otherUser._id) ? (
-                            <button
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                handleUnfollowUser(otherUser._id);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-secondary hover:bg-chat-hover transition-colors"
-                            >
-                              <UserMinus className="w-4 h-4" />
-                               Cancel Request
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                handleFollowUser(otherUser._id);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-accent hover:bg-chat-accent/10 transition-colors"
-                            >
-                              <UserPlus className="w-4 h-4" />
-                               Send Connection Request
-                            </button>
-                          )
+                        {!isDeleted && (currentUser?.following?.includes(otherUser._id) || currentUser?.sentFollowRequests?.includes(otherUser._id)) && (
+                          <>
+                            <div className="h-px bg-chat-border mx-2" />
+                            {currentUser?.following?.includes(otherUser._id) ? (
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleUnfollowUser(otherUser._id);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                                 Disconnect
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleUnfollowUser(otherUser._id);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-secondary hover:bg-chat-hover transition-colors"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                                 Cancel Request
+                              </button>
+                            )}
+                          </>
                         )}
                         <div className="h-px bg-chat-border mx-2" />
                         <button

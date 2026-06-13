@@ -14,6 +14,8 @@ import PrivacySettingsTab from '@/features/settings/components/PrivacySettingsTa
 import NotificationSettingsTab from '@/features/settings/components/NotificationSettingsTab';
 import AppearanceSettingsTab from '@/features/settings/components/AppearanceSettingsTab';
 import DangerZoneTab from '@/features/settings/components/DangerZoneTab';
+import ConnectionsSettingsTab from '@/features/settings/components/ConnectionsSettingsTab';
+import { Users as UsersIcon } from 'lucide-react';
 
 interface User {
   _id: string;
@@ -33,7 +35,7 @@ interface User {
   autoPlayVoice?: boolean;
 }
 
-type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'danger';
+type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'connections' | 'danger';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -91,6 +93,7 @@ export default function SettingsPage() {
   const TABS = [
     { id: 'account', label: 'Account Settings', icon: UserIcon, danger: false },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield, danger: false },
+    { id: 'connections', label: 'Connections', icon: UsersIcon, danger: false },
     { id: 'notifications', label: 'Notifications', icon: Bell, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
@@ -205,6 +208,11 @@ export default function SettingsPage() {
                     <AppearanceSettingsTab
                       currentUser={currentUser}
                       onUserUpdate={handleUserUpdate}
+                      setFeedback={setFeedback}
+                    />
+                  )}
+                  {activeTab === 'connections' && (
+                    <ConnectionsSettingsTab
                       setFeedback={setFeedback}
                     />
                   )}
