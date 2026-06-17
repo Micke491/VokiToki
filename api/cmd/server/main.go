@@ -155,6 +155,15 @@ func main() {
 		api.POST("/call/accept", handlers.AcceptCall)
 		api.POST("/call/reject", handlers.RejectCall)
 		api.POST("/call/end", handlers.EndCall)
+
+		bot := api.Group("/bot")
+		{
+			bot.GET("/chats", handlers.GetBotChats)
+			bot.POST("/chats", middleware.RateLimiter(10, time.Minute, "bot:create"), handlers.CreateBotChat)
+			bot.GET("/chats/:id", handlers.GetBotChat)
+			bot.POST("/chats/:id/message", middleware.RateLimiter(20, time.Minute, "bot:msg"), handlers.SendBotMessage)
+			bot.DELETE("/chats/:id", handlers.DeleteBotChat)
+		}
 	}
 
 	go handlers.StartStoryCleanup()

@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api';
 import SideBar from '@/features/sidebar/components/Sidebar';
 import {
   ArrowLeft, Loader2, CheckCircle, AlertTriangle,
-  User as UserIcon, Shield, Lock, Bell, Palette
+  User as UserIcon, Shield, Bell, Palette, Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AccountSettingsTab from '@/features/settings/components/AccountSettingsTab';
@@ -15,6 +15,7 @@ import NotificationSettingsTab from '@/features/settings/components/Notification
 import AppearanceSettingsTab from '@/features/settings/components/AppearanceSettingsTab';
 import DangerZoneTab from '@/features/settings/components/DangerZoneTab';
 import ConnectionsSettingsTab from '@/features/settings/components/ConnectionsSettingsTab';
+import AISettingsTab from '@/features/settings/components/AISettingsTab';
 import { Users as UsersIcon } from 'lucide-react';
 
 interface User {
@@ -33,9 +34,10 @@ interface User {
   defaultWallpaper?: string;
   autoPlayGifs?: boolean;
   autoPlayVoice?: boolean;
+  botPersona?: string;
 }
 
-type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'connections' | 'danger';
+type TabType = 'account' | 'privacy' | 'connections' | 'notifications' | 'appearance' | 'ai' | 'danger';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -60,13 +62,10 @@ export default function SettingsPage() {
       const response = await apiFetch(`/api/users/current_user`);
       if (!response.ok) throw new Error('Not authenticated');
       const data = await response.json();
-
       setCurrentUser(data.user);
-      
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'dark';
       const userTheme = data.user.theme === 'system' ? savedTheme : (data.user.theme || savedTheme);
       document.documentElement.setAttribute('data-theme', userTheme);
-
     } catch (error) {
       console.error('Error fetching user:', error);
       router.push('/auth-pages/login');
@@ -96,6 +95,7 @@ export default function SettingsPage() {
     { id: 'connections', label: 'Connections', icon: UsersIcon, danger: false },
     { id: 'notifications', label: 'Notifications', icon: Bell, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
+    { id: 'ai', label: 'AI Assistant', icon: Bot, danger: false },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
   ] as const;
 
@@ -106,8 +106,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="relative z-[100]">
-        <SideBar 
-          currentUser={currentUser || undefined} 
+        <SideBar
+          currentUser={currentUser || undefined}
           isMobileDrawerOpen={false}
           onCloseMobileDrawer={() => {}}
         />
@@ -120,7 +120,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 backdrop-blur-xl"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 backdrop-blur-xl"
             style={{
               backgroundColor: feedback.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
               borderColor: feedback.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                   <Icon className="w-5 h-5" />
                   {tab.label}
                 </button>
-              )
+              );
             })}
           </aside>
 
@@ -212,14 +212,17 @@ export default function SettingsPage() {
                     />
                   )}
                   {activeTab === 'connections' && (
-                    <ConnectionsSettingsTab
+                    <ConnectionsSettingsTab setFeedback={setFeedback} />
+                  )}
+                  {activeTab === 'ai' && (
+                    <AISettingsTab
+                      currentUser={currentUser}
+                      onUserUpdate={handleUserUpdate}
                       setFeedback={setFeedback}
                     />
                   )}
                   {activeTab === 'danger' && (
-                    <DangerZoneTab
-                      setFeedback={setFeedback}
-                    />
+                    <DangerZoneTab setFeedback={setFeedback} />
                   )}
                 </motion.div>
               )}

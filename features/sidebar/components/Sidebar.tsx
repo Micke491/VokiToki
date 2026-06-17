@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { Bot } from "lucide-react";
 
 interface SideBarProps {
   currentUser?: {
@@ -54,6 +55,11 @@ export default function SideBar({
           />
         </svg>
       ),
+    },
+    {
+      label: "AI Assistant",
+      path: "/bot",
+      icon: <Bot className="shrink-0 w-6 h-6" />,
     },
     {
       label: "Profile",

@@ -40,6 +40,7 @@ type User struct {
 	FollowRequests       []bson.ObjectID      `bson:"followRequests" json:"followRequests"`
 	SentFollowRequests   []bson.ObjectID      `bson:"sentFollowRequests" json:"sentFollowRequests"`
 	StoryPrivacy         string               `bson:"storyPrivacy" json:"storyPrivacy"`
+	BotPersona           string               `bson:"botPersona" json:"botPersona"`
 }
 
 type MutedChat struct {
