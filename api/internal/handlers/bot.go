@@ -7,8 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"math/rand"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"chat-app/internal/config"
 	"chat-app/internal/db"
@@ -19,6 +23,81 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
+
+
+const (
+	geminiModel = "gemini-3.5-flash"
+	maxUserMessageRunes = 8000
+	maxTitleRunes = 60
+	geminiRequestTimeout = 60 * time.Second
+
+	maxGeminiRetries = 3
+	retryBaseDelay = 500 * time.Millisecond
+	retryMaxDelay = 4 * time.Second
+)
+
+var geminiHTTPClient = &http.Client{
+	Timeout: geminiRequestTimeout,
+}
+
+func isRetryableStatus(code int) bool {
+	return code == http.StatusServiceUnavailable || // 503
+		code == http.StatusTooManyRequests || // 429
+		code == http.StatusInternalServerError || // 500
+		code == http.StatusBadGateway || // 502
+		code == http.StatusGatewayTimeout // 504
+}
+
+func callGeminiWithRetry(ctx context.Context, apiURL string, reqBodyBytes []byte, apiKey string) (*http.Response, error) {
+	var lastErr error
+
+	for attempt := 0; attempt <= maxGeminiRetries; attempt++ {
+		if attempt > 0 {
+			delay := backoffDelay(attempt)
+			log.Printf("SendBotMessage: retrying Gemini call (attempt %d/%d) after %v", attempt, maxGeminiRetries, delay)
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(reqBodyBytes))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build request: %w", err)
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("x-goog-api-key", apiKey)
+
+		resp, err := geminiHTTPClient.Do(httpReq)
+		if err != nil {
+			lastErr = err
+			log.Printf("SendBotMessage: Gemini request failed (attempt %d/%d): %v", attempt+1, maxGeminiRetries+1, err)
+			continue
+		}
+
+		if resp.StatusCode == http.StatusOK || !isRetryableStatus(resp.StatusCode) {
+			return resp, nil
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		log.Printf("SendBotMessage: Gemini returned retryable status %d (attempt %d/%d): %s",
+			resp.StatusCode, attempt+1, maxGeminiRetries+1, string(respBody))
+		lastErr = fmt.Errorf("gemini returned status %d", resp.StatusCode)
+	}
+
+	return nil, lastErr
+}
+
+func backoffDelay(attempt int) time.Duration {
+	delay := retryBaseDelay * time.Duration(1<<uint(attempt-1))
+	if delay > retryMaxDelay {
+		delay = retryMaxDelay
+	}
+	jitter := time.Duration(rand.Int63n(int64(delay) / 2))
+	return delay/2 + jitter
+}
 
 func GetBotChats(c *gin.Context) {
 	authUser := c.MustGet("user").(models.User)
@@ -82,7 +161,7 @@ func CreateBotChat(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&body)
 
-	title := body.Title
+	title := sanitizeTitle(body.Title)
 	if title == "" {
 		title = "New AI Chat"
 	}
@@ -157,9 +236,21 @@ func getSystemInstruction(persona string) string {
 	default:
 		base = "You are a helpful, friendly, and concise AI assistant. Format your answers clearly."
 	}
-	
-	appContext := " You are seamlessly integrated into VokiToki, a modern real-time chat application. You are powered by the Google Gemini 3.5 Flash model."
+
+	appContext := fmt.Sprintf(
+		" You are seamlessly integrated into VokiToki, a modern real-time chat application. You are powered by the Google %s model.",
+		geminiModel,
+	)
 	return base + appContext
+}
+
+func sanitizeTitle(s string) string {
+	s = strings.TrimSpace(s)
+	if utf8.RuneCountInString(s) <= maxTitleRunes {
+		return s
+	}
+	runes := []rune(s)
+	return strings.TrimSpace(string(runes[:maxTitleRunes])) + "…"
 }
 
 func SendBotMessage(c *gin.Context) {
@@ -180,9 +271,22 @@ func SendBotMessage(c *gin.Context) {
 		return
 	}
 
+	userInput := strings.TrimSpace(body.Text)
+	if userInput == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message text is required"})
+		return
+	}
+	if utf8.RuneCountInString(userInput) > maxUserMessageRunes {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Message is too long (max %d characters)", maxUserMessageRunes),
+		})
+		return
+	}
+
 	apiKey := config.AppConfig.GeminiAPIKey
 	if apiKey == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "AI API Key is not configured on the server."})
+		log.Println("SendBotMessage: GEMINI_API_KEY is not configured")
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "AI service is not configured on the server."})
 		return
 	}
 
@@ -199,7 +303,7 @@ func SendBotMessage(c *gin.Context) {
 		return
 	}
 
-	userInput := body.Text
+	isFirstMessage := len(chat.Messages) == 0
 
 	userMsg := models.BotMessage{
 		ID:        bson.NewObjectID(),
@@ -212,7 +316,7 @@ func SendBotMessage(c *gin.Context) {
 		SystemInstruction: &GeminiSysInst{
 			Parts: []GeminiPart{{Text: getSystemInstruction(authUser.BotPersona)}},
 		},
-		Contents: []GeminiContent{},
+		Contents: make([]GeminiContent, 0, len(chat.Messages)+1),
 	}
 
 	for _, m := range chat.Messages {
@@ -230,28 +334,30 @@ func SendBotMessage(c *gin.Context) {
 		Parts: []GeminiPart{{Text: userInput}},
 	})
 
-	reqBytes, _ := json.Marshal(geminiReq)
-	
-	apiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key=%s", apiKey)
-	
-	httpReq, err := http.NewRequestWithContext(reqCtx, "POST", apiURL, bytes.NewBuffer(reqBytes))
+	reqBytes, err := json.Marshal(geminiReq)
 	if err != nil {
+		log.Printf("SendBotMessage: failed to marshal gemini request: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build AI request"})
 		return
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(httpReq)
+	apiURL := fmt.Sprintf(
+		"https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent?alt=sse",
+		geminiModel,
+	)
+
+	resp, err := callGeminiWithRetry(reqCtx, apiURL, reqBytes, apiKey)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to connect to AI provider"})
+		log.Printf("SendBotMessage: Gemini call failed after retries: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "The AI provider is temporarily unavailable. Please try again in a moment."})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("AI provider error: %s", string(respBody))})
+		log.Printf("SendBotMessage: Gemini returned non-retryable %d: %s", resp.StatusCode, string(respBody))
+		c.JSON(http.StatusBadGateway, gin.H{"error": "The AI provider returned an error. Please try again."})
 		return
 	}
 
@@ -259,6 +365,7 @@ func SendBotMessage(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Transfer-Encoding", "chunked")
+	c.Writer.Header().Set("X-Accel-Buffering", "no") 
 
 	initData, _ := json.Marshal(map[string]interface{}{
 		"type":        "init",
@@ -268,12 +375,16 @@ func SendBotMessage(c *gin.Context) {
 	c.Writer.Flush()
 
 	reader := bufio.NewReader(resp.Body)
-	var fullBotText string
+	var fullBotText strings.Builder
 
 	for {
+		if reqCtx.Err() != nil {
+			break
+		}
+
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
-			break 
+			break
 		}
 
 		line = bytes.TrimSpace(line)
@@ -281,74 +392,94 @@ func SendBotMessage(c *gin.Context) {
 			continue
 		}
 
-		if bytes.HasPrefix(line, []byte("data: ")) {
-			dataStr := bytes.TrimPrefix(line, []byte("data: "))
-
-			if string(dataStr) == "[DONE]" {
-				continue
-			}
-
-			var chunk struct {
-				Candidates []struct {
-					Content struct {
-						Parts []struct {
-							Text string `json:"text"`
-						} `json:"parts"`
-					} `json:"content"`
-				} `json:"candidates"`
-			}
-			
-			if err := json.Unmarshal(dataStr, &chunk); err == nil {
-				if len(chunk.Candidates) > 0 && len(chunk.Candidates[0].Content.Parts) > 0 {
-					textPiece := chunk.Candidates[0].Content.Parts[0].Text
-					fullBotText += textPiece
-
-					chunkData, _ := json.Marshal(map[string]string{
-						"type": "chunk",
-						"text": textPiece,
-					})
-					fmt.Fprintf(c.Writer, "data: %s\n\n", chunkData)
-					c.Writer.Flush()
-				}
-			}
+		if !bytes.HasPrefix(line, []byte("data: ")) {
+			continue
 		}
+		dataStr := bytes.TrimPrefix(line, []byte("data: "))
+
+		if string(dataStr) == "[DONE]" {
+			continue
+		}
+
+		var chunk struct {
+			Candidates []struct {
+				Content struct {
+					Parts []struct {
+						Text string `json:"text"`
+					} `json:"parts"`
+				} `json:"content"`
+			} `json:"candidates"`
+		}
+
+		if err := json.Unmarshal(dataStr, &chunk); err != nil {
+			log.Printf("SendBotMessage: skipping unparsable SSE chunk: %v", err)
+			continue
+		}
+		if len(chunk.Candidates) == 0 || len(chunk.Candidates[0].Content.Parts) == 0 {
+			continue
+		}
+
+		textPiece := chunk.Candidates[0].Content.Parts[0].Text
+		fullBotText.WriteString(textPiece)
+
+		chunkData, _ := json.Marshal(map[string]string{
+			"type": "chunk",
+			"text": textPiece,
+		})
+		fmt.Fprintf(c.Writer, "data: %s\n\n", chunkData)
+		c.Writer.Flush()
 	}
 
+	botText := fullBotText.String()
 	botMsg := models.BotMessage{
 		ID:        bson.NewObjectID(),
 		Role:      "model",
-		Text:      fullBotText,
+		Text:      botText,
 		CreatedAt: time.Now(),
-	}
-
-	updateFields := bson.M{"updatedAt": time.Now()}
-	if len(chat.Messages) == 0 {
-		title := body.Text
-		updateFields["title"] = title
-		chat.Title = title
 	}
 
 	dbCtx, dbCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer dbCancel()
 
-	pushData := bson.M{"$each": []models.BotMessage{userMsg, botMsg}}
-	if fullBotText == "" {
-		pushData = bson.M{"$each": []models.BotMessage{userMsg}}
+	newMessages := []models.BotMessage{userMsg}
+	if botText != "" {
+		newMessages = append(newMessages, botMsg)
 	}
 
-	_, err = db.BotChatCollection.UpdateOne(dbCtx,
+	_, pushErr := db.BotChatCollection.UpdateOne(dbCtx,
 		bson.M{"_id": chatID},
 		bson.M{
-			"$set":  updateFields,
-			"$push": bson.M{"messages": pushData},
+			"$set":  bson.M{"updatedAt": time.Now()},
+			"$push": bson.M{"messages": bson.M{"$each": newMessages}},
 		},
 	)
+	if pushErr != nil {
+		log.Printf("SendBotMessage: failed to persist messages for chat %s: %v", chatID.Hex(), pushErr)
+
+	}
+
+	finalTitle := chat.Title
+	if isFirstMessage {
+		finalTitle = sanitizeTitle(userInput)
+		if finalTitle == "" {
+			finalTitle = "New AI Chat"
+		}
+
+		_, titleErr := db.BotChatCollection.UpdateOne(dbCtx,
+			bson.M{"_id": chatID, "title": chat.Title},
+			bson.M{"$set": bson.M{"title": finalTitle}},
+		)
+		if titleErr != nil {
+			log.Printf("SendBotMessage: failed to set title for chat %s: %v", chatID.Hex(), titleErr)
+		}
+	}
 
 	if reqCtx.Err() == nil {
 		finalData, _ := json.Marshal(map[string]interface{}{
 			"type":       "done",
 			"botMessage": botMsg,
-			"chatTitle":  chat.Title,
+			"chatTitle":  finalTitle,
+			"model":      geminiModel,
 		})
 		fmt.Fprintf(c.Writer, "data: %s\n\n", finalData)
 		c.Writer.Flush()

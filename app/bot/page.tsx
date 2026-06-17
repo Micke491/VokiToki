@@ -6,10 +6,13 @@ import { apiFetch } from '@/lib/api';
 import SideBar from '@/features/sidebar/components/Sidebar';
 import {
   Bot, Plus, Trash2, Send, Loader2,
-  MessageSquare, MoreVertical, Square
+  MessageSquare, MoreVertical, Square, User2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github-dark.css'; 
 
 interface User {
   _id: string;
@@ -48,6 +51,8 @@ export default function BotPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [modelName, setModelName] = useState('Gemini Flash'); // Dynamic fallback
+  const [toastError, setToastError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch('/api/users/current_user')
@@ -121,8 +126,8 @@ export default function BotPage() {
     if (!input.trim() || sending) return;
     const text = input.trim();
     setInput('');
+    setToastError(null);
     
-    // Reset textarea height back to single line after sending
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
     }
@@ -145,7 +150,7 @@ export default function BotPage() {
         targetChat = await createRes.json();
         setChats(prev => [targetChat!, ...prev]);
       } catch (e: any) {
-        alert(e.message || 'Failed to create chat');
+        setToastError(e.message || 'Failed to create chat');
         setSending(false);
         setAbortController(null);
         return;
@@ -212,15 +217,15 @@ export default function BotPage() {
                     if (!botMsgAdded) {
                       botMsgAdded = true;
                       setActiveChat(prev => {
-                        if (!prev) return prev;
+                        // 3. Stale closure protection
+                        if (!prev || prev._id !== targetChat!._id) return prev;
                         return { ...prev, messages: [...prev.messages, { ...tempBotMsg, text: currentBotText }] };
                       });
                     } else {
                       setActiveChat(prev => {
-                        if (!prev) return prev;
+                        if (!prev || prev._id !== targetChat!._id) return prev;
                         const newMsgs = [...prev.messages];
                         const lastIndex = newMsgs.length - 1;
-                        
                         if (lastIndex >= 0 && newMsgs[lastIndex].role === 'model') {
                            newMsgs[lastIndex] = { ...newMsgs[lastIndex], text: currentBotText };
                         }
@@ -228,8 +233,9 @@ export default function BotPage() {
                       });
                     }
                   } else if (data.type === 'init') {
+                    if (data.modelName) setModelName(data.modelName);
                     setActiveChat(prev => {
-                      if (!prev) return prev;
+                      if (!prev || prev._id !== targetChat!._id) return prev;
                       const newMsgs = [...prev.messages];
                       const idx = newMsgs.findIndex(m => m._id === tempUserMsg._id);
                       if (idx !== -1 && data.userMessage) newMsgs[idx] = data.userMessage;
@@ -238,10 +244,10 @@ export default function BotPage() {
                   } else if (data.type === 'done') {
                     if (!botMsgAdded) {
                       botMsgAdded = true;
-                      setActiveChat(prev => prev ? { ...prev, messages: [...prev.messages, data.botMessage] } : prev);
+                      setActiveChat(prev => (prev && prev._id === targetChat!._id) ? { ...prev, messages: [...prev.messages, data.botMessage] } : prev);
                     } else {
                       setActiveChat(prev => {
-                        if (!prev) return prev;
+                        if (!prev || prev._id !== targetChat!._id) return prev;
                         const newMsgs = [...prev.messages];
                         const lastIndex = newMsgs.length - 1;
                         if (lastIndex >= 0 && newMsgs[lastIndex].role === 'model' && data.botMessage) {
@@ -255,7 +261,7 @@ export default function BotPage() {
                     }
                   }
                 } catch (e) {
-                  // Wait for completion chunk formatting errors
+                  // Wait for completion chunk
                 }
               }
             }
@@ -265,16 +271,17 @@ export default function BotPage() {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        // Expected when user hits 'Stop Generation' button. Do nothing.
+        // Expected on 'Stop Generation'
       } else {
+        // 1. Preserve partial data and append error securely
         setActiveChat(prev => {
-          if (!prev) return prev;
+          if (!prev || prev._id !== targetChat!._id) return prev;
           const newMsgs = [...prev.messages];
-          const errorText = '⚠️ Error: ' + (err.message || 'Failed to connect to AI provider.');
+          const errorText = '\n\n**⚠️ Error:** ' + (err.message || 'Connection lost.');
           const lastIndex = newMsgs.length - 1;
           
           if (lastIndex >= 0 && newMsgs[lastIndex].role === 'model' && newMsgs[lastIndex]._id === tempBotMsg._id) {
-            newMsgs[lastIndex] = { ...newMsgs[lastIndex], text: errorText };
+            newMsgs[lastIndex] = { ...newMsgs[lastIndex], text: newMsgs[lastIndex].text + errorText };
           } else {
             newMsgs.push({ ...tempBotMsg, text: errorText });
           }
@@ -303,14 +310,11 @@ export default function BotPage() {
     <div className="flex h-screen bg-background overflow-hidden relative">
       <div className="ambient-glow"><div className="ambient-glow-inner" /></div>
 
-      {/* Main Sidebar */}
       <div className="relative z-[101]">
         <SideBar currentUser={currentUser || undefined} isMobileDrawerOpen={false} onCloseMobileDrawer={() => {}} />
       </div>
 
-      {/* Bot Chat Sidebar */}
       <>
-        {/* Mobile overlay */}
         <AnimatePresence>
           {mobileSidebarOpen && (
             <motion.div
@@ -321,14 +325,7 @@ export default function BotPage() {
           )}
         </AnimatePresence>
 
-        <aside className={`
-          absolute md:relative z-[103] md:z-auto h-full
-          flex flex-col w-72 shrink-0
-          bg-chat-glass backdrop-blur-xl border-r border-chat-border
-          transition-transform duration-300
-          ${mobileSidebarOpen ? 'translate-x-[280px]' : '-translate-x-full md:translate-x-0'}
-        `}>
-          {/* Sidebar header */}
+        <aside className={`absolute md:relative z-[103] md:z-auto h-full flex flex-col w-72 shrink-0 bg-chat-glass backdrop-blur-xl border-r border-chat-border transition-transform duration-300 ${mobileSidebarOpen ? 'translate-x-[280px]' : '-translate-x-full md:translate-x-0'}`}>
           <div className="p-5 border-b border-chat-border flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-lg">
@@ -336,24 +333,17 @@ export default function BotPage() {
               </div>
               <div>
                 <h2 className="font-bold text-chat-text-primary text-sm">AI Assistant</h2>
-                <p className="text-chat-text-secondary text-xs">Gemini 3.5 Flash</p>
+                <p className="text-chat-text-secondary text-xs">{modelName}</p>
               </div>
             </div>
-            <button
-              onClick={createChat}
-              className="p-2 rounded-xl bg-chat-accent/10 hover:bg-chat-accent/20 text-chat-accent transition-all"
-              title="New chat"
-            >
+            <button onClick={createChat} className="p-2 rounded-xl bg-chat-accent/10 hover:bg-chat-accent/20 text-chat-accent transition-all" title="New chat">
               <Plus className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Chat list */}
           <div className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-thin">
             {loadingChats ? (
-              <div className="flex justify-center pt-8">
-                <Loader2 className="w-5 h-5 text-chat-accent animate-spin" />
-              </div>
+              <div className="flex justify-center pt-8"><Loader2 className="w-5 h-5 text-chat-accent animate-spin" /></div>
             ) : chats.length === 0 ? (
               <div className="text-center pt-10 px-4">
                 <MessageSquare className="w-8 h-8 text-chat-text-tertiary mx-auto mb-3" />
@@ -366,23 +356,16 @@ export default function BotPage() {
                   onClick={() => openChat(chat._id)}
                   whileHover={{ x: 3 }}
                   className={`w-full cursor-pointer text-left px-4 py-3 rounded-2xl transition-all group flex items-center gap-3 ${
-                    activeChat?._id === chat._id
-                      ? 'bg-chat-accent text-white shadow-md shadow-chat-accent/30'
-                      : 'hover:bg-chat-hover text-chat-text-secondary hover:text-chat-text-primary'
+                    activeChat?._id === chat._id ? 'bg-chat-accent text-white shadow-md shadow-chat-accent/30' : 'hover:bg-chat-hover text-chat-text-secondary hover:text-chat-text-primary'
                   }`}
                 >
                   <MessageSquare className="w-4 h-4 shrink-0 opacity-70" />
                   <span className="flex-1 truncate text-sm font-medium">{chat.title}</span>
                   <button
                     onClick={(e) => deleteChat(chat._id, e)}
-                    className={`shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${
-                      activeChat?._id === chat._id ? 'hover:bg-white/20' : 'hover:bg-red-500/10 text-red-400'
-                    }`}
+                    className={`shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${activeChat?._id === chat._id ? 'hover:bg-white/20' : 'hover:bg-red-500/10 text-red-400'}`}
                   >
-                    {deletingId === chat._id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Trash2 className="w-3.5 h-3.5" />
-                    }
+                    {deletingId === chat._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
                 </motion.div>
               ))
@@ -391,15 +374,9 @@ export default function BotPage() {
         </aside>
       </>
 
-      {/* Main Chat Area */}
       <main className="flex-1 flex flex-col min-w-0 relative z-10">
-
-        {/* Top bar */}
         <header className="shrink-0 h-16 border-b border-chat-border flex items-center px-5 gap-4 bg-chat-glass backdrop-blur-xl">
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="md:hidden p-2 rounded-xl text-chat-text-secondary hover:text-chat-text-primary hover:bg-chat-hover"
-          >
+          <button onClick={() => setMobileSidebarOpen(true)} className="md:hidden p-2 rounded-xl text-chat-text-secondary hover:text-chat-text-primary hover:bg-chat-hover">
             <MoreVertical className="w-5 h-5" />
           </button>
 
@@ -423,49 +400,37 @@ export default function BotPage() {
           )}
         </header>
 
-        {/* Messages */}
+        {/* Replaced blocking alert() with inline visual toast */}
+        {toastError && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg flex items-center gap-2">
+             <span>{toastError}</span>
+             <button onClick={() => setToastError(null)} className="ml-2 hover:bg-white/20 rounded-full p-0.5"><Trash2 className="w-3.5 h-3.5"/></button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 scrollbar-thin">
           {!activeChat || activeChat.messages.length === 0 ? (
-            /* Empty state */
             <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 200 }}
-                className="w-24 h-24 rounded-3xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-2xl shadow-chat-accent/30"
-              >
+              <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200 }} className="w-24 h-24 rounded-3xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-2xl shadow-chat-accent/30">
                 <Bot className="w-12 h-12 text-white" />
               </motion.div>
               <div>
                 <h2 className="text-2xl font-black text-chat-text-primary">Your AI Assistant</h2>
-                <p className="text-chat-text-secondary mt-2 max-w-md">
-                  I can help with coding, writing, brainstorming, and more. 
-                </p>
+                <p className="text-chat-text-secondary mt-2 max-w-md">I can help with coding, writing, brainstorming, and more.</p>
               </div>
             </div>
           ) : loadingMessages ? (
-            <div className="flex justify-center pt-20">
-              <Loader2 className="w-7 h-7 text-chat-accent animate-spin" />
-            </div>
+            <div className="flex justify-center pt-20"><Loader2 className="w-7 h-7 text-chat-accent animate-spin" /></div>
           ) : (
             activeChat.messages.map((msg) => (
-              <motion.div
-                key={msg._id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+              <motion.div key={msg._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'model' && (
                   <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-md mt-1">
                     <Bot className="w-4 h-4 text-white" />
                   </div>
                 )}
                 <div className={`max-w-[75%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-chat-accent text-white rounded-tr-sm shadow-md shadow-chat-accent/20'
-                      : 'bg-chat-bg-secondary border border-chat-border text-chat-text-primary rounded-tl-sm'
-                  }`}>
+                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-chat-accent text-white rounded-tr-sm shadow-md shadow-chat-accent/20' : 'bg-chat-bg-secondary border border-chat-border text-chat-text-primary rounded-tl-sm'}`}>
                     {msg.role === 'model' ? (
                       <div className="prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>pre]:overflow-x-auto [&>pre]:rounded-xl [&>pre]:p-4 [&>code]:text-purple-300">
                         {msg.text === '' ? (
@@ -475,7 +440,7 @@ export default function BotPage() {
                              <motion.span className="w-1.5 h-1.5 rounded-full bg-white/50" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
                            </div>
                         ) : (
-                           <ReactMarkdown>{msg.text}</ReactMarkdown>
+                           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{msg.text}</ReactMarkdown>
                         )}
                       </div>
                     ) : (
@@ -484,34 +449,24 @@ export default function BotPage() {
                   </div>
                   <span className="text-xs text-chat-text-tertiary px-1">{formatTime(msg.createdAt)}</span>
                 </div>
-                {msg.role === 'user' && currentUser?.avatar && (
-                  <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden mt-1">
-                    <img src={currentUser.avatar} alt="You" className="w-full h-full object-cover" />
+                {msg.role === 'user' && (
+                  <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden mt-1 bg-chat-bg-secondary border border-chat-border flex items-center justify-center">
+                    {currentUser?.avatar ? (
+                      <img src={currentUser.avatar} alt="You" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    ) : (
+                      <User2 className="w-4 h-4 text-chat-text-secondary" />
+                    )}
                   </div>
                 )}
               </motion.div>
             ))
           )}
 
-          {/* Typing indicator */}
           {sending && activeChat && activeChat.messages.length > 0 && activeChat.messages[activeChat.messages.length - 1]?.role === 'user' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3 justify-start"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-md mt-1">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-md mt-1"><Bot className="w-4 h-4 text-white" /></div>
               <div className="px-5 py-4 rounded-2xl rounded-tl-sm bg-chat-bg-secondary border border-chat-border flex items-center gap-1.5">
-                {[0, 1, 2].map(i => (
-                  <motion.span
-                    key={i}
-                    className="w-2 h-2 rounded-full bg-chat-accent"
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
-                  />
-                ))}
+                {[0, 1, 2].map(i => <motion.span key={i} className="w-2 h-2 rounded-full bg-chat-accent" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }} />)}
               </div>
             </motion.div>
           )}
@@ -519,9 +474,7 @@ export default function BotPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input area */}
         <div className="shrink-0 p-4 md:p-6 border-t border-chat-border bg-chat-glass backdrop-blur-xl">
-          {/* Changed "items-end" to "items-center" to align the button perfectly in the middle */}
           <div className="max-w-3xl mx-auto flex gap-3 items-center">
             <div className="flex-1 relative">
               <textarea
@@ -533,7 +486,7 @@ export default function BotPage() {
                 rows={1}
                 disabled={sending}
                 className="w-full resize-none bg-chat-bg-secondary border border-chat-border rounded-2xl px-5 py-3.5 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:border-chat-accent transition-colors overflow-y-auto"
-                style={{ minHeight: '52px' }}
+                style={{ minHeight: '52px', maxHeight: '200px' }}
                 onInput={e => {
                   const el = e.currentTarget;
                   el.style.height = 'auto';
@@ -542,33 +495,19 @@ export default function BotPage() {
               />
             </div>
             
-            {/* Conditional Render: Send or Stop Generate Button */}
             {sending ? (
-              <motion.button
-                onClick={stopGeneration}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title="Stop generation"
-                className="shrink-0 w-[52px] h-[52px] rounded-2xl bg-red-500/90 hover:bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30 transition-all"
-              >
+              <motion.button onClick={stopGeneration} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} title="Stop generation" className="shrink-0 w-[52px] h-[52px] rounded-2xl bg-red-500/90 hover:bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30 transition-all">
                 <Square className="w-5 h-5 fill-current" />
               </motion.button>
             ) : (
-              <motion.button
-                onClick={sendMessage}
-                disabled={!input.trim()}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title="Send message"
-                className="shrink-0 w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-lg shadow-chat-accent/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
+              <motion.button onClick={sendMessage} disabled={!input.trim()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} title="Send message" className="shrink-0 w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-lg shadow-chat-accent/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                 <Send className="w-5 h-5" />
               </motion.button>
             )}
 
           </div>
           <p className="text-center text-chat-text-tertiary text-xs mt-3">
-            Powered by Gemini 3.5 Flash · Responses may be inaccurate
+            Powered by {modelName} · Responses may be inaccurate
           </p>
         </div>
       </main>

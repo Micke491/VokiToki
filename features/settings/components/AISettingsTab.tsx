@@ -5,6 +5,8 @@ import { apiFetch } from '@/lib/api';
 import { Bot, Sparkles, Code2, Trophy, User2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+export type BotPersona = 'default' | 'coding' | 'coach' | 'sarcastic';
+
 interface User {
   _id: string;
   username: string;
@@ -21,7 +23,7 @@ interface User {
   defaultWallpaper?: string;
   autoPlayGifs?: boolean;
   autoPlayVoice?: boolean;
-  botPersona?: string;
+  botPersona?: BotPersona;
 }
 
 interface AISettingsTabProps {
@@ -32,7 +34,7 @@ interface AISettingsTabProps {
 
 const PERSONAS = [
   {
-    id: 'default',
+    id: 'default' as BotPersona,
     label: 'Friendly Assistant',
     description: 'Helpful, clear, and concise. Great for general questions and everyday tasks.',
     icon: User2,
@@ -40,7 +42,7 @@ const PERSONAS = [
     glow: 'shadow-indigo-500/20',
   },
   {
-    id: 'coding',
+    id: 'coding' as BotPersona,
     label: 'Expert Engineer',
     description: 'Speaks in code. Best practices, clean solutions, and technical depth.',
     icon: Code2,
@@ -48,7 +50,7 @@ const PERSONAS = [
     glow: 'shadow-cyan-500/20',
   },
   {
-    id: 'coach',
+    id: 'coach' as BotPersona,
     label: 'Life Coach',
     description: 'Motivating, goal-oriented, and uplifting. Push yourself further.',
     icon: Trophy,
@@ -56,7 +58,7 @@ const PERSONAS = [
     glow: 'shadow-amber-500/20',
   },
   {
-    id: 'sarcastic',
+    id: 'sarcastic' as BotPersona,
     label: 'Sarcastic Wit',
     description: 'Playfully mocking but always helpful. Banter included at no extra charge.',
     icon: Sparkles,
@@ -66,7 +68,7 @@ const PERSONAS = [
 ];
 
 export default function AISettingsTab({ currentUser, onUserUpdate, setFeedback }: AISettingsTabProps) {
-  const [selected, setSelected] = useState(currentUser.botPersona || 'default');
+  const [selected, setSelected] = useState<BotPersona>(currentUser.botPersona || 'default');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -90,7 +92,6 @@ export default function AISettingsTab({ currentUser, onUserUpdate, setFeedback }
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <div className="p-3 rounded-2xl bg-gradient-to-br from-chat-accent to-purple-600 shadow-lg shadow-chat-accent/30">
           <Bot className="w-6 h-6 text-white" />
@@ -103,7 +104,6 @@ export default function AISettingsTab({ currentUser, onUserUpdate, setFeedback }
         </div>
       </div>
 
-      {/* Persona Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {PERSONAS.map((persona) => {
           const Icon = persona.icon;
@@ -120,7 +120,6 @@ export default function AISettingsTab({ currentUser, onUserUpdate, setFeedback }
                   : 'border-chat-border bg-chat-bg-secondary hover:border-chat-accent/40'
               }`}
             >
-              {/* Selected checkmark */}
               {isSelected && (
                 <motion.div
                   initial={{ scale: 0 }}
@@ -131,7 +130,6 @@ export default function AISettingsTab({ currentUser, onUserUpdate, setFeedback }
                 </motion.div>
               )}
 
-              {/* Icon */}
               <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${persona.gradient} flex items-center justify-center mb-4 shadow-lg`}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
@@ -143,16 +141,13 @@ export default function AISettingsTab({ currentUser, onUserUpdate, setFeedback }
         })}
       </div>
 
-      {/* Info box */}
       <div className="flex gap-3 p-4 rounded-2xl bg-chat-accent/5 border border-chat-accent/20">
         <Sparkles className="w-5 h-5 text-chat-accent shrink-0 mt-0.5" />
         <p className="text-chat-text-secondary text-sm leading-relaxed">
           Your selected persona applies to all new and existing AI chats. You can change it at any time.
-          Powered by <span className="text-chat-accent font-semibold">Google Gemini 3.5 Flash</span>.
         </p>
       </div>
 
-      {/* Save Button */}
       <div className="flex justify-end">
         <motion.button
           onClick={handleSave}
