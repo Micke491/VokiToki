@@ -23,11 +23,10 @@ import (
 )
 
 var (
-	ctx        = context.Background()
 	localCache sync.Map
 )
 
-func setCache(key string, value string, duration time.Duration) {
+func setCache(ctx context.Context, key string, value string, duration time.Duration) {
 	if db.RedisClient != nil {
 		db.RedisClient.Set(ctx, key, value, duration)
 	} else {
@@ -39,7 +38,7 @@ func setCache(key string, value string, duration time.Duration) {
 	}
 }
 
-func getCache(key string) (string, error) {
+func getCache(ctx context.Context, key string) (string, error) {
 	if db.RedisClient != nil {
 		return db.RedisClient.Get(ctx, key).Result()
 	}
@@ -49,7 +48,7 @@ func getCache(key string) (string, error) {
 	return "", fmt.Errorf("not found")
 }
 
-func delCache(key string) {
+func delCache(ctx context.Context, key string) {
 	if db.RedisClient != nil {
 		db.RedisClient.Del(ctx, key)
 	} else {
@@ -90,12 +89,15 @@ func InitiateCall(c *gin.Context) {
 		return
 	}
 
+	userObj, _ := c.Get("user")
+	currentUser := userObj.(models.User)
+
 	callID := req.CallID
 	if callID == "" {
 		callID = uuid.New().String()
 	}
 
-	val, err := getCache("call:" + callID)
+	val, err := getCache(c.Request.Context(), "call:"+callID)
 	if err == nil && strings.Contains(val, "cancelled") {
 		c.JSON(http.StatusOK, gin.H{"message": "Call was cancelled before it started"})
 		return
@@ -115,10 +117,10 @@ func InitiateCall(c *gin.Context) {
 
 	stateJSON, _ := json.Marshal(state)
 
-	setCache("call:"+callID, string(stateJSON), 60*time.Second)
-	setCache("user_status:"+req.CallerID, "busy", 60*time.Second)
+	setCache(c.Request.Context(), "call:"+callID, string(stateJSON), 60*time.Second)
+	setCache(c.Request.Context(), "user_status:"+req.CallerID, "busy", 60*time.Second)
 	if !isGroupCall {
-		setCache("user_status:"+req.CalleeID, "busy", 60*time.Second)
+		setCache(c.Request.Context(), "user_status:"+req.CalleeID, "busy", 60*time.Second)
 	}
 
 	var chat models.Chat
@@ -129,14 +131,43 @@ func InitiateCall(c *gin.Context) {
 
 	var callRecipients []bson.ObjectID
 	var chatOID bson.ObjectID
+	var caller models.User
+	db.UserCollection.FindOne(c, bson.M{"_id": currentUser.ID}).Decode(&caller)
+
 	if isGroupCall {
 		chatOID = chat.ID
-		for _, pID := range chat.Participants {
-			if pID.Hex() == req.CallerID {
+		
+		var participants []models.User
+		cursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": chat.Participants}})
+		cursor.All(c, &participants)
+
+		for _, p := range participants {
+			if p.ID.Hex() == req.CallerID {
 				continue
 			}
-			callRecipients = append(callRecipients, pID)
-			utils.TriggerPusher("user-"+pID.Hex(), "incoming_call", map[string]interface{}{
+			
+			callerBlockedThem := false
+			for _, b := range caller.BlockedUsers {
+				if b == p.ID {
+					callerBlockedThem = true
+					break
+				}
+			}
+			
+			theyBlockedCaller := false
+			for _, b := range p.BlockedUsers {
+				if b == caller.ID {
+					theyBlockedCaller = true
+					break
+				}
+			}
+			
+			if callerBlockedThem || theyBlockedCaller {
+				continue
+			}
+
+			callRecipients = append(callRecipients, p.ID)
+			utils.TriggerPusher("user-"+p.ID.Hex(), "incoming_call", map[string]interface{}{
 				"call_id":       callID,
 				"caller_id":     req.CallerID,
 				"call_type":     req.CallType,
@@ -188,9 +219,6 @@ func InitiateCall(c *gin.Context) {
 		}
 		services.SendPushNotification(context.Background(), callRecipients, chatOID, title, bodyText, data)
 	}
-
-	userObj, _ := c.Get("user")
-	currentUser := userObj.(models.User)
 
 	if req.ChatID != "" {
 		chatID, err := bson.ObjectIDFromHex(req.ChatID)
@@ -269,7 +297,7 @@ func AcceptCall(c *gin.Context) {
 		return
 	}
 
-	val, err := getCache("call:" + req.CallID)
+	val, err := getCache(c.Request.Context(), "call:"+req.CallID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Call not found or expired"})
 		return
@@ -280,10 +308,10 @@ func AcceptCall(c *gin.Context) {
 
 	state.Status = "active"
 	stateJSON, _ := json.Marshal(state)
-	setCache("call:"+req.CallID, string(stateJSON), 2*time.Hour)
-	setCache("user_status:"+state.CallerID, "busy", 2*time.Hour)
+	setCache(c.Request.Context(), "call:"+req.CallID, string(stateJSON), 2*time.Hour)
+	setCache(c.Request.Context(), "user_status:"+state.CallerID, "busy", 2*time.Hour)
 	if state.CalleeID != "" {
-		setCache("user_status:"+state.CalleeID, "busy", 2*time.Hour)
+		setCache(c.Request.Context(), "user_status:"+state.CalleeID, "busy", 2*time.Hour)
 	}
 
 	callerName := state.CallerName
@@ -337,14 +365,14 @@ func RejectCall(c *gin.Context) {
 		return
 	}
 
-	val, err := getCache("call:" + req.CallID)
+	val, err := getCache(c.Request.Context(), "call:"+req.CallID)
 	if err == nil {
 		var state CallState
 		json.Unmarshal([]byte(val), &state)
 
-		delCache("user_status:" + state.CallerID)
-		delCache("user_status:" + state.CalleeID)
-		delCache("call:" + req.CallID)
+		delCache(c.Request.Context(), "user_status:"+state.CallerID)
+		delCache(c.Request.Context(), "user_status:"+state.CalleeID)
+		delCache(c.Request.Context(), "call:"+req.CallID)
 
 		utils.TriggerPusher("user-"+state.CallerID, "call_rejected", map[string]interface{}{
 			"call_id": req.CallID,
@@ -396,14 +424,14 @@ func EndCall(c *gin.Context) {
 		return
 	}
 
-	val, err := getCache("call:" + req.CallID)
+	val, err := getCache(c.Request.Context(), "call:" + req.CallID)
 	if err == nil {
 		var state CallState
 		json.Unmarshal([]byte(val), &state)
 
-		delCache("user_status:" + state.CallerID)
-		delCache("user_status:" + state.CalleeID)
-		delCache("call:" + req.CallID)
+		delCache(c.Request.Context(), "user_status:" + state.CallerID)
+		delCache(c.Request.Context(), "user_status:" + state.CalleeID)
+		delCache(c.Request.Context(), "call:" + req.CallID)
 
 		otherUserID := state.CallerID
 		if req.UserID == state.CallerID {
@@ -441,7 +469,7 @@ func EndCall(c *gin.Context) {
 			utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
 		}
 	} else {
-		setCache("call:"+req.CallID, `{"status": "cancelled"}`, 60*time.Second)
+		setCache(c.Request.Context(), "call:"+req.CallID, `{"status": "cancelled"}`, 60*time.Second)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Call ended"})

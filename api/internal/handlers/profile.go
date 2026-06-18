@@ -42,20 +42,38 @@ func GetMyProfile(c *gin.Context) {
 	if err == nil {
 		var rawStories []models.Story
 		if err := cursor.All(ctx, &rawStories); err == nil {
+			viewerIDsMap := make(map[bson.ObjectID]bool)
+			for _, s := range rawStories {
+				for _, v := range s.ViewedBy {
+					viewerIDsMap[v.UserID] = true
+				}
+			}
+			var viewerIDs []bson.ObjectID
+			for id := range viewerIDsMap {
+				viewerIDs = append(viewerIDs, id)
+			}
+
+			viewerCache := make(map[bson.ObjectID]models.User)
+			if len(viewerIDs) > 0 {
+				vCursor, _ := db.UserCollection.Find(ctx, bson.M{"_id": bson.M{"$in": viewerIDs}}, options.Find().SetProjection(bson.M{"username": 1, "avatar": 1}))
+				var viewers []models.User
+				vCursor.All(ctx, &viewers)
+				for _, u := range viewers {
+					viewerCache[u.ID] = u
+				}
+			}
+
 			for _, s := range rawStories {
 				viewedBy := make([]bson.M, 0, len(s.ViewedBy))
 				for _, v := range s.ViewedBy {
-					var viewerUser models.User
-					opts := options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})
-					viewerErr := db.UserCollection.FindOne(ctx, bson.M{"_id": v.UserID}, opts).Decode(&viewerUser)
 					viewerEntry := bson.M{
 						"userId":   v.UserID.Hex(),
 						"viewedAt": v.ViewedAt,
 					}
-					if viewerErr == nil {
+					if cachedUser, ok := viewerCache[v.UserID]; ok {
 						viewerEntry["user"] = bson.M{
-							"username": viewerUser.Username,
-							"avatar":   viewerUser.Avatar,
+							"username": cachedUser.Username,
+							"avatar":   cachedUser.Avatar,
 						}
 					}
 					viewedBy = append(viewedBy, viewerEntry)

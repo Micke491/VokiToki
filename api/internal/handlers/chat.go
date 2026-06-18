@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"chat-app/internal/db"
@@ -451,15 +452,15 @@ func UpdateGroupChat(c *gin.Context) {
 
 	update := bson.M{"$set": bson.M{"updatedAt": time.Now()}}
 	set := update["$set"].(bson.M)
-	systemMsg := ""
+	var changes []string
 
 	if body.Name != nil {
 		set["name"] = *body.Name
-		systemMsg = currentUser.Username + " updated the group name"
+		changes = append(changes, "the group name")
 	}
 	if body.Avatar != nil {
 		set["avatar"] = *body.Avatar
-		systemMsg = currentUser.Username + " updated the group avatar"
+		changes = append(changes, "the group avatar")
 	}
 	if body.GroupAdmin != nil {
 		newAdminID, _ := bson.ObjectIDFromHex(*body.GroupAdmin)
@@ -477,7 +478,12 @@ func UpdateGroupChat(c *gin.Context) {
 		set["groupAdmin"] = newAdminID
 		var newAdmin models.User
 		db.UserCollection.FindOne(c, bson.M{"_id": newAdminID}).Decode(&newAdmin)
-		systemMsg = currentUser.Username + " promoted " + newAdmin.Username + " to admin"
+		changes = append(changes, "promoted "+newAdmin.Username+" to admin")
+	}
+
+	var systemMsg string
+	if len(changes) > 0 {
+		systemMsg = currentUser.Username + " updated " + strings.Join(changes, " and ")
 	}
 
 	var newSysMsg models.Message
@@ -860,7 +866,28 @@ func LeaveChat(c *gin.Context) {
 		return
 	}
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chat)
+	var updatedChat models.Chat
+	db.ChatCollection.FindOne(c, bson.M{"_id": chatID}).Decode(&updatedChat)
+
+	var participants []models.User
+	pCursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": updatedChat.Participants}}, options.Find().SetProjection(bson.M{"username": 1, "name": 1, "avatar": 1, "email": 1}))
+	if pCursor != nil {
+		pCursor.All(c, &participants)
+	}
+
+	chatMap := gin.H{
+		"_id":                  updatedChat.ID.Hex(),
+		"name":                 updatedChat.Name,
+		"isGroupChat":          updatedChat.IsGroupChat,
+		"groupAdmin":           updatedChat.GroupAdmin,
+		"avatar":               updatedChat.Avatar,
+		"participants":         formatParticipants(participants),
+		"participantUsernames": updatedChat.ParticipantUsernames,
+		"createdAt":            updatedChat.CreatedAt,
+		"updatedAt":            updatedChat.UpdatedAt,
+	} 
+
+	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
 	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
 	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", newSysMsg)
 
@@ -990,7 +1017,7 @@ func AddParticipant(c *gin.Context) {
 
 	var populatedSysMsg gin.H
 	if len(newActiveIDs) > 0 {
-		systemMsg := "@" + currentUser.Username + " added " + joinStrings(newActiveUsernames) + " to the chat"
+		systemMsg := currentUser.Username + " added " + joinStrings(newActiveUsernames) + " to the chat"
 		newSysMsg := models.Message{
 			ID:              bson.NewObjectID(),
 			ChatID:          chatID,

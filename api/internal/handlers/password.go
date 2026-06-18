@@ -44,50 +44,49 @@ func RequestPasswordReset(c *gin.Context) {
 	defer cancel()
 
 	err := db.UserCollection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusOK, gin.H{"message": blindMessage})
-			return
-		}
+	if err != nil && err != mongo.ErrNoDocuments {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 
-	tokenBytes := make([]byte, 32)
-	rand.Read(tokenBytes)
-	resetToken := hex.EncodeToString(tokenBytes)
-	hash := sha256.Sum256([]byte(resetToken))
-	resetTokenHash := hex.EncodeToString(hash[:])
-
-	expires := time.Now().Add(1 * time.Hour)
-	_, err = db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
-		"$set": bson.M{
-			"resetPasswordToken":   resetTokenHash,
-			"resetPasswordExpires": expires,
-		},
-	})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reset token"})
-		return
-	}
-
-	resetURL := fmt.Sprintf("%s/auth-pages/reset-password/%s", config.AppConfig.AppURL, resetToken)
-
-	emailBody := services.GeneratePasswordResetEmail(user.Username, resetURL)
-	err = services.SendEmail(user.Email, "Password Reset Request", emailBody)
-	if err != nil {
-		db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
-			"$unset": bson.M{
-				"resetPasswordToken":   "",
-				"resetPasswordExpires": "",
-			},
-		})
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
-		return
-	}
-
 	c.JSON(http.StatusOK, gin.H{"message": blindMessage})
+
+	if err == nil {
+		go func(u models.User) {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer bgCancel()
+
+			tokenBytes := make([]byte, 32)
+			rand.Read(tokenBytes)
+			resetToken := hex.EncodeToString(tokenBytes)
+			hash := sha256.Sum256([]byte(resetToken))
+			resetTokenHash := hex.EncodeToString(hash[:])
+
+			expires := time.Now().Add(1 * time.Hour)
+			_, updateErr := db.UserCollection.UpdateOne(bgCtx, bson.M{"_id": u.ID}, bson.M{
+				"$set": bson.M{
+					"resetPasswordToken":   resetTokenHash,
+					"resetPasswordExpires": expires,
+				},
+			})
+
+			if updateErr != nil {
+				return
+			}
+
+			resetURL := fmt.Sprintf("%s/auth-pages/reset-password/%s", config.AppConfig.AppURL, resetToken)
+			emailBody := services.GeneratePasswordResetEmail(u.Username, resetURL)
+			
+			if sendErr := services.SendEmail(u.Email, "Password Reset Request", emailBody); sendErr != nil {
+				db.UserCollection.UpdateOne(bgCtx, bson.M{"_id": u.ID}, bson.M{
+					"$unset": bson.M{
+						"resetPasswordToken":   "",
+						"resetPasswordExpires": "",
+					},
+				})
+			}
+		}(user)
+	}
 }
 
 func ExecutePasswordReset(c *gin.Context) {

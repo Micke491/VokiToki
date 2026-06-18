@@ -4,18 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"chat-app/internal/db"
 	"chat-app/internal/models"
 	"chat-app/internal/services"
+
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type RegisterRequest struct {
-	Username string `json:"username" binding:"required"`
+	Username string `json:"username" binding:"required,min=3,max=30"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
 }
@@ -29,6 +31,12 @@ func Register(c *gin.Context) {
 
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	username := strings.TrimSpace(req.Username)
+
+	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_.-]+$`, username)
+	if !matched {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Username can only contain letters, numbers, underscores, dots, and hyphens"})
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

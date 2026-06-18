@@ -74,17 +74,3 @@ func Increment(ctx context.Context, key string) (int64, error) {
 	}
 	return db.RedisClient.Incr(ctx, key).Result()
 }
-
-func IsRateLimited(ctx context.Context, userID string, limit int, window time.Duration) (bool, error) {
-	if db.RedisClient == nil {
-		return false, nil
-	}
-	key := "rate_limit:" + userID
-	count, _ := db.RedisClient.Incr(ctx, key).Result()
-	
-	if count == 1 {
-		db.RedisClient.Expire(ctx, key, window)
-	}
-
-	return count > int64(limit), nil
-}

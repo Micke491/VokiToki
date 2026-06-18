@@ -65,11 +65,33 @@ func ListMedia(c *gin.Context) {
 	messages := []bson.M{}
 	cursor.All(c, &messages)
 
+	senderIDsMap := make(map[bson.ObjectID]bool)
+	for _, msg := range messages {
+		if senderID, ok := msg["sender"].(bson.ObjectID); ok {
+			senderIDsMap[senderID] = true
+		}
+	}
+
+	var senderIDs []bson.ObjectID
+	for id := range senderIDsMap {
+		senderIDs = append(senderIDs, id)
+	}
+
+	userCache := make(map[bson.ObjectID]models.User)
+	if len(senderIDs) > 0 {
+		cursor, _ := db.UserCollection.Find(c, bson.M{"_id": bson.M{"$in": senderIDs}}, options.Find().SetProjection(bson.M{"username": 1, "avatar": 1}))
+		var senders []models.User
+		cursor.All(c, &senders)
+		for _, u := range senders {
+			userCache[u.ID] = u
+		}
+	}
+
 	for i, msg := range messages {
 		senderID := msg["sender"].(bson.ObjectID)
-		var sender models.User
-		db.UserCollection.FindOne(c, bson.M{"_id": senderID}, options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1})).Decode(&sender)
-		messages[i]["sender"] = sender
+		if cachedSender, ok := userCache[senderID]; ok {
+			messages[i]["sender"] = cachedSender
+		}
 	}
 
 	c.JSON(http.StatusOK, messages)

@@ -79,6 +79,7 @@ func LoadConfig() {
 		"PUSHER_CLUSTER": AppConfig.PusherCluster,
 		"LIVEKIT_API_KEY": AppConfig.LiveKitAPIKey,
 		"LIVEKIT_API_SECRET": AppConfig.LiveKitAPISecret,
+		"APP_URL": AppConfig.AppURL,
 	}
 
     for name, value := range requiredVars {

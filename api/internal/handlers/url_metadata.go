@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -44,19 +45,47 @@ func GetURLMetadata(c *gin.Context) {
 	}
 
 	ips, err := net.LookupIP(hostname)
-	if err != nil {
+	if err != nil || len(ips) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not resolve hostname"})
 		return
 	}
 
+	var targetIP net.IP
 	for _, ip := range ips {
 		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsPrivate() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Private/internal IPs are not allowed"})
 			return
 		}
+		if targetIP == nil {
+			targetIP = ip
+		}
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	dialer := &net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			_, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				if parsedURL.Scheme == "https" {
+					port = "443"
+				} else {
+					port = "80"
+				}
+			}
+			safeAddr := net.JoinHostPort(targetIP.String(), port)
+			return dialer.DialContext(ctx, network, safeAddr)
+		},
+	}
+
+	client := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: transport, 
+	}
+
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})

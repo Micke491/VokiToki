@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"chat-app/internal/db"
+	"chat-app/internal/models"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,9 +18,15 @@ func RateLimiter(limit int, window time.Duration, prefix string) gin.HandlerFunc
 			return
 		}
 
-		ip := c.ClientIP()
-		key := fmt.Sprintf("%s:%s", prefix, ip)
-		ctx := c.Request.Context() 
+		identifier := c.ClientIP()
+		if userObj, exists := c.Get("user"); exists {
+			if user, ok := userObj.(models.User); ok {
+				identifier = user.ID.Hex()
+			}
+		}
+
+		key := fmt.Sprintf("%s:%s", prefix, identifier)
+		ctx := c.Request.Context()
 
 		count, err := db.RedisClient.Incr(ctx, key).Result()
 		if err != nil {

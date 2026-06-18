@@ -610,6 +610,11 @@ func ManageReaction(c *gin.Context) {
 
 	var msg models.Message
 	err = db.MessageCollection.FindOne(c, bson.M{"_id": messageID}).Decode(&msg)
+	if msg.IsDeletedForEveryone {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot react to a deleted message"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
 		return
@@ -710,6 +715,11 @@ func EditMessage(c *gin.Context) {
 		return
 	}
 
+	if msg.IsDeletedForEveryone {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot edit a deleted message"})
+		return
+	}
+
 	update := bson.M{
 		"$set": bson.M{
 			"text":     body.Text,
@@ -783,6 +793,7 @@ func DeleteMessage(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Only sender can delete for everyone"})
 			return
 		}
+		
 		db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
 			"$set": bson.M{
 				"isDeletedForEveryone": true,
@@ -794,7 +805,19 @@ func DeleteMessage(c *gin.Context) {
 				"isPinned":             false,
 			},
 		})
+		
 		utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-deleted", gin.H{"messageId": messageIDStr, "chatId": msg.ChatID.Hex()})
+		
+		for _, pid := range chat.Participants {
+			utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+				"chatId": msg.ChatID.Hex(),
+				"lastMessage": gin.H{
+					"_id":             messageIDStr,
+					"text":            "This message was deleted",
+					"isDeletedForEveryone": true,
+				},
+			})
+		}
 	} else {
 		db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
 			"$addToSet": bson.M{"deletedBy": currentUser.ID},

@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"chat-app/internal/cache"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +16,14 @@ func SearchLocation(c *gin.Context) {
 	q := c.Query("q")
 	if q == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Query parameter 'q' is required"})
+		return
+	}
+
+	cacheKey := "geo_search:" + url.QueryEscape(strings.ToLower(q))
+	if cached, err := cache.Get(c.Request.Context(), cacheKey); err == nil && cached != "" {
+		var result interface{}
+		json.Unmarshal([]byte(cached), &result)
+		c.JSON(http.StatusOK, result)
 		return
 	}
 
@@ -45,6 +55,10 @@ func SearchLocation(c *gin.Context) {
 		return
 	}
 
+	if data, err := json.Marshal(result); err == nil {
+		cache.Set(c.Request.Context(), cacheKey, string(data), 24*time.Hour)
+	}
+
 	c.JSON(http.StatusOK, result)
 }
 
@@ -53,6 +67,14 @@ func ReverseGeocode(c *gin.Context) {
 	lon := c.Query("lon")
 	if lat == "" || lon == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Latitude and longitude parameters are required"})
+		return
+	}
+
+	cacheKey := "geo_rev:" + lat + "," + lon
+	if cached, err := cache.Get(c.Request.Context(), cacheKey); err == nil && cached != "" {
+		var result interface{}
+		json.Unmarshal([]byte(cached), &result)
+		c.JSON(http.StatusOK, result)
 		return
 	}
 
@@ -82,6 +104,10 @@ func ReverseGeocode(c *gin.Context) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode response"})
 		return
+	}
+
+	if data, err := json.Marshal(result); err == nil {
+		cache.Set(c.Request.Context(), cacheKey, string(data), 24*time.Hour)
 	}
 
 	c.JSON(http.StatusOK, result)
