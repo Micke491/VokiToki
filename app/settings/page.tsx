@@ -15,7 +15,7 @@ import NotificationSettingsTab from '@/features/settings/components/Notification
 import AppearanceSettingsTab from '@/features/settings/components/AppearanceSettingsTab';
 import DangerZoneTab from '@/features/settings/components/DangerZoneTab';
 import ConnectionsSettingsTab from '@/features/settings/components/ConnectionsSettingsTab';
-import AISettingsTab from '@/features/settings/components/AISettingsTab';
+import AISettingsTab, { BotPersona } from '@/features/settings/components/AISettingsTab';
 import { Users as UsersIcon } from 'lucide-react';
 
 interface User {
@@ -34,7 +34,7 @@ interface User {
   defaultWallpaper?: string;
   autoPlayGifs?: boolean;
   autoPlayVoice?: boolean;
-  botPersona?: string;
+  botPersona?: BotPersona;
 }
 
 type TabType = 'account' | 'privacy' | 'connections' | 'notifications' | 'appearance' | 'ai' | 'danger';
