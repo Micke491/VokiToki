@@ -8,10 +8,11 @@ import ImagePreviewModal from '@/components/ui/ImagePreviewModal';
 import {
   Bot, Plus, Trash2, Send, Loader2,
   MessageSquare, MoreVertical, Square, User2,
-  Sparkles, Code2, Lightbulb, HelpCircle,
+  Sparkles, Code2, HelpCircle,
   Search, X, Copy, Check, ChevronDown,
   PenLine, Shield, Phone, Palette,
-  Paperclip, ImageIcon, Video, FileWarning
+  Paperclip, ImageIcon, Video, FileWarning,
+  Mic, Trash, Play, Pause, AudioLines, Wand2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -29,7 +30,7 @@ interface User {
 }
 
 interface BotAttachment {
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'audio';
   mimeType: string;
   fileName: string;
   thumbnailB64?: string;
@@ -51,12 +52,13 @@ interface BotChat {
 }
 
 interface PendingAttachment {
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'audio';
   mimeType: string;
   fileName: string;
   data: string;
   previewUrl: string;
   sizeBytes: number;
+  durationSec?: number;
 }
 
 const SUGGESTIONS = [
@@ -70,9 +72,26 @@ const SUGGESTIONS = [
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+const MAX_RECORDING_SECONDS = 300; 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const ACCEPT_ATTR = [...ACCEPTED_IMAGE_TYPES, ...ACCEPTED_VIDEO_TYPES].join(',');
+
+const RECORDER_MIME_CANDIDATES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/mp4',
+  'audio/ogg;codecs=opus',
+];
+
+function pickRecorderMimeType(): string {
+  if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return '';
+  for (const candidate of RECORDER_MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported?.(candidate)) return candidate;
+  }
+  return '';
+}
 
 function CodeBlock({ children, className, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
@@ -141,18 +160,167 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+function formatDuration(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 function stripDataUrlPrefix(dataUrl: string): string {
   const idx = dataUrl.indexOf(',');
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1);
 }
 
-function fileToBase64(file: File): Promise<string> {
+function fileToBase64(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(stripDataUrlPrefix(reader.result as string));
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
+}
+
+function extensionForMime(mime: string): string {
+  if (mime.includes('webm')) return 'webm';
+  if (mime.includes('mp4') || mime.includes('m4a')) return 'm4a';
+  if (mime.includes('ogg')) return 'ogg';
+  if (mime.includes('wav')) return 'wav';
+  return 'audio';
+}
+
+function VoiceMessagePlayer({ src, isUser }: { src: string; isUser: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0); // 0-1
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onTime = () => {
+      setCurrentTime(audio.currentTime);
+      if (audio.duration && isFinite(audio.duration)) {
+        setProgress(audio.currentTime / audio.duration);
+      }
+    };
+    const onLoaded = () => {
+      if (audio.duration && isFinite(audio.duration)) setDuration(audio.duration);
+    };
+    const onEnd = () => {
+      setPlaying(false);
+      setProgress(0);
+      setCurrentTime(0);
+    };
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('loadedmetadata', onLoaded);
+    audio.addEventListener('durationchange', onLoaded);
+    audio.addEventListener('ended', onEnd);
+    return () => {
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('loadedmetadata', onLoaded);
+      audio.removeEventListener('durationchange', onLoaded);
+      audio.removeEventListener('ended', onEnd);
+    };
+  }, [src]);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+    } else {
+      audio.play().catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setProgress(ratio);
+  };
+
+  const barCount = 24;
+  const bars = useMemo(() => {
+    let seed = 0;
+    for (let i = 0; i < src.length; i++) seed = (seed * 31 + src.charCodeAt(i)) % 997;
+    const arr: number[] = [];
+    for (let i = 0; i < barCount; i++) {
+      seed = (seed * 9301 + 49297) % 233280;
+      const rand = seed / 233280;
+      arr.push(0.25 + rand * 0.75);
+    }
+    return arr;
+  }, [src]);
+
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl min-w-[220px] max-w-[280px] ${isUser ? 'bg-chat-accent text-white' : 'bg-chat-bg-secondary text-chat-text-primary'}`}>
+      <audio ref={audioRef} src={src} preload="metadata" className="hidden" />
+      <button
+        onClick={togglePlay}
+        className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${isUser ? 'bg-white/20 hover:bg-white/30' : 'bg-chat-accent/15 hover:bg-chat-accent/25 text-chat-accent'}`}
+        title={playing ? 'Pause' : 'Play'}
+      >
+        {playing ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div
+          onClick={handleSeek}
+          className="flex items-center gap-[2px] h-6 cursor-pointer"
+        >
+          {bars.map((h, i) => {
+            const barProgress = i / barCount;
+            const isFilled = barProgress <= progress;
+            return (
+              <span
+                key={i}
+                className={`flex-1 rounded-full transition-colors ${isUser ? (isFilled ? 'bg-white' : 'bg-white/35') : (isFilled ? 'bg-chat-accent' : 'bg-chat-text-tertiary/30')}`}
+                style={{ height: `${Math.max(15, h * 100)}%` }}
+              />
+            );
+          })}
+        </div>
+        <span className={`text-[10px] mt-1 inline-block ${isUser ? 'text-white/70' : 'text-chat-text-tertiary'}`}>
+          {formatDuration(playing || currentTime > 0 ? currentTime : duration)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Inline composer waveform — sits *inside* the pill while recording
+   ============================================================ */
+function RecordingWaveform({ seconds }: { seconds: number }) {
+  const bars = 32;
+  return (
+    <div className="flex-1 flex items-center gap-[3px] h-7 overflow-hidden px-1">
+      {[...Array(bars)].map((_, i) => (
+        <motion.span
+          key={i}
+          className="flex-1 rounded-full bg-gradient-to-t from-red-500 to-rose-400 min-w-[2px]"
+          animate={{
+            height: [
+              `${18 + ((i * 29) % 55)}%`,
+              `${30 + ((i * 53) % 70)}%`,
+              `${18 + ((i * 29) % 55)}%`,
+            ],
+          }}
+          transition={{
+            duration: 0.55 + (i % 6) * 0.07,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.02,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export default function BotPage() {
@@ -169,12 +337,16 @@ export default function BotPage() {
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
+  const [savingRename, setSavingRename] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [modelName, setModelName] = useState('Gemini Flash');
   const [toastError, setToastError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [isComposerFocused, setIsComposerFocused] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const createdBlobUrls = useRef<string[]>([]);
 
@@ -185,6 +357,16 @@ export default function BotPage() {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewMediaType, setPreviewMediaType] = useState<string>('image');
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<BlobPart[]>([]);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartRef = useRef<number>(0);
+  const recordingCancelledRef = useRef(false);
 
   useEffect(() => {
     apiFetch('/api/users/current_user')
@@ -232,6 +414,8 @@ export default function BotPage() {
           // ignore
         }
       });
+      stopRecordingStream();
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
   }, []);
 
@@ -276,6 +460,49 @@ export default function BotPage() {
       // ignore
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startRename = (chat: BotChat, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingId(chat._id);
+    setRenameTitle(chat.title);
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameTitle('');
+  };
+
+  const handleRename = async (chatId: string) => {
+    const trimmedTitle = renameTitle.trim();
+    if (!trimmedTitle) {
+      setToastError('Title cannot be empty');
+      return;
+    }
+    setSavingRename(true);
+    try {
+      const res = await apiFetch(`/api/bot/chats/${chatId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmedTitle })
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to rename chat');
+      }
+      const data = await res.json();
+      const updatedTitle = data.title;
+      setChats(prev => prev.map(c => c._id === chatId ? { ...c, title: updatedTitle } : c));
+      if (activeChat?._id === chatId) {
+        setActiveChat(prev => prev ? { ...prev, title: updatedTitle } : null);
+      }
+      setRenamingId(null);
+      setRenameTitle('');
+    } catch (err: any) {
+      setToastError(err.message || 'Failed to rename chat');
+    } finally {
+      setSavingRename(false);
     }
   };
 
@@ -365,6 +592,140 @@ export default function BotPage() {
     handleFileSelected(file);
   };
 
+  const stopRecordingStream = () => {
+    recordingStreamRef.current?.getTracks().forEach(t => t.stop());
+    recordingStreamRef.current = null;
+  };
+
+  const startRecording = async () => {
+    setToastError(null);
+    setMicPermissionError(null);
+
+    if (sending || attachmentLoading || pendingAttachment) return;
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setMicPermissionError('Voice recording is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+
+      const mimeType = pickRecorderMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recordedChunksRef.current = [];
+      recordingCancelledRef.current = false;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stopRecordingStream();
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        if (recordingCancelledRef.current) {
+          recordedChunksRef.current = [];
+          setIsRecording(false);
+          setRecordingSeconds(0);
+          return;
+        }
+
+        const elapsed = Math.max(0, (Date.now() - recordingStartRef.current) / 1000);
+        const usedMimeType = recorder.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(recordedChunksRef.current, { type: usedMimeType });
+        recordedChunksRef.current = [];
+        setIsRecording(false);
+        setRecordingSeconds(0);
+
+        if (blob.size === 0) {
+          setToastError('Recording was empty. Please try again.');
+          return;
+        }
+        if (blob.size > MAX_AUDIO_BYTES) {
+          setToastError(`Voice message is too large (max ${formatBytes(MAX_AUDIO_BYTES)}). Try a shorter recording.`);
+          return;
+        }
+        if (elapsed < 0.6) {
+          setToastError('Recording was too short.');
+          return;
+        }
+
+        setAttachmentLoading(true);
+        try {
+          const base64Data = await fileToBase64(blob);
+          const previewUrl = URL.createObjectURL(blob);
+          createdBlobUrls.current.push(previewUrl);
+          clearPendingAttachment();
+          setPendingAttachment({
+            type: 'audio',
+            mimeType: usedMimeType,
+            fileName: `voice-message.${extensionForMime(usedMimeType)}`,
+            data: base64Data,
+            previewUrl,
+            sizeBytes: blob.size,
+            durationSec: elapsed,
+          });
+        } catch {
+          setToastError('Failed to process recording. Please try again.');
+        } finally {
+          setAttachmentLoading(false);
+        }
+      };
+
+      recordingStartRef.current = Date.now();
+      recorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds(prev => {
+          const next = prev + 1;
+          if (next >= MAX_RECORDING_SECONDS) {
+            finishRecording();
+          }
+          return next;
+        });
+      }, 1000);
+    } catch (err: any) {
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        setMicPermissionError('Microphone access was denied. Please allow microphone access to record a voice message.');
+      } else {
+        setMicPermissionError('Could not access your microphone. Please try again.');
+      }
+      stopRecordingStream();
+    }
+  };
+
+  const finishRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recordingCancelledRef.current = false;
+      recorder.stop();
+    }
+  };
+
+  const cancelRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    recordingCancelledRef.current = true;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      stopRecordingStream();
+      setIsRecording(false);
+      setRecordingSeconds(0);
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
   const sendMessage = async (overrideText?: string) => {
     const text = (overrideText || input).trim();
     const attachment = pendingAttachment;
@@ -388,11 +749,18 @@ export default function BotPage() {
     let targetChat = activeChat;
 
     if (!targetChat) {
+      const defaultTitle = attachment?.type === 'image'
+        ? 'Image analysis'
+        : attachment?.type === 'video'
+          ? 'Video analysis'
+          : attachment?.type === 'audio'
+            ? 'Voice message'
+            : undefined;
       try {
         const createRes = await apiFetch('/api/bot/chats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: text || (attachment?.type === 'image' ? 'Image analysis' : 'Video analysis') })
+          body: JSON.stringify({ title: text || defaultTitle })
         });
         if (!createRes.ok) throw new Error('Failed to create chat');
         targetChat = await createRes.json();
@@ -405,10 +773,18 @@ export default function BotPage() {
       }
     }
 
+    const defaultAttachmentText = attachment?.type === 'image'
+      ? '📷 Sent an image'
+      : attachment?.type === 'video'
+        ? '🎥 Sent a video'
+        : attachment?.type === 'audio'
+          ? '🎤 Sent a voice message'
+          : '';
+
     const tempUserMsg: BotMessage = {
       _id: 'temp-user-' + Date.now(),
       role: 'user',
-      text: text || (attachment?.type === 'image' ? '📷 Sent an image' : '🎥 Sent a video'),
+      text: text || defaultAttachmentText,
       attachments: attachment ? [{
         type: attachment.type,
         mimeType: attachment.mimeType,
@@ -578,6 +954,8 @@ export default function BotPage() {
 
   const greeting = currentUser?.name || currentUser?.username || 'there';
 
+  const hasComposerContent = !!input.trim() || !!pendingAttachment;
+
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">
       <div className="ambient-glow"><div className="ambient-glow-inner" /></div>
@@ -603,17 +981,27 @@ export default function BotPage() {
         <div className="p-4 border-b border-chat-border">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-lg">
+              <motion.div
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-lg shadow-chat-accent/20"
+                whileHover={{ rotate: [0, -8, 8, 0], scale: 1.05 }}
+                transition={{ duration: 0.4 }}
+              >
                 <Bot className="w-5 h-5 text-white" />
-              </div>
+              </motion.div>
               <div>
                 <h2 className="font-bold text-chat-text-primary text-sm">AI Assistant</h2>
                 <p className="text-chat-text-tertiary text-[11px]">{modelName}</p>
               </div>
             </div>
-            <button onClick={createChat} className="p-2 rounded-xl bg-chat-accent/10 hover:bg-chat-accent/20 text-chat-accent transition-all hover:scale-105" title="New chat">
+            <motion.button
+              onClick={createChat}
+              whileHover={{ scale: 1.08, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              className="p-2 rounded-xl bg-chat-accent/10 hover:bg-chat-accent/20 text-chat-accent transition-colors"
+              title="New chat"
+            >
               <Plus className="w-4 h-4" />
-            </button>
+            </motion.button>
           </div>
           
           {/* Search bar */}
@@ -679,15 +1067,75 @@ export default function BotPage() {
                       }`}
                     >
                       <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-60" />
-                      <span className="flex-1 truncate text-[13px] font-medium">{chat.title}</span>
-                      <button
-                        onClick={(e) => deleteChat(chat._id, e)}
-                        className={`shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${
-                          activeChat?._id === chat._id ? 'hover:bg-white/20' : 'hover:bg-red-500/10 text-red-400'
-                        }`}
-                      >
-                        {deletingId === chat._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                      </button>
+                      {renamingId === chat._id ? (
+                        <div className="flex-1 flex items-center gap-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={renameTitle}
+                            onChange={(e) => setRenameTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleRename(chat._id);
+                              else if (e.key === 'Escape') cancelRename();
+                            }}
+                            className={`flex-1 min-w-0 bg-transparent border-b outline-none text-[13px] font-medium py-0.5 px-0 ${
+                              activeChat?._id === chat._id
+                                ? 'text-white border-white/40 focus:border-white'
+                                : 'text-chat-text-primary border-chat-border focus:border-chat-accent'
+                            }`}
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleRename(chat._id)}
+                            disabled={savingRename}
+                            className={`p-1 rounded transition-colors ${
+                              activeChat?._id === chat._id
+                                ? 'hover:bg-white/20 text-white'
+                                : 'hover:bg-emerald-500/10 text-emerald-500'
+                            }`}
+                            title="Save"
+                          >
+                            {savingRename ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            onClick={cancelRename}
+                            disabled={savingRename}
+                            className={`p-1 rounded transition-colors ${
+                              activeChat?._id === chat._id
+                                ? 'hover:bg-white/20 text-white'
+                                : 'hover:bg-red-500/10 text-red-500'
+                            }`}
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="flex-1 truncate text-[13px] font-medium">{chat.title}</span>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={(e) => startRename(chat, e)}
+                              className={`p-1 rounded-lg transition-colors ${
+                                activeChat?._id === chat._id 
+                                  ? 'hover:bg-white/20 text-white' 
+                                  : 'hover:bg-chat-hover text-chat-text-secondary hover:text-chat-text-primary'
+                              }`}
+                              title="Rename chat"
+                            >
+                              <PenLine className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => deleteChat(chat._id, e)}
+                              className={`p-1 rounded-lg transition-colors ${
+                                activeChat?._id === chat._id ? 'hover:bg-white/20 text-white' : 'hover:bg-red-500/10 text-red-400'
+                              }`}
+                              title="Delete chat"
+                            >
+                              {deletingId === chat._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -714,12 +1162,17 @@ export default function BotPage() {
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-40 bg-chat-accent/10 backdrop-blur-sm border-4 border-dashed border-chat-accent rounded-2xl m-3 flex items-center justify-center pointer-events-none"
             >
-              <div className="flex flex-col items-center gap-3 text-chat-accent">
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: [0.95, 1.03, 0.95] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                className="flex flex-col items-center gap-3 text-chat-accent"
+              >
                 <div className="w-16 h-16 rounded-2xl bg-chat-accent/20 flex items-center justify-center">
                   <Paperclip className="w-8 h-8" />
                 </div>
                 <p className="font-bold text-lg">Drop image or video to analyze</p>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -757,16 +1210,16 @@ export default function BotPage() {
 
         {/* Toast Error */}
         <AnimatePresence>
-          {toastError && (
+          {(toastError || micPermissionError) && (
             <motion.div 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -10, scale: 0.95 }} 
+              animate={{ opacity: 1, y: 0, scale: 1 }} 
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
               className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-5 py-2.5 rounded-2xl text-sm font-medium shadow-lg flex items-center gap-2 backdrop-blur-sm max-w-[90%]"
             >
               <FileWarning className="w-4 h-4 shrink-0" />
-              <span>{toastError}</span>
-              <button onClick={() => setToastError(null)} className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors shrink-0">
+              <span>{toastError || micPermissionError}</span>
+              <button onClick={() => { setToastError(null); setMicPermissionError(null); }} className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors shrink-0">
                 <X className="w-3.5 h-3.5"/>
               </button>
             </motion.div>
@@ -796,15 +1249,30 @@ export default function BotPage() {
                     transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
                     className="absolute -inset-6 rounded-full border border-dashed border-purple-500/10"
                   />
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-chat-accent via-purple-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-chat-accent/30 relative">
-                    <Sparkles className="w-8 h-8 text-white" />
-                  </div>
+                  <motion.div
+                    animate={{
+                      boxShadow: [
+                        '0 0 0px 0px rgba(124,58,237,0.0)',
+                        '0 0 36px 6px rgba(124,58,237,0.35)',
+                        '0 0 0px 0px rgba(124,58,237,0.0)',
+                      ],
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-16 h-16 rounded-2xl bg-gradient-to-br from-chat-accent via-purple-600 to-indigo-600 flex items-center justify-center relative"
+                  >
+                    <motion.div
+                      animate={{ rotate: [0, 8, -8, 0], scale: [1, 1.08, 1] }}
+                      transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <Sparkles className="w-8 h-8 text-white" />
+                    </motion.div>
+                  </motion.div>
                 </div>
                 <h2 className="text-2xl md:text-3xl font-black text-chat-text-primary tracking-tight text-center">
                   Hi {greeting} 
                 </h2>
                 <p className="text-chat-text-secondary text-sm md:text-base text-center max-w-lg">
-                  I&apos;m your VokiToki AI assistant. Ask me anything, or upload a photo or video and I&apos;ll analyze it for you.
+                  I&apos;m your VokiToki AI assistant. Ask me anything, upload a photo or video, or send me a voice message and I&apos;ll listen.
                 </p>
               </motion.div>
 
@@ -863,17 +1331,22 @@ export default function BotPage() {
               {activeChat.messages.map((msg, msgIdx) => (
                 <motion.div 
                   key={msg._id} 
-                  initial={{ opacity: 0, y: 8 }} 
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.985 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                   className={`group/msg py-3 ${msg.role === 'user' ? '' : ''}`}
                 >
                   {msg.role === 'model' ? (
                     /* ---- Bot Message Row ---- */
                     <div className="flex gap-3 items-start">
-                      <div className="shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-sm mt-0.5">
+                      <motion.div
+                        initial={{ scale: 0.6, rotate: -10 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                        className="shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-sm mt-0.5"
+                      >
                         <Bot className="w-3.5 h-3.5 text-white" />
-                      </div>
+                      </motion.div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-xs font-bold text-chat-text-primary">VokiToki AI</span>
@@ -923,55 +1396,70 @@ export default function BotPage() {
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="mb-1">
                             {msg.attachments.map((att, i) => (
-                              <div key={i} className="rounded-2xl overflow-hidden border border-chat-border max-w-[260px]">
-                                {att.thumbnailB64 ? (
-                                  <div className="relative">
-                                    {att.thumbnailB64 && att.thumbnailB64.startsWith('blob:') && att.type === 'video' ? (
-                                      <video
-                                        src={att.thumbnailB64}
-                                        controls
-                                        className="w-full h-auto max-h-64 object-cover"
-                                      />
-                                    ) : (
-                                      <div 
-                                        className="cursor-pointer relative"
-                                        onClick={() => {
-                                          setPreviewImage(att.thumbnailB64 || null);
-                                          setPreviewMediaType(att.thumbnailB64 && att.thumbnailB64.startsWith('blob:') && att.type === 'video' ? 'video' : 'image');
-                                        }}
-                                      >
-                                        <img
-                                          src={att.thumbnailB64}
-                                          alt={att.fileName || (att.type === 'video' ? 'Uploaded video' : 'Uploaded image')}
-                                          className="w-full h-auto max-h-64 object-cover hover:opacity-90 transition-opacity"
-                                        />
-                                        {att.type === 'video' && (
-                                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-                                            <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                                              <Video className="w-4.5 h-4.5 text-white" />
-                                            </div>
+                              <div key={i}>
+                                {att.type === 'audio' ? (
+                                  att.thumbnailB64 ? (
+                                    <VoiceMessagePlayer src={att.thumbnailB64} isUser />
+                                  ) : (
+                                    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-chat-accent text-white min-w-[200px]">
+                                      <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                        <AudioLines className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-xs">Voice message</span>
+                                    </div>
+                                  )
+                                ) : (
+                                  <div className="rounded-2xl overflow-hidden border border-chat-border max-w-[260px]">
+                                    {att.thumbnailB64 ? (
+                                      <div className="relative">
+                                        {att.thumbnailB64 && att.thumbnailB64.startsWith('blob:') && att.type === 'video' ? (
+                                          <video
+                                            src={att.thumbnailB64}
+                                            controls
+                                            className="w-full h-auto max-h-64 object-cover"
+                                          />
+                                        ) : (
+                                          <div 
+                                            className="cursor-pointer relative"
+                                            onClick={() => {
+                                              setPreviewImage(att.thumbnailB64 || null);
+                                              setPreviewMediaType(att.thumbnailB64 && att.thumbnailB64.startsWith('blob:') && att.type === 'video' ? 'video' : 'image');
+                                            }}
+                                          >
+                                            <img
+                                              src={att.thumbnailB64}
+                                              alt={att.fileName || (att.type === 'video' ? 'Uploaded video' : 'Uploaded image')}
+                                              className="w-full h-auto max-h-64 object-cover hover:opacity-90 transition-opacity"
+                                            />
+                                            {att.type === 'video' && (
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                                                <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                                                  <Video className="w-4.5 h-4.5 text-white" />
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
                                         )}
                                       </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-2 px-3 py-2.5 bg-chat-bg-secondary">
-                                    {att.type === 'video' ? (
-                                      <Video className="w-4 h-4 text-chat-text-secondary shrink-0" />
                                     ) : (
-                                      <ImageIcon className="w-4 h-4 text-chat-text-secondary shrink-0" />
+                                      <div className="flex items-center gap-2 px-3 py-2.5 bg-chat-bg-secondary">
+                                        {att.type === 'video' ? (
+                                          <Video className="w-4 h-4 text-chat-text-secondary shrink-0" />
+                                        ) : (
+                                          <ImageIcon className="w-4 h-4 text-chat-text-secondary shrink-0" />
+                                        )}
+                                        <span className="text-xs text-chat-text-secondary truncate">
+                                          {att.fileName || (att.type === 'video' ? 'Video' : 'Image')}
+                                        </span>
+                                      </div>
                                     )}
-                                    <span className="text-xs text-chat-text-secondary truncate">
-                                      {att.fileName || (att.type === 'video' ? 'Video' : 'Image')}
-                                    </span>
                                   </div>
                                 )}
                               </div>
                             ))}
                           </div>
                         )}
-                        {msg.text && (
+                        {msg.text && !(msg.attachments?.length && msg.text.match(/^(📷 Sent an image|🎥 Sent a video|🎤 Sent a voice message)$/)) && (
                           <div className="px-4 py-3 rounded-2xl rounded-tr-sm bg-chat-accent text-white text-sm leading-relaxed shadow-md shadow-chat-accent/15">
                             <span className="whitespace-pre-wrap">{msg.text}</span>
                           </div>
@@ -1013,7 +1501,11 @@ export default function BotPage() {
                           />
                         ))}
                         <span className="text-xs text-chat-text-tertiary ml-2">
-                          {activeChat.messages[activeChat.messages.length - 1]?.attachments?.length ? 'Analyzing...' : 'Thinking...'}
+                          {activeChat.messages[activeChat.messages.length - 1]?.attachments?.[0]?.type === 'audio'
+                            ? 'Listening...'
+                            : activeChat.messages[activeChat.messages.length - 1]?.attachments?.length
+                              ? 'Analyzing...'
+                              : 'Thinking...'}
                         </span>
                       </div>
                     </div>
@@ -1032,8 +1524,10 @@ export default function BotPage() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
+                whileHover={{ scale: 1.08, y: -2 }}
+                whileTap={{ scale: 0.92 }}
                 onClick={scrollToBottom}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 p-2.5 rounded-full bg-chat-bg-secondary border border-chat-border shadow-lg hover:bg-chat-hover transition-all"
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 p-2.5 rounded-full bg-chat-bg-secondary border border-chat-border shadow-lg hover:bg-chat-hover transition-colors"
                 title="Scroll to bottom"
               >
                 <ChevronDown className="w-4 h-4 text-chat-text-secondary" />
@@ -1042,116 +1536,260 @@ export default function BotPage() {
           </AnimatePresence>
         </div>
 
-        {/* ==================== INPUT AREA ==================== */}
+        {/* ==================== MERGED INPUT BAR ==================== */}
         <div className="shrink-0 border-t border-chat-border bg-chat-glass backdrop-blur-xl">
           <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 md:py-4">
 
-            {/* Pending attachment preview (staged before send) */}
-            <AnimatePresence>
-              {(pendingAttachment || attachmentLoading) && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 10 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="inline-flex items-center gap-2.5 bg-chat-bg-secondary border border-chat-border rounded-xl p-2 pr-3 max-w-full">
-                    {attachmentLoading ? (
-                      <div className="w-12 h-12 rounded-lg bg-chat-hover flex items-center justify-center shrink-0">
-                        <Loader2 className="w-4 h-4 animate-spin text-chat-text-tertiary" />
-                      </div>
-                    ) : pendingAttachment?.type === 'image' ? (
-                      <img src={pendingAttachment.previewUrl} alt="Preview" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                    ) : (
-                      <video src={pendingAttachment?.previewUrl} className="w-12 h-12 rounded-lg object-cover shrink-0" muted playsInline />
-                    )}
-                    {pendingAttachment && (
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-chat-text-primary truncate max-w-[180px]">{pendingAttachment.fileName}</p>
-                        <p className="text-[10px] text-chat-text-tertiary">{formatBytes(pendingAttachment.sizeBytes)} · ready to send</p>
-                      </div>
-                    )}
-                    {pendingAttachment && !attachmentLoading && (
-                      <button
-                        onClick={clearPendingAttachment}
-                        className="ml-1 p-1 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
-                        title="Remove attachment"
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_ATTR}
+              onChange={onFileInputChange}
+              className="hidden"
+            />
+
+            {/* ---- The merged pill: attachment chip / waveform / textarea / buttons all live inside ---- */}
+            <motion.div
+              animate={{
+                borderColor: isRecording
+                  ? 'rgba(239,68,68,0.45)'
+                  : isComposerFocused
+                  ? 'var(--color-chat-accent, #6d5dfc)'
+                  : 'var(--color-chat-border)',
+                boxShadow: isRecording
+                  ? '0 0 0 4px rgba(239,68,68,0.10)'
+                  : isComposerFocused
+                  ? '0 0 0 4px rgba(124,58,237,0.10)'
+                  : '0 0 0 0px rgba(0,0,0,0)',
+              }}
+              transition={{ duration: 0.25 }}
+              className="relative flex flex-col gap-0 bg-chat-bg-secondary border rounded-[28px] overflow-hidden"
+            >
+              {/* Attachment preview row — collapses/expands inside the same pill */}
+              <AnimatePresence>
+                {(pendingAttachment || attachmentLoading) && !isRecording && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="overflow-hidden px-3 pt-3"
+                  >
+                    {pendingAttachment?.type === 'audio' ? (
+                      <motion.div
+                        initial={{ scale: 0.92 }}
+                        animate={{ scale: 1 }}
+                        className="inline-flex items-center gap-2.5 bg-chat-bg-primary border border-chat-border rounded-2xl p-2 pr-3 max-w-full"
                       >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                        <div className="w-10 h-10 rounded-lg bg-chat-accent/15 text-chat-accent flex items-center justify-center shrink-0">
+                          <AudioLines className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-chat-text-primary">Voice message</p>
+                          <p className="text-[10px] text-chat-text-tertiary">
+                            {pendingAttachment.durationSec ? formatDuration(pendingAttachment.durationSec) : ''} · {formatBytes(pendingAttachment.sizeBytes)} · ready to send
+                          </p>
+                        </div>
+                        <button
+                          onClick={clearPendingAttachment}
+                          className="ml-1 p-1 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
+                          title="Remove voice message"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ scale: 0.92 }}
+                        animate={{ scale: 1 }}
+                        className="inline-flex items-center gap-2.5 bg-chat-bg-primary border border-chat-border rounded-2xl p-2 pr-3 max-w-full"
+                      >
+                        {attachmentLoading ? (
+                          <div className="w-12 h-12 rounded-lg bg-chat-hover flex items-center justify-center shrink-0">
+                            <Loader2 className="w-4 h-4 animate-spin text-chat-text-tertiary" />
+                          </div>
+                        ) : pendingAttachment?.type === 'image' ? (
+                          <img src={pendingAttachment.previewUrl} alt="Preview" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                        ) : (
+                          <video src={pendingAttachment?.previewUrl} className="w-12 h-12 rounded-lg object-cover shrink-0" muted playsInline />
+                        )}
+                        {pendingAttachment && (
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-chat-text-primary truncate max-w-[180px]">{pendingAttachment.fileName}</p>
+                            <p className="text-[10px] text-chat-text-tertiary">{formatBytes(pendingAttachment.sizeBytes)} · ready to send</p>
+                          </div>
+                        )}
+                        {pendingAttachment && !attachmentLoading && (
+                          <button
+                            onClick={clearPendingAttachment}
+                            className="ml-1 p-1 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
+                            title="Remove attachment"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </motion.div>
                     )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex gap-2 items-end">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPT_ATTR}
-                onChange={onFileInputChange}
-                className="hidden"
-              />
-              <motion.button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={sending || attachmentLoading}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title="Attach an image or video"
-                className="shrink-0 w-[48px] h-[48px] rounded-2xl bg-chat-bg-secondary border border-chat-border flex items-center justify-center text-chat-text-secondary hover:text-chat-text-primary hover:bg-chat-hover disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                <Paperclip className="w-4 h-4" />
-              </motion.button>
-
-              <div className="flex-1 relative">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={pendingAttachment ? "Ask something about this file (optional)..." : "Message VokiToki AI..."}
-                  rows={1}
-                  disabled={sending}
-                  className="w-full resize-none bg-chat-bg-secondary border border-chat-border rounded-2xl px-4 py-3 pr-12 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:border-chat-accent/50 focus:ring-1 focus:ring-chat-accent/20 transition-all overflow-y-auto"
-                  style={{ minHeight: '48px', maxHeight: '200px' }}
-                  onInput={e => {
-                    const el = e.currentTarget;
-                    el.style.height = 'auto';
-                    el.style.height = el.scrollHeight + 'px'; 
-                  }}
-                />
-                {/* Character count */}
-                {input.length > 100 && (
-                  <span className={`absolute bottom-2 right-14 text-[10px] font-medium ${input.length > 7500 ? 'text-red-400' : 'text-chat-text-tertiary'}`}>
-                    {input.length.toLocaleString()}
-                  </span>
+                  </motion.div>
                 )}
+              </AnimatePresence>
+
+              {/* Main control row */}
+              <div className="flex gap-1.5 items-end px-2 py-2">
+                <AnimatePresence mode="wait" initial={false}>
+                  {isRecording ? (
+                    /* ---- Recording state: cancel · waveform · seconds · finish, all inline ---- */
+                    <motion.div
+                      key="recording-row"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-1 items-center gap-2 py-1"
+                    >
+                      <motion.button
+                        onClick={cancelRecording}
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.9 }}
+                        title="Cancel recording"
+                        className="shrink-0 w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </motion.button>
+
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <motion.span
+                          className="w-2 h-2 rounded-full bg-red-500 shrink-0"
+                          animate={{ opacity: [1, 0.25, 1], scale: [1, 0.85, 1] }}
+                          transition={{ duration: 1.1, repeat: Infinity }}
+                        />
+                        <span className="text-sm font-semibold text-chat-text-primary tabular-nums shrink-0">
+                          {formatDuration(recordingSeconds)}
+                        </span>
+                        <RecordingWaveform seconds={recordingSeconds} />
+                      </div>
+
+                      <motion.button
+                        onClick={finishRecording}
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.9 }}
+                        animate={{
+                          boxShadow: [
+                            '0 0 0px 0px rgba(124,58,237,0.4)',
+                            '0 0 0px 8px rgba(124,58,237,0.0)',
+                          ],
+                        }}
+                        transition={{ boxShadow: { duration: 1.4, repeat: Infinity } }}
+                        title="Finish recording"
+                        className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md"
+                      >
+                        <Check className="w-4 h-4" />
+                      </motion.button>
+                    </motion.div>
+                  ) : (
+                    /* ---- Normal composer row ---- */
+                    <motion.div
+                      key="composer-row"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-1 gap-1 items-end"
+                    >
+                      <motion.button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={sending || attachmentLoading}
+                        whileHover={{ scale: 1.08, rotate: -8 }}
+                        whileTap={{ scale: 0.92 }}
+                        title="Attach an image or video"
+                        className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </motion.button>
+
+                      <div className="flex-1 relative">
+                        <textarea
+                          ref={inputRef}
+                          value={input}
+                          onChange={e => setInput(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          onFocus={() => setIsComposerFocused(true)}
+                          onBlur={() => setIsComposerFocused(false)}
+                          placeholder={pendingAttachment?.type === 'audio' ? "Add a note about this voice message (optional)..." : pendingAttachment ? "Ask something about this file (optional)..." : "Message VokiToki AI..."}
+                          rows={1}
+                          disabled={sending}
+                          className="w-full resize-none bg-transparent border-none px-1.5 py-2.5 pr-10 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-0 transition-all overflow-y-auto"
+                          style={{ minHeight: '40px', maxHeight: '180px' }}
+                          onInput={e => {
+                            const el = e.currentTarget;
+                            el.style.height = 'auto';
+                            el.style.height = el.scrollHeight + 'px'; 
+                          }}
+                        />
+                        {/* Character count */}
+                        <AnimatePresence>
+                          {input.length > 100 && (
+                            <motion.span
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className={`absolute bottom-2 right-0 text-[10px] font-medium ${input.length > 7500 ? 'text-red-400' : 'text-chat-text-tertiary'}`}
+                            >
+                              {input.length.toLocaleString()}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {sending ? (
+                        <motion.button
+                          key="stop"
+                          initial={{ scale: 0.6, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.6, opacity: 0 }}
+                          onClick={stopGeneration}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          title="Stop generation"
+                          className="shrink-0 w-10 h-10 rounded-full bg-red-500/90 hover:bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/20 transition-colors"
+                        >
+                          <Square className="w-3.5 h-3.5 fill-current" />
+                        </motion.button>
+                      ) : !hasComposerContent ? (
+                        <motion.button
+                          key="mic"
+                          initial={{ scale: 0.6, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.6, opacity: 0 }}
+                          onClick={startRecording}
+                          disabled={attachmentLoading}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          title="Record a voice message"
+                          className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Mic className="w-4 h-4" />
+                        </motion.button>
+                      ) : (
+                        <motion.button
+                          key="send"
+                          initial={{ scale: 0.6, opacity: 0, rotate: -45 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          exit={{ scale: 0.6, opacity: 0 }}
+                          onClick={() => sendMessage()}
+                          disabled={!hasComposerContent}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.9 }}
+                          title="Send message"
+                          className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md shadow-chat-accent/25 disabled:opacity-40 disabled:cursor-not-allowed transition-shadow"
+                        >
+                          <Send className="w-4 h-4" />
+                        </motion.button>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              
-              {sending ? (
-                <motion.button
-                  onClick={stopGeneration}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  title="Stop generation"
-                  className="shrink-0 w-[48px] h-[48px] rounded-2xl bg-red-500/90 hover:bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/20 transition-all"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                </motion.button>
-              ) : (
-                <motion.button
-                  onClick={() => sendMessage()}
-                  disabled={!input.trim() && !pendingAttachment}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  title="Send message"
-                  className="shrink-0 w-[48px] h-[48px] rounded-2xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-lg shadow-chat-accent/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all"
-                >
-                  <Send className="w-4 h-4" />
-                </motion.button>
-              )}
-            </div>
+            </motion.div>
+
             <p className="text-center text-chat-text-tertiary text-[11px] mt-2.5 font-medium">
               VokiToki AI · Powered by {modelName} · Responses may be inaccurate
             </p>

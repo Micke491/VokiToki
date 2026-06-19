@@ -160,6 +160,7 @@ func main() {
 			bot.GET("/chats/:id", handlers.GetBotChat)
 			bot.POST("/chats/:id/message", middleware.RateLimiter(20, time.Minute, "bot:msg"), handlers.SendBotMessage)
 			bot.DELETE("/chats/:id", handlers.DeleteBotChat)
+			bot.PATCH("/chats/:id", handlers.RenameBotChat)
 		}
 	}
 

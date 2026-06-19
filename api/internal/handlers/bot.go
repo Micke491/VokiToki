@@ -38,6 +38,7 @@ const (
 	maxInlineRequestBytes = 19 * 1024 * 1024
 	maxImageBytes         = 8 * 1024 * 1024
 	maxVideoBytes         = 15 * 1024 * 1024
+	maxAudioBytes         = 12 * 1024 * 1024
 
 	maxThumbnailB64Len = 60 * 1024
 )
@@ -58,6 +59,19 @@ var allowedVideoMimeTypes = map[string]bool{
 	"video/mp4":  true,
 	"video/webm": true,
 	"video/quicktime": true,
+}
+
+var allowedAudioMimeTypes = map[string]bool{
+	"audio/webm":  true,
+	"audio/ogg":   true,
+	"audio/mpeg":  true,
+	"audio/mp3":   true,
+	"audio/mp4":   true,
+	"audio/m4a":   true,
+	"audio/x-m4a": true,
+	"audio/wav":   true,
+	"audio/wave":  true,
+	"audio/aac":   true,
 }
 
 func isRetryableStatus(code int) bool {
@@ -229,6 +243,51 @@ func DeleteBotChat(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+func RenameBotChat(c *gin.Context) {
+	authUser := c.MustGet("user").(models.User)
+	chatIDStr := c.Param("id")
+
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
+
+	var body struct {
+		Title string `json:"title" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
+		return
+	}
+
+	title := sanitizeTitle(body.Title)
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title cannot be empty"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := db.BotChatCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": chatID, "userId": authUser.ID},
+		bson.M{"$set": bson.M{"title": title, "updatedAt": time.Now()}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rename chat"})
+		return
+	}
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "title": title})
+}
+
+
 type GeminiInlineData struct {
 	MimeType string `json:"mime_type"`
 	Data     string `json:"data"` 
@@ -277,7 +336,7 @@ VokiToki is a full-stack chat application built with Next.js 16, React 19, TypeS
 5. **User Profiles** — Customizable avatar, display name, bio, location, gender, and custom links. Follower/following social system with follow requests for private accounts.
 6. **Security** — JWT-based session management with bcrypt password hashing. Email-based password reset flow via Brevo SMTP. Two-Factor Authentication (2FA) with authenticator app support. User blocking and reporting system.
 7. **Settings & Personalization** — Dark and light themes with system preference detection. Configurable read receipt visibility. Custom chat wallpapers with preset options. Auto-play controls for GIFs and voice messages. AI assistant persona selection (that's you!).
-8. **AI Assistant** — That's you! Users can interact with you for help, coding assistance, writing, brainstorming, and app-related questions. You can also see and analyze images and short videos users upload directly in this chat — describe what's in them, answer questions about them, read text in them, etc. Users can choose your persona in Settings > AI Assistant. Available personas: Default (helpful & friendly), Sarcastic (witty & humorous), Coding (expert engineer), Coach (motivational & structured).
+8. **AI Assistant** — That's you! Users can interact with you for help, coding assistance, writing, brainstorming, and app-related questions. You can also see and analyze images and short videos users upload directly in this chat, and you can listen to and understand voice messages/audio clips they send you — transcribe them, answer questions about them, summarize them, etc. Users can choose your persona in Settings > AI Assistant. Available personas: Default (helpful & friendly), Sarcastic (witty & humorous), Coding (expert engineer), Coach (motivational & structured).
 9. **Push Notifications** — Firebase Cloud Messaging integration for real-time push notifications on mobile and desktop.
 
 **App Navigation (help users find things):**
@@ -300,7 +359,7 @@ VokiToki is a full-stack chat application built with Next.js 16, React 19, TypeS
 - How to upload or change avatar (Settings > Account > click avatar to upload)
 - How to set a chat wallpaper (Settings > Appearance > Wallpaper)
 - How to share media (click the attachment/plus icon in the chat input area)
-- How to record a voice message (hold the microphone icon in the chat input area)
+- How to record a voice message (hold the microphone icon in the chat input area, or in this AI chat click the mic icon to record a voice prompt)
 - How to use GIFs and stickers (click the GIF/sticker icon in the chat input)
 - How to forward a message (long-press or right-click a message > Forward)
 - How to search for users (use the search bar in the chat sidebar)
@@ -327,12 +386,18 @@ type incomingAttachment struct {
 
 func validateAttachment(a incomingAttachment) (attachType string, decoded []byte, err error) {
 	mime := strings.ToLower(strings.TrimSpace(a.MimeType))
+	// Strip codec parameters e.g. "audio/webm;codecs=opus" -> "audio/webm"
+	if idx := strings.Index(mime, ";"); idx != -1 {
+		mime = strings.TrimSpace(mime[:idx])
+	}
 
 	switch {
 	case allowedImageMimeTypes[mime]:
 		attachType = "image"
 	case allowedVideoMimeTypes[mime]:
 		attachType = "video"
+	case allowedAudioMimeTypes[mime]:
+		attachType = "audio"
 	default:
 		return "", nil, fmt.Errorf("unsupported file type: %s", a.MimeType)
 	}
@@ -351,6 +416,9 @@ func validateAttachment(a incomingAttachment) (attachType string, decoded []byte
 	}
 	if attachType == "video" && len(decoded) > maxVideoBytes {
 		return "", nil, fmt.Errorf("video is too large (max %dMB, keep clips short)", maxVideoBytes/(1024*1024))
+	}
+	if attachType == "audio" && len(decoded) > maxAudioBytes {
+		return "", nil, fmt.Errorf("voice message is too large (max %dMB, keep recordings short)", maxAudioBytes/(1024*1024))
 	}
 
 	return attachType, decoded, nil
@@ -372,6 +440,10 @@ func buildThumbnail(attachType string, decoded []byte, mimeType string) string {
 
 	case "video":
 		return extractVideoFrameThumbnail(decoded, mimeType)
+
+	case "audio":
+		// No visual thumbnail for audio; the client renders a waveform/player icon instead.
+		return ""
 
 	default:
 		return ""
@@ -411,7 +483,7 @@ func SendBotMessage(c *gin.Context) {
 		return
 	}
 	if len(body.Attachments) > 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only one image or video can be attached per message"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only one image, video, or voice message can be attached per message"})
 		return
 	}
 
@@ -451,6 +523,9 @@ func SendBotMessage(c *gin.Context) {
 			return
 		}
 		attachMime = strings.ToLower(strings.TrimSpace(a.MimeType))
+		if idx := strings.Index(attachMime, ";"); idx != -1 {
+			attachMime = strings.TrimSpace(attachMime[:idx])
+		}
 		attachFileName = a.FileName
 		if attachFileName == "" {
 			attachFileName = "upload"
@@ -474,10 +549,13 @@ func SendBotMessage(c *gin.Context) {
 
 	displayText := userInput
 	if displayText == "" && hasAttachments {
-		if attachType == "image" {
+		switch attachType {
+		case "image":
 			displayText = "📷 Sent an image"
-		} else {
+		case "video":
 			displayText = "🎥 Sent a video"
+		case "audio":
+			displayText = "🎤 Sent a voice message"
 		}
 	}
 
@@ -510,7 +588,12 @@ func SendBotMessage(c *gin.Context) {
 	currentParts := make([]GeminiPart, 0, 2)
 	textForGemini := userInput
 	if textForGemini == "" && hasAttachments {
-		textForGemini = "Please analyze this file and describe what you see."
+		switch attachType {
+		case "audio":
+			textForGemini = "Please listen to this voice message and respond to it."
+		default:
+			textForGemini = "Please analyze this file and describe what you see."
+		}
 	}
 	if textForGemini != "" {
 		currentParts = append(currentParts, GeminiPart{Text: textForGemini})
@@ -554,7 +637,7 @@ func SendBotMessage(c *gin.Context) {
 		log.Printf("SendBotMessage: Gemini returned non-retryable %d: %s", resp.StatusCode, string(respBody))
 
 		if resp.StatusCode == http.StatusBadRequest && hasAttachments {
-			c.JSON(http.StatusBadGateway, gin.H{"error": "The AI couldn't process that file. Try a different image/video or format."})
+			c.JSON(http.StatusBadGateway, gin.H{"error": "The AI couldn't process that file. Try a different image/video/audio or format."})
 			return
 		}
 		c.JSON(http.StatusBadGateway, gin.H{"error": "The AI provider returned an error. Please try again."})
