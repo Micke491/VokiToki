@@ -1834,28 +1834,28 @@ export default function BotPage() {
             </div>
           )}
 
-          {/* Scroll to bottom button */}
+        </div>
+
+        {/* ==================== MERGED INPUT BAR ==================== */}
+        <div className="shrink-0 border-t border-chat-border bg-chat-glass backdrop-blur-xl relative">
+
           <AnimatePresence>
             {showScrollDown && activeChat && activeChat.messages.length > 0 && (
               <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.06, y: -2 }}
+                initial={{ opacity: 0, scale: 0.8, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 8 }}
+                whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.94 }}
                 onClick={scrollToBottom}
                 aria-label="Scroll to latest message"
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 p-3 rounded-full bg-chat-bg-secondary border border-chat-border shadow-lg hover:bg-chat-hover transition-colors"
-                title="Scroll to bottom"
-              >
+                className="absolute -top-14 left-1/2 -translate-x-1/2 z-20 p-3 rounded-full bg-chat-bg-secondary border border-chat-border shadow-lg hover:bg-chat-hover transition-colors"
+                title="Scroll to bottom">
                 <ChevronDown className="w-4 h-4 text-chat-text-secondary" />
               </motion.button>
             )}
           </AnimatePresence>
-        </div>
 
-        {/* ==================== MERGED INPUT BAR ==================== */}
-        <div className="shrink-0 border-t border-chat-border bg-chat-glass backdrop-blur-xl">
           <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 md:py-4">
 
             <input
