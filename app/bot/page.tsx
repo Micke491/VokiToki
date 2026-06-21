@@ -12,7 +12,8 @@ import {
   Search, X, Copy, Check, ChevronDown,
   PenLine, Shield, Phone, Palette,
   Paperclip, ImageIcon, Video, FileWarning,
-  Mic, Trash, Play, Pause, AudioLines, Wand2
+  Mic, Trash, Play, Pause, AudioLines, Wand2,
+  Pin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -47,6 +48,7 @@ interface BotMessage {
 interface BotChat {
   _id: string;
   title: string;
+  pinned?: boolean;
   messages: BotMessage[];
   updatedAt: string;
 }
@@ -131,28 +133,72 @@ function CodeBlock({ children, className, ...props }: React.HTMLAttributes<HTMLE
   );
 }
 
+function MessageCopyButton({ getText, isUser }: { getText: () => string; isUser?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = getText();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // fallback: ignore
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      title={copied ? 'Copied!' : 'Copy message'}
+      aria-label="Copy message"
+      className={`p-1 rounded-md opacity-0 group-hover/msg:opacity-100 transition-all shrink-0 ${
+        isUser
+          ? 'text-chat-text-tertiary hover:text-chat-text-primary hover:bg-chat-hover'
+          : 'text-chat-text-tertiary hover:text-chat-text-primary hover:bg-chat-hover'
+      }`}
+    >
+      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+    </button>
+  );
+}
+
 function groupChatsByDate(chats: BotChat[]): { label: string; chats: BotChat[] }[] {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
   const weekAgo = new Date(today.getTime() - 7 * 86400000);
 
-  const groups: { label: string; chats: BotChat[] }[] = [
+  const pinned: BotChat[] = [];
+  const rest: BotChat[] = [];
+  for (const chat of chats) {
+    if (chat.pinned) pinned.push(chat);
+    else rest.push(chat);
+  }
+
+  const groups: { label: string; chats: BotChat[] }[] = [];
+  if (pinned.length > 0) {
+    groups.push({ label: 'Pinned', chats: pinned });
+  }
+
+  const dateGroups: { label: string; chats: BotChat[] }[] = [
     { label: 'Today', chats: [] },
     { label: 'Yesterday', chats: [] },
     { label: 'Previous 7 Days', chats: [] },
     { label: 'Older', chats: [] },
   ];
 
-  for (const chat of chats) {
+  for (const chat of rest) {
     const d = new Date(chat.updatedAt);
-    if (d >= today) groups[0].chats.push(chat);
-    else if (d >= yesterday) groups[1].chats.push(chat);
-    else if (d >= weekAgo) groups[2].chats.push(chat);
-    else groups[3].chats.push(chat);
+    if (d >= today) dateGroups[0].chats.push(chat);
+    else if (d >= yesterday) dateGroups[1].chats.push(chat);
+    else if (d >= weekAgo) dateGroups[2].chats.push(chat);
+    else dateGroups[3].chats.push(chat);
   }
 
-  return groups.filter(g => g.chats.length > 0);
+  return [...groups, ...dateGroups.filter(g => g.chats.length > 0)];
 }
 
 function formatBytes(bytes: number): string {
@@ -293,9 +339,6 @@ function VoiceMessagePlayer({ src, isUser }: { src: string; isUser: boolean }) {
   );
 }
 
-/* ============================================================
-   Inline composer waveform — sits *inside* the pill while recording
-   ============================================================ */
 function RecordingWaveform({ seconds }: { seconds: number }) {
   const bars = 32;
   return (
@@ -323,6 +366,67 @@ function RecordingWaveform({ seconds }: { seconds: number }) {
   );
 }
 
+function MicDeviceMenu({
+  position,
+  devices,
+  selectedDeviceId,
+  onSelect,
+  menuRef,
+}: {
+  position: { bottom: number; left: number; width: number };
+  devices: MediaDeviceInfo[];
+  selectedDeviceId: string | null;
+  onSelect: (deviceId: string) => void;
+  menuRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <motion.div
+      ref={menuRef}
+      initial={{ opacity: 0, y: 6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 6, scale: 0.97 }}
+      transition={{ duration: 0.15 }}
+      style={{
+        position: 'fixed',
+        bottom: position.bottom,
+        left: position.left,
+        width: position.width,
+      }}
+      className="z-[9999] bg-chat-bg-secondary border border-chat-border rounded-2xl shadow-2xl py-2 max-h-64 overflow-y-auto"
+    >
+      <p className="px-3.5 py-2 text-[10px] font-bold uppercase tracking-widest text-chat-text-tertiary">
+        Microphone
+      </p>
+      {devices.length === 0 ? (
+        <p className="px-3.5 py-2.5 text-xs text-chat-text-tertiary leading-relaxed">
+          No microphones found yet. Record once to grant permission, then reopen this list.
+        </p>
+      ) : (
+        devices.map((d, i) => {
+          const isSelected = selectedDeviceId
+            ? d.deviceId === selectedDeviceId
+            : i === 0; 
+          return (
+            <button
+              key={d.deviceId || i}
+              onClick={() => onSelect(d.deviceId)}
+              className={`w-full text-left px-3.5 py-2.5 text-xs flex items-center gap-2.5 transition-colors ${
+                isSelected
+                  ? 'bg-chat-accent/10 text-chat-accent font-medium'
+                  : 'text-chat-text-secondary hover:bg-chat-hover hover:text-chat-text-primary'
+              }`}
+            >
+              <Mic className="w-4 h-4 shrink-0" />
+              <span className="truncate flex-1">{d.label || `Microphone ${i + 1}`}</span>
+              {isSelected && <Check className="w-4 h-4 shrink-0" />}
+            </button>
+          );
+        })
+      )}
+    </motion.div>
+  );
+}
+
 export default function BotPage() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -340,6 +444,8 @@ export default function BotPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
   const [savingRename, setSavingRename] = useState(false);
+  const [pinningId, setPinningId] = useState<string | null>(null);
+  const [openChatMenuId, setOpenChatMenuId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [modelName, setModelName] = useState('Gemini Flash');
@@ -349,6 +455,7 @@ export default function BotPage() {
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const createdBlobUrls = useRef<string[]>([]);
+  const chatMenuRef = useRef<HTMLDivElement>(null);
 
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const [attachmentLoading, setAttachmentLoading] = useState(false);
@@ -367,6 +474,13 @@ export default function BotPage() {
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartRef = useRef<number>(0);
   const recordingCancelledRef = useRef(false);
+
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [showDeviceMenu, setShowDeviceMenu] = useState(false);
+  const [deviceMenuPos, setDeviceMenuPos] = useState<{ bottom: number; left: number; width: number } | null>(null);
+  const micWrapperRef = useRef<HTMLDivElement>(null);
+  const deviceMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     apiFetch('/api/users/current_user')
@@ -419,6 +533,86 @@ export default function BotPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!openChatMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (chatMenuRef.current?.contains(e.target as Node)) return;
+      setOpenChatMenuId(null);
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenChatMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openChatMenuId]);
+
+  const loadAudioDevices = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === 'audioinput');
+      setAudioDevices(mics);
+    } catch {
+      setAudioDevices([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAudioDevices();
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', loadAudioDevices);
+      return () => navigator.mediaDevices.removeEventListener('devicechange', loadAudioDevices);
+    }
+  }, [loadAudioDevices]);
+
+  useEffect(() => {
+    if (!showDeviceMenu) return;
+
+    const MENU_WIDTH = 272;
+
+    const updatePosition = () => {
+      const rect = micWrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const left = Math.min(
+        Math.max(8, rect.right - MENU_WIDTH),
+        window.innerWidth - MENU_WIDTH - 8
+      );
+      setDeviceMenuPos({
+        bottom: window.innerHeight - rect.top + 10,
+        left,
+        width: MENU_WIDTH,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        deviceMenuRef.current?.contains(e.target as Node) ||
+        micWrapperRef.current?.contains(e.target as Node)
+      ) return;
+      setShowDeviceMenu(false);
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDeviceMenu(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showDeviceMenu]);
+
   const filteredChats = useMemo(() => {
     if (!searchQuery.trim()) return chats;
     const q = searchQuery.toLowerCase();
@@ -449,8 +643,7 @@ export default function BotPage() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  const deleteChat = async (chatId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const deleteChat = async (chatId: string) => {
     setDeletingId(chatId);
     try {
       await apiFetch(`/api/bot/chats/${chatId}`, { method: 'DELETE' });
@@ -463,8 +656,33 @@ export default function BotPage() {
     }
   };
 
-  const startRename = (chat: BotChat, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const togglePinChat = async (chat: BotChat) => {
+    setPinningId(chat._id);
+    const nextPinned = !chat.pinned;
+    setChats(prev => prev.map(c => c._id === chat._id ? { ...c, pinned: nextPinned } : c));
+    if (activeChat?._id === chat._id) {
+      setActiveChat(prev => prev ? { ...prev, pinned: nextPinned } : prev);
+    }
+    try {
+      const res = await apiFetch(`/api/bot/chats/${chat._id}/pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinned: nextPinned }),
+      });
+      if (!res.ok) throw new Error('Failed to update pin');
+    } catch {
+      // revert on failure
+      setChats(prev => prev.map(c => c._id === chat._id ? { ...c, pinned: chat.pinned } : c));
+      if (activeChat?._id === chat._id) {
+        setActiveChat(prev => prev ? { ...prev, pinned: chat.pinned } : prev);
+      }
+      setToastError('Failed to update pin status');
+    } finally {
+      setPinningId(null);
+    }
+  };
+
+  const startRename = (chat: BotChat) => {
     setRenamingId(chat._id);
     setRenameTitle(chat.title);
   };
@@ -600,6 +818,7 @@ export default function BotPage() {
   const startRecording = async () => {
     setToastError(null);
     setMicPermissionError(null);
+    setShowDeviceMenu(false);
 
     if (sending || attachmentLoading || pendingAttachment) return;
 
@@ -609,8 +828,13 @@ export default function BotPage() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioConstraints: MediaTrackConstraints | boolean = selectedDeviceId
+        ? { deviceId: { exact: selectedDeviceId } }
+        : true;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       recordingStreamRef.current = stream;
+
+      loadAudioDevices();
 
       const mimeType = pickRecorderMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -695,6 +919,9 @@ export default function BotPage() {
     } catch (err: any) {
       if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
         setMicPermissionError('Microphone access was denied. Please allow microphone access to record a voice message.');
+      } else if (err?.name === 'OverconstrainedError' || err?.name === 'NotFoundError') {
+        setMicPermissionError('Selected microphone is no longer available. Please choose another one.');
+        setSelectedDeviceId(null);
       } else {
         setMicPermissionError('Could not access your microphone. Please try again.');
       }
@@ -724,6 +951,18 @@ export default function BotPage() {
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
+  };
+
+  const handleSelectMicDevice = (deviceId: string) => {
+    setSelectedDeviceId(deviceId);
+    setShowDeviceMenu(false);
+  };
+
+  const toggleDeviceMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (attachmentLoading || isRecording) return;
+    loadAudioDevices();
+    setShowDeviceMenu(v => !v);
   };
 
   const sendMessage = async (overrideText?: string) => {
@@ -979,26 +1218,27 @@ export default function BotPage() {
       <aside className={`absolute md:relative z-[103] md:z-auto h-full flex flex-col w-72 shrink-0 bg-chat-glass backdrop-blur-xl border-r border-chat-border transition-transform duration-300 ${mobileSidebarOpen ? 'translate-x-[280px]' : '-translate-x-full md:translate-x-0'}`}>
         {/* Sidebar header */}
         <div className="p-4 border-b border-chat-border">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5 min-w-0">
               <motion.div
-                className="w-9 h-9 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-lg shadow-chat-accent/20"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center shadow-lg shadow-chat-accent/20 shrink-0"
                 whileHover={{ rotate: [0, -8, 8, 0], scale: 1.05 }}
                 transition={{ duration: 0.4 }}
               >
                 <Bot className="w-5 h-5 text-white" />
               </motion.div>
-              <div>
-                <h2 className="font-bold text-chat-text-primary text-sm">AI Assistant</h2>
-                <p className="text-chat-text-tertiary text-[11px]">{modelName}</p>
+              <div className="min-w-0">
+                <h2 className="font-bold text-chat-text-primary text-sm truncate">AI Assistant</h2>
+                <p className="text-chat-text-tertiary text-[11px] truncate">{modelName}</p>
               </div>
             </div>
             <motion.button
               onClick={createChat}
-              whileHover={{ scale: 1.08, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-2 rounded-xl bg-chat-accent/10 hover:bg-chat-accent/20 text-chat-accent transition-colors"
+              whileHover={{ scale: 1.06, rotate: 90 }}
+              whileTap={{ scale: 0.92 }}
+              className="shrink-0 p-2.5 rounded-xl bg-chat-accent/10 hover:bg-chat-accent/20 text-chat-accent transition-colors"
               title="New chat"
+              aria-label="Start a new chat"
             >
               <Plus className="w-4 h-4" />
             </motion.button>
@@ -1006,16 +1246,17 @@ export default function BotPage() {
           
           {/* Search bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-chat-text-tertiary" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-chat-text-tertiary pointer-events-none" />
             <input
               type="text"
               placeholder="Search conversations..."
+              aria-label="Search conversations"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-chat-bg-secondary border border-chat-border rounded-xl pl-9 pr-8 py-2 text-xs text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:border-chat-accent/50 transition-colors"
+              className="w-full bg-chat-bg-secondary border border-chat-border rounded-xl pl-9 pr-8 py-2.5 text-xs text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-2 focus:ring-chat-accent/20 focus:border-chat-accent/50 transition-colors"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-chat-text-tertiary hover:text-chat-text-primary">
+              <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-chat-text-tertiary hover:text-chat-text-primary hover:bg-chat-hover transition-colors">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
@@ -1051,7 +1292,8 @@ export default function BotPage() {
           ) : (
             groupedChats.map(group => (
               <div key={group.label} className="mb-2">
-                <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-chat-text-tertiary">
+                <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-chat-text-tertiary flex items-center gap-1.5">
+                  {group.label === 'Pinned' && <Pin className="w-3 h-3 text-chat-accent fill-chat-accent/20" />}
                   {group.label}
                 </div>
                 <div className="space-y-0.5">
@@ -1060,7 +1302,9 @@ export default function BotPage() {
                       key={chat._id}
                       onClick={() => openChat(chat._id)}
                       whileHover={{ x: 2 }}
-                      className={`w-full cursor-pointer text-left px-3 py-2.5 rounded-xl transition-all group flex items-center gap-2.5 ${
+                      className={`w-full cursor-pointer text-left px-3 py-2.5 rounded-xl transition-all group flex items-center gap-2.5 relative ${
+                        openChatMenuId === chat._id ? 'z-30' : 'z-0'
+                      } ${
                         activeChat?._id === chat._id 
                           ? 'bg-chat-accent text-white shadow-md shadow-chat-accent/20' 
                           : 'hover:bg-chat-hover text-chat-text-secondary hover:text-chat-text-primary'
@@ -1111,29 +1355,91 @@ export default function BotPage() {
                         </div>
                       ) : (
                         <>
-                          <span className="flex-1 truncate text-[13px] font-medium">{chat.title}</span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                            <button
-                              onClick={(e) => startRename(chat, e)}
-                              className={`p-1 rounded-lg transition-colors ${
-                                activeChat?._id === chat._id 
-                                  ? 'hover:bg-white/20 text-white' 
-                                  : 'hover:bg-chat-hover text-chat-text-secondary hover:text-chat-text-primary'
-                              }`}
-                              title="Rename chat"
-                            >
-                              <PenLine className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={(e) => deleteChat(chat._id, e)}
-                              className={`p-1 rounded-lg transition-colors ${
-                                activeChat?._id === chat._id ? 'hover:bg-white/20 text-white' : 'hover:bg-red-500/10 text-red-400'
-                              }`}
-                              title="Delete chat"
-                            >
-                              {deletingId === chat._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
+                          <span className="flex-1 truncate text-[13px] font-medium flex items-center gap-1.5">
+                            {chat.pinned && (
+                              <Pin className={`w-3 h-3 shrink-0 ${activeChat?._id === chat._id ? 'fill-white/30 text-white' : 'fill-chat-accent/20 text-chat-accent'}`} />
+                            )}
+                            <span className="truncate">{chat.title}</span>
+                          </span>
+
+                          {/* Three-dot menu trigger */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenChatMenuId(openChatMenuId === chat._id ? null : chat._id);
+                            }}
+                            aria-label="Chat options"
+                            className={`relative z-10 shrink-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all ${
+                              openChatMenuId === chat._id ? 'opacity-100' : ''
+                            } ${
+                              activeChat?._id === chat._id
+                                ? 'hover:bg-white/20 text-white'
+                                : 'hover:bg-chat-hover text-chat-text-secondary hover:text-chat-text-primary'
+                            }`}
+                            title="Options"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Dropdown menu */}
+                          <AnimatePresence>
+                            {openChatMenuId === chat._id && (
+                              <motion.div
+                                ref={chatMenuRef}
+                                onClick={(e) => e.stopPropagation()}
+                                initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute right-2 top-11 z-50 w-44 bg-chat-bg-primary border border-chat-border rounded-xl shadow-2xl overflow-hidden"
+                              >
+                                <button
+                                  onClick={() => {
+                                    setOpenChatMenuId(null);
+                                    togglePinChat(chat);
+                                  }}
+                                  disabled={pinningId === chat._id}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors disabled:opacity-50"
+                                >
+                                  {pinningId === chat._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                  ) : chat.pinned ? (
+                                    <Pin className="w-4 h-4 text-chat-accent shrink-0 rotate-45" />
+                                  ) : (
+                                    <Pin className="w-4 h-4 text-chat-text-tertiary shrink-0" />
+                                  )}
+                                  {chat.pinned ? 'Unpin Chat' : 'Pin Chat'}
+                                </button>
+                                <div className="h-px bg-chat-border mx-2" />
+                                <button
+                                  onClick={() => {
+                                    setOpenChatMenuId(null);
+                                    startRename(chat);
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-primary hover:bg-chat-hover transition-colors"
+                                >
+                                  <PenLine className="w-4 h-4 text-chat-text-tertiary shrink-0" />
+                                  Rename
+                                </button>
+                                <div className="h-px bg-chat-border mx-2" />
+                                <button
+                                  onClick={() => {
+                                    setOpenChatMenuId(null);
+                                    deleteChat(chat._id);
+                                  }}
+                                  disabled={deletingId === chat._id}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                >
+                                  {deletingId === chat._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4 shrink-0" />
+                                  )}
+                                  Delete Chat
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </>
                       )}
                     </motion.div>
@@ -1178,8 +1484,8 @@ export default function BotPage() {
         </AnimatePresence>
 
         {/* Header */}
-        <header className="shrink-0 h-14 border-b border-chat-border flex items-center px-4 md:px-6 gap-3 bg-chat-glass backdrop-blur-xl">
-          <button onClick={() => setMobileSidebarOpen(true)} className="md:hidden p-2 rounded-xl text-chat-text-secondary hover:text-chat-text-primary hover:bg-chat-hover transition-colors">
+        <header className="shrink-0 h-16 border-b border-chat-border flex items-center px-4 md:px-6 gap-3 bg-chat-glass backdrop-blur-xl">
+          <button onClick={() => setMobileSidebarOpen(true)} aria-label="Open chat list" className="md:hidden p-2.5 rounded-xl text-chat-text-secondary hover:text-chat-text-primary hover:bg-chat-hover transition-colors">
             <MoreVertical className="w-5 h-5" />
           </button>
 
@@ -1189,7 +1495,10 @@ export default function BotPage() {
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-chat-text-primary truncate text-sm">{activeChat.title}</p>
+                <p className="font-bold text-chat-text-primary truncate text-sm flex items-center gap-1.5">
+                  {activeChat.pinned && <Pin className="w-3.5 h-3.5 text-chat-accent fill-chat-accent/20 shrink-0" />}
+                  <span className="truncate">{activeChat.title}</span>
+                </p>
                 <p className="text-[11px] text-chat-text-tertiary">
                   {activeChat.messages.length} message{activeChat.messages.length !== 1 ? 's' : ''} · {modelName}
                 </p>
@@ -1219,7 +1528,7 @@ export default function BotPage() {
             >
               <FileWarning className="w-4 h-4 shrink-0" />
               <span>{toastError || micPermissionError}</span>
-              <button onClick={() => { setToastError(null); setMicPermissionError(null); }} className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors shrink-0">
+              <button onClick={() => { setToastError(null); setMicPermissionError(null); }} aria-label="Dismiss" className="ml-1 hover:bg-white/20 rounded-full p-1 transition-colors shrink-0">
                 <X className="w-3.5 h-3.5"/>
               </button>
             </motion.div>
@@ -1294,7 +1603,7 @@ export default function BotPage() {
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => sendMessage(s.text)}
-                      className={`text-left p-4 rounded-2xl bg-gradient-to-br ${s.color} border backdrop-blur-sm transition-all group flex items-start gap-3`}
+                      className={`text-left p-4 rounded-2xl bg-gradient-to-br ${s.color} border backdrop-blur-sm transition-all group flex items-start gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40`}
                     >
                       <div className="shrink-0 mt-0.5">
                         <Icon className="w-4 h-4 text-chat-text-secondary group-hover:text-chat-text-primary transition-colors" />
@@ -1353,6 +1662,9 @@ export default function BotPage() {
                           <span className="text-[10px] text-chat-text-tertiary opacity-0 group-hover/msg:opacity-100 transition-opacity">
                             {formatTime(msg.createdAt)}
                           </span>
+                          {msg.text && (
+                            <MessageCopyButton getText={() => msg.text} />
+                          )}
                         </div>
                         <div className="text-sm leading-relaxed text-chat-text-primary">
                           {msg.text === '' ? (
@@ -1464,8 +1776,13 @@ export default function BotPage() {
                             <span className="whitespace-pre-wrap">{msg.text}</span>
                           </div>
                         )}
-                        <span className="text-[10px] text-chat-text-tertiary px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
-                          {formatTime(msg.createdAt)}
+                        <span className="flex items-center gap-1.5 px-1">
+                          {msg.text && !(msg.attachments?.length && msg.text.match(/^(📷 Sent an image|🎥 Sent a video|🎤 Sent a voice message)$/)) && (
+                            <MessageCopyButton getText={() => msg.text} isUser />
+                          )}
+                          <span className="text-[10px] text-chat-text-tertiary opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                            {formatTime(msg.createdAt)}
+                          </span>
                         </span>
                       </div>
                       <div className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-chat-bg-secondary border border-chat-border flex items-center justify-center mt-0.5">
@@ -1524,10 +1841,11 @@ export default function BotPage() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.08, y: -2 }}
-                whileTap={{ scale: 0.92 }}
+                whileHover={{ scale: 1.06, y: -2 }}
+                whileTap={{ scale: 0.94 }}
                 onClick={scrollToBottom}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 p-2.5 rounded-full bg-chat-bg-secondary border border-chat-border shadow-lg hover:bg-chat-hover transition-colors"
+                aria-label="Scroll to latest message"
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 p-3 rounded-full bg-chat-bg-secondary border border-chat-border shadow-lg hover:bg-chat-hover transition-colors"
                 title="Scroll to bottom"
               >
                 <ChevronDown className="w-4 h-4 text-chat-text-secondary" />
@@ -1563,7 +1881,7 @@ export default function BotPage() {
                   : '0 0 0 0px rgba(0,0,0,0)',
               }}
               transition={{ duration: 0.25 }}
-              className="relative flex flex-col gap-0 bg-chat-bg-secondary border rounded-[28px] overflow-hidden"
+              className="relative flex flex-col gap-0 bg-chat-bg-secondary border rounded-[30px] overflow-hidden"
             >
               {/* Attachment preview row — collapses/expands inside the same pill */}
               <AnimatePresence>
@@ -1592,7 +1910,8 @@ export default function BotPage() {
                         </div>
                         <button
                           onClick={clearPendingAttachment}
-                          className="ml-1 p-1 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
+                          aria-label="Remove voice message"
+                          className="ml-1 p-1.5 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
                           title="Remove voice message"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -1622,7 +1941,8 @@ export default function BotPage() {
                         {pendingAttachment && !attachmentLoading && (
                           <button
                             onClick={clearPendingAttachment}
-                            className="ml-1 p-1 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
+                            aria-label="Remove attachment"
+                            className="ml-1 p-1.5 rounded-lg hover:bg-red-500/10 text-chat-text-tertiary hover:text-red-400 transition-colors shrink-0"
                             title="Remove attachment"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -1635,7 +1955,7 @@ export default function BotPage() {
               </AnimatePresence>
 
               {/* Main control row */}
-              <div className="flex gap-1.5 items-end px-2 py-2">
+              <div className="flex gap-1.5 items-end px-2.5 py-2.5">
                 <AnimatePresence mode="wait" initial={false}>
                   {isRecording ? (
                     /* ---- Recording state: cancel · waveform · seconds · finish, all inline ---- */
@@ -1648,12 +1968,13 @@ export default function BotPage() {
                     >
                       <motion.button
                         onClick={cancelRecording}
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.9 }}
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.94 }}
                         title="Cancel recording"
-                        className="shrink-0 w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
+                        aria-label="Cancel recording"
+                        className="shrink-0 w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
                       >
-                        <Trash className="w-4 h-4" />
+                        <Trash className="w-4.5 h-4.5" />
                       </motion.button>
 
                       <div className="flex-1 flex items-center gap-2 min-w-0">
@@ -1670,8 +1991,8 @@ export default function BotPage() {
 
                       <motion.button
                         onClick={finishRecording}
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.9 }}
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.94 }}
                         animate={{
                           boxShadow: [
                             '0 0 0px 0px rgba(124,58,237,0.4)',
@@ -1680,9 +2001,10 @@ export default function BotPage() {
                         }}
                         transition={{ boxShadow: { duration: 1.4, repeat: Infinity } }}
                         title="Finish recording"
-                        className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md"
+                        aria-label="Finish recording"
+                        className="shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md"
                       >
-                        <Check className="w-4 h-4" />
+                        <Check className="w-4.5 h-4.5" />
                       </motion.button>
                     </motion.div>
                   ) : (
@@ -1697,12 +2019,13 @@ export default function BotPage() {
                       <motion.button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={sending || attachmentLoading}
-                        whileHover={{ scale: 1.08, rotate: -8 }}
-                        whileTap={{ scale: 0.92 }}
+                        whileHover={{ scale: 1.06, rotate: -8 }}
+                        whileTap={{ scale: 0.94 }}
                         title="Attach an image or video"
-                        className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Attach an image or video"
+                        className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
-                        <Paperclip className="w-4 h-4" />
+                        <Paperclip className="w-5 h-5" />
                       </motion.button>
 
                       <div className="flex-1 relative">
@@ -1716,8 +2039,8 @@ export default function BotPage() {
                           placeholder={pendingAttachment?.type === 'audio' ? "Add a note about this voice message (optional)..." : pendingAttachment ? "Ask something about this file (optional)..." : "Message VokiToki AI..."}
                           rows={1}
                           disabled={sending}
-                          className="w-full resize-none bg-transparent border-none px-1.5 py-2.5 pr-10 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-0 transition-all overflow-y-auto"
-                          style={{ minHeight: '40px', maxHeight: '180px' }}
+                          className="w-full resize-none bg-transparent border-none px-2 py-3 pr-10 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-0 transition-all overflow-y-auto"
+                          style={{ minHeight: '48px', maxHeight: '180px' }}
                           onInput={e => {
                             const el = e.currentTarget;
                             el.style.height = 'auto';
@@ -1731,7 +2054,7 @@ export default function BotPage() {
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
-                              className={`absolute bottom-2 right-0 text-[10px] font-medium ${input.length > 7500 ? 'text-red-400' : 'text-chat-text-tertiary'}`}
+                              className={`absolute bottom-2.5 right-0 text-[10px] font-medium ${input.length > 7500 ? 'text-red-400' : 'text-chat-text-tertiary'}`}
                             >
                               {input.length.toLocaleString()}
                             </motion.span>
@@ -1746,28 +2069,53 @@ export default function BotPage() {
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.6, opacity: 0 }}
                           onClick={stopGeneration}
-                          whileHover={{ scale: 1.08 }}
-                          whileTap={{ scale: 0.92 }}
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.94 }}
                           title="Stop generation"
-                          className="shrink-0 w-10 h-10 rounded-full bg-red-500/90 hover:bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/20 transition-colors"
+                          aria-label="Stop generation"
+                          className="shrink-0 w-12 h-12 rounded-full bg-red-500/90 hover:bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/20 transition-colors"
                         >
-                          <Square className="w-3.5 h-3.5 fill-current" />
+                          <Square className="w-4 h-4 fill-current" />
                         </motion.button>
                       ) : !hasComposerContent ? (
-                        <motion.button
+                        <motion.div
                           key="mic"
+                          ref={micWrapperRef}
                           initial={{ scale: 0.6, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.6, opacity: 0 }}
-                          onClick={startRecording}
-                          disabled={attachmentLoading}
-                          whileHover={{ scale: 1.08 }}
-                          whileTap={{ scale: 0.92 }}
-                          title="Record a voice message"
-                          className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          className="shrink-0 flex items-center"
                         >
-                          <Mic className="w-4 h-4" />
-                        </motion.button>
+                          <motion.button
+                            onClick={startRecording}
+                            disabled={attachmentLoading}
+                            whileHover={{ scale: 1.06 }}
+                            whileTap={{ scale: 0.94 }}
+                            title="Record a voice message"
+                            aria-label="Record a voice message"
+                            className="w-12 h-12 rounded-full flex items-center justify-center text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Mic className="w-5 h-5" />
+                          </motion.button>
+
+                          <motion.button
+                            onClick={toggleDeviceMenu}
+                            disabled={attachmentLoading}
+                            whileHover={{ scale: 1.08 }}
+                            whileTap={{ scale: 0.94 }}
+                            title="Choose microphone"
+                            aria-label="Choose microphone"
+                            className="group/chev w-7 h-12 -ml-1 flex items-center justify-center rounded-full text-chat-text-tertiary hover:text-chat-accent hover:bg-chat-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <motion.span
+                              animate={showDeviceMenu ? { rotate: 180 } : { rotate: 0 }}
+                              transition={{ duration: 0.18 }}
+                              className="flex items-center justify-center"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5 transition-transform group-hover/chev:translate-y-0.5" />
+                            </motion.span>
+                          </motion.button>
+                        </motion.div>
                       ) : (
                         <motion.button
                           key="send"
@@ -1776,12 +2124,13 @@ export default function BotPage() {
                           exit={{ scale: 0.6, opacity: 0 }}
                           onClick={() => sendMessage()}
                           disabled={!hasComposerContent}
-                          whileHover={{ scale: 1.08 }}
-                          whileTap={{ scale: 0.9 }}
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.92 }}
                           title="Send message"
-                          className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md shadow-chat-accent/25 disabled:opacity-40 disabled:cursor-not-allowed transition-shadow"
+                          aria-label="Send message"
+                          className="shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md shadow-chat-accent/25 disabled:opacity-40 disabled:cursor-not-allowed transition-shadow"
                         >
-                          <Send className="w-4 h-4" />
+                          <Send className="w-5 h-5" />
                         </motion.button>
                       )}
                     </motion.div>
@@ -1790,12 +2139,25 @@ export default function BotPage() {
               </div>
             </motion.div>
 
-            <p className="text-center text-chat-text-tertiary text-[11px] mt-2.5 font-medium">
+            <p className="text-center text-chat-text-tertiary text-[11px] mt-2 font-medium">
               VokiToki AI · Powered by {modelName} · Responses may be inaccurate
             </p>
           </div>
         </div>
       </main>
+
+      {/* Microphone device picker — fixed-position, rendered above everything (z-[200]) */}
+      <AnimatePresence>
+        {showDeviceMenu && deviceMenuPos && (
+          <MicDeviceMenu
+            position={deviceMenuPos}
+            devices={audioDevices}
+            selectedDeviceId={selectedDeviceId}
+            onSelect={handleSelectMicDevice}
+            menuRef={deviceMenuRef}
+          />
+        )}
+      </AnimatePresence>
 
       <ImagePreviewModal
         imageUrl={previewImage}

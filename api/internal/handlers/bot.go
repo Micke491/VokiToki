@@ -139,7 +139,10 @@ func GetBotChats(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	opts := options.Find().SetSort(bson.M{"updatedAt": -1})
+	opts := options.Find().SetSort(bson.D{
+		{Key: "pinned", Value: -1},
+		{Key: "updatedAt", Value: -1},
+	})
 	cursor, err := db.BotChatCollection.Find(ctx, bson.M{"userId": authUser.ID}, opts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bot chats"})
@@ -287,6 +290,57 @@ func RenameBotChat(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "title": title})
 }
 
+func PinBotChat(c *gin.Context) {
+	authUser := c.MustGet("user").(models.User)
+	chatIDStr := c.Param("id")
+
+	chatID, err := bson.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Chat ID format"})
+		return
+	}
+
+	var body struct {
+		Pinned *bool `json:"pinned"`
+	}
+	c.ShouldBindJSON(&body)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var targetPinned bool
+	if body.Pinned != nil {
+		targetPinned = *body.Pinned
+	} else {
+		var existing models.BotChat
+		err = db.BotChatCollection.FindOne(ctx, bson.M{"_id": chatID, "userId": authUser.ID}).Decode(&existing)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch chat"})
+			return
+		}
+		targetPinned = !existing.Pinned
+	}
+
+	result, err := db.BotChatCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": chatID, "userId": authUser.ID},
+		bson.M{"$set": bson.M{"pinned": targetPinned}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update pin state"})
+		return
+	}
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "pinned": targetPinned})
+}
 
 type GeminiInlineData struct {
 	MimeType string `json:"mime_type"`
