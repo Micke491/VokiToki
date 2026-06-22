@@ -13,7 +13,7 @@ import {
   PenLine, Shield, Phone, Palette,
   Paperclip, ImageIcon, Video, FileWarning,
   Mic, Trash, Play, Pause, AudioLines, Wand2,
-  Pin, Clock, Zap
+  Pin, Clock, Zap, Type
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -479,6 +479,13 @@ export default function BotPage() {
   const recordingStartRef = useRef<number>(0);
   const recordingCancelledRef = useRef(false);
 
+  const [sttTranscript, setSttTranscript] = useState('');
+  const [sttInterim, setSttInterim] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [sttSupported, setSttSupported] = useState(true);
+  const speechRecognitionRef = useRef<any>(null);
+  const sttTranscriptRef = useRef('');
+
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [showDeviceMenu, setShowDeviceMenu] = useState(false);
@@ -533,6 +540,7 @@ export default function BotPage() {
         }
       });
       stopRecordingStream();
+      stopSpeechRecognition();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (rateLimitTimerRef.current) clearInterval(rateLimitTimerRef.current);
     };
@@ -820,12 +828,92 @@ export default function BotPage() {
     recordingStreamRef.current = null;
   };
 
+  const startSpeechRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSttSupported(false);
+      return;
+    }
+    setSttSupported(true);
+    setSttTranscript('');
+    setSttInterim('');
+    sttTranscriptRef.current = '';
+    setIsTranscribing(true);
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    // Use the browser's configured language — this is the most reliable
+    // cross-language approach. Chrome/Edge pick up the OS/browser locale
+    // (e.g. 'sr', 'sr-RS', 'en-US', 'de-DE') and route to the right model.
+    recognition.lang = navigator.language || 'en-US';
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      let sessionFinal = '';
+      let interimText = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          sessionFinal += result[0].transcript;
+        } else {
+          interimText += result[0].transcript;
+        }
+      }
+      // Accumulate finals across restarts (don't overwrite previous session's text)
+      if (sessionFinal) {
+        sttTranscriptRef.current = (sttTranscriptRef.current + ' ' + sessionFinal).trim();
+        setSttTranscript(sttTranscriptRef.current);
+      }
+      setSttInterim(interimText);
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        console.warn('Speech recognition error:', event.error);
+      }
+    };
+
+    recognition.onend = () => {
+      if (!recordingCancelledRef.current && mediaRecorderRef.current?.state === 'recording') {
+        try {
+          recognition.start();
+        } catch {
+        }
+      } else {
+        setIsTranscribing(false);
+      }
+    };
+
+    try {
+      recognition.start();
+      speechRecognitionRef.current = recognition;
+    } catch {
+      setSttSupported(false);
+      setIsTranscribing(false);
+    }
+  };
+
+  const stopSpeechRecognition = () => {
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {
+        // already stopped
+      }
+      speechRecognitionRef.current = null;
+    }
+    setIsTranscribing(false);
+    setSttInterim('');
+  };
+
   const startRecording = async () => {
     setToastError(null);
     setMicPermissionError(null);
     setShowDeviceMenu(false);
 
-    if (sending || attachmentLoading || pendingAttachment) return;
+    if (sending || attachmentLoading) return;
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setMicPermissionError('Voice recording is not supported in this browser.');
@@ -885,32 +973,36 @@ export default function BotPage() {
           return;
         }
 
-        setAttachmentLoading(true);
-        try {
-          const base64Data = await fileToBase64(blob);
-          const previewUrl = URL.createObjectURL(blob);
-          createdBlobUrls.current.push(previewUrl);
-          clearPendingAttachment();
-          setPendingAttachment({
-            type: 'audio',
-            mimeType: usedMimeType,
-            fileName: `voice-message.${extensionForMime(usedMimeType)}`,
-            data: base64Data,
-            previewUrl,
-            sizeBytes: blob.size,
-            durationSec: elapsed,
+        const transcript = sttTranscriptRef.current.trim();
+        if (transcript) {
+          setInput(prev => {
+            const base = prev.trim();
+            return base ? `${base} ${transcript}` : transcript;
           });
-        } catch {
-          setToastError('Failed to process recording. Please try again.');
-        } finally {
-          setAttachmentLoading(false);
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+              inputRef.current.style.height = 'auto';
+              inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
+            }
+          }, 80);
+        } else if (elapsed >= 2.0) {
+          // Only warn if they spoke for 2+ seconds and we got nothing
+          setToastError('Could not transcribe speech. Please try again or type your message.');
         }
+        setSttTranscript('');
+        setSttInterim('');
+        sttTranscriptRef.current = '';
+        setIsRecording(false);
+        setRecordingSeconds(0);
       };
 
       recordingStartRef.current = Date.now();
       recorder.start();
       setIsRecording(true);
       setRecordingSeconds(0);
+
+      startSpeechRecognition();
 
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds(prev => {
@@ -940,6 +1032,7 @@ export default function BotPage() {
       recordingCancelledRef.current = false;
       recorder.stop();
     }
+    stopSpeechRecognition();
   };
 
   const cancelRecording = () => {
@@ -952,6 +1045,9 @@ export default function BotPage() {
       setIsRecording(false);
       setRecordingSeconds(0);
     }
+    stopSpeechRecognition();
+    setSttTranscript('');
+    sttTranscriptRef.current = '';
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
@@ -2025,13 +2121,23 @@ export default function BotPage() {
                         animate={{ scale: 1 }}
                         className="inline-flex items-center gap-2.5 bg-chat-bg-primary border border-chat-border rounded-2xl p-2 pr-3 max-w-full"
                       >
-                        <div className="w-10 h-10 rounded-lg bg-chat-accent/15 text-chat-accent flex items-center justify-center shrink-0">
+                        <div className="relative w-10 h-10 rounded-lg bg-chat-accent/15 text-chat-accent flex items-center justify-center shrink-0">
                           <AudioLines className="w-5 h-5" />
+                          {input.trim() && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm" title="Transcribed to text">
+                              <Type className="w-2.5 h-2.5 text-white" />
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-medium text-chat-text-primary">Voice message</p>
+                          <p className="text-xs font-medium text-chat-text-primary flex items-center gap-1.5">
+                            Voice message
+                            {input.trim() && (
+                              <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Transcribed</span>
+                            )}
+                          </p>
                           <p className="text-[10px] text-chat-text-tertiary">
-                            {pendingAttachment.durationSec ? formatDuration(pendingAttachment.durationSec) : ''} · {formatBytes(pendingAttachment.sizeBytes)} · ready to send
+                            {pendingAttachment.durationSec ? formatDuration(pendingAttachment.durationSec) : ''} · {formatBytes(pendingAttachment.sizeBytes)}{input.trim() ? ' · edit text below' : ' · ready to send'}
                           </p>
                         </div>
                         <button
@@ -2090,48 +2196,76 @@ export default function BotPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="flex flex-1 items-center gap-2 py-1"
+                      className="flex flex-1 flex-col gap-1.5 py-1"
                     >
-                      <motion.button
-                        onClick={cancelRecording}
-                        whileHover={{ scale: 1.06 }}
-                        whileTap={{ scale: 0.94 }}
-                        title="Cancel recording"
-                        aria-label="Cancel recording"
-                        className="shrink-0 w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
-                      >
-                        <Trash className="w-4.5 h-4.5" />
-                      </motion.button>
+                      <div className="flex items-center gap-2">
+                        <motion.button
+                          onClick={cancelRecording}
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.94 }}
+                          title="Cancel recording"
+                          aria-label="Cancel recording"
+                          className="shrink-0 w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
+                        >
+                          <Trash className="w-4.5 h-4.5" />
+                        </motion.button>
 
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <motion.span
-                          className="w-2 h-2 rounded-full bg-red-500 shrink-0"
-                          animate={{ opacity: [1, 0.25, 1], scale: [1, 0.85, 1] }}
-                          transition={{ duration: 1.1, repeat: Infinity }}
-                        />
-                        <span className="text-sm font-semibold text-chat-text-primary tabular-nums shrink-0">
-                          {formatDuration(recordingSeconds)}
-                        </span>
-                        <RecordingWaveform seconds={recordingSeconds} />
+                        <div className="flex-1 flex items-center gap-2 min-w-0">
+                          <motion.span
+                            className="w-2 h-2 rounded-full bg-red-500 shrink-0"
+                            animate={{ opacity: [1, 0.25, 1], scale: [1, 0.85, 1] }}
+                            transition={{ duration: 1.1, repeat: Infinity }}
+                          />
+                          <span className="text-sm font-semibold text-chat-text-primary tabular-nums shrink-0">
+                            {formatDuration(recordingSeconds)}
+                          </span>
+                          <RecordingWaveform seconds={recordingSeconds} />
+                        </div>
+
+                        <motion.button
+                          onClick={finishRecording}
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.94 }}
+                          animate={{
+                            boxShadow: [
+                              '0 0 0px 0px rgba(124,58,237,0.4)',
+                              '0 0 0px 8px rgba(124,58,237,0.0)',
+                            ],
+                          }}
+                          transition={{ boxShadow: { duration: 1.4, repeat: Infinity } }}
+                          title="Finish recording"
+                          aria-label="Finish recording"
+                          className="shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md"
+                        >
+                          <Check className="w-4.5 h-4.5" />
+                        </motion.button>
                       </div>
 
-                      <motion.button
-                        onClick={finishRecording}
-                        whileHover={{ scale: 1.06 }}
-                        whileTap={{ scale: 0.94 }}
-                        animate={{
-                          boxShadow: [
-                            '0 0 0px 0px rgba(124,58,237,0.4)',
-                            '0 0 0px 8px rgba(124,58,237,0.0)',
-                          ],
-                        }}
-                        transition={{ boxShadow: { duration: 1.4, repeat: Infinity } }}
-                        title="Finish recording"
-                        aria-label="Finish recording"
-                        className="shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-chat-accent to-purple-600 flex items-center justify-center text-white shadow-md"
-                      >
-                        <Check className="w-4.5 h-4.5" />
-                      </motion.button>
+                      {/* Live speech-to-text transcript preview */}
+                      {sttSupported && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="flex items-start gap-2 px-1 pb-0.5"
+                        >
+                          <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                            <Type className="w-3 h-3 text-chat-accent" />
+                            <span className="text-[10px] font-semibold text-chat-accent uppercase tracking-wider">Live</span>
+                          </div>
+                          <p className="text-xs text-chat-text-secondary leading-relaxed flex-1 min-w-0 line-clamp-2 break-words">
+                            {(sttTranscript + sttInterim) || (
+                              <span className="text-chat-text-tertiary italic">Listening for speech...</span>
+                            )}
+                            {(sttTranscript || sttInterim) && (
+                              <motion.span
+                                className="inline-block w-[2px] h-3 bg-chat-accent ml-0.5 align-middle"
+                                animate={{ opacity: [1, 0, 1] }}
+                                transition={{ duration: 0.8, repeat: Infinity }}
+                              />
+                            )}
+                          </p>
+                        </motion.div>
+                      )}
                     </motion.div>
                   ) : (
                     /* ---- Normal composer row ---- */
