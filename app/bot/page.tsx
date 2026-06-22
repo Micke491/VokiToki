@@ -13,7 +13,7 @@ import {
   PenLine, Shield, Phone, Palette,
   Paperclip, ImageIcon, Video, FileWarning,
   Mic, Trash, Play, Pause, AudioLines, Wand2,
-  Pin
+  Pin, Clock, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -453,6 +453,10 @@ export default function BotPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
+
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const [rateLimitType, setRateLimitType] = useState<'rpm' | 'rpd' | null>(null);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const createdBlobUrls = useRef<string[]>([]);
   const chatMenuRef = useRef<HTMLDivElement>(null);
@@ -530,6 +534,7 @@ export default function BotPage() {
       });
       stopRecordingStream();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (rateLimitTimerRef.current) clearInterval(rateLimitTimerRef.current);
     };
   }, []);
 
@@ -971,6 +976,7 @@ export default function BotPage() {
 
     if (!text && !attachment) return;
     if (sending) return;
+    if (rateLimitCountdown > 0) return;
 
     setInput('');
     clearPendingAttachment();
@@ -1061,6 +1067,37 @@ export default function BotPage() {
 
       if (!res.ok) {
          const errData = await res.json();
+
+         if (res.status === 429 && errData.retryAfter) {
+           setInput(text);
+           if (attachment) setPendingAttachment(attachment);
+
+           setActiveChat(prev => {
+             if (!prev || prev._id !== targetChat!._id) return prev;
+             return { ...prev, messages: prev.messages.filter(m => m._id !== tempUserMsg._id) };
+           });
+           const retrySeconds = errData.retryAfter as number;
+           setRateLimitType(errData.limitType === 'rpd' ? 'rpd' : 'rpm');
+           setRateLimitCountdown(retrySeconds);
+
+           if (rateLimitTimerRef.current) clearInterval(rateLimitTimerRef.current);
+           rateLimitTimerRef.current = setInterval(() => {
+             setRateLimitCountdown(prev => {
+               if (prev <= 1) {
+                 if (rateLimitTimerRef.current) clearInterval(rateLimitTimerRef.current);
+                 rateLimitTimerRef.current = null;
+                 setRateLimitType(null);
+                 return 0;
+               }
+               return prev - 1;
+             });
+           }, 1000);
+
+           setSending(false);
+           setAbortController(null);
+           return;
+         }
+
          throw new Error(errData.error || 'Failed');
       }
 
@@ -1517,6 +1554,94 @@ export default function BotPage() {
           )}
         </header>
 
+        {/* Rate Limit Toast */}
+        <AnimatePresence>
+          {rateLimitCountdown > 0 && (
+            <motion.div
+              key="rate-limit-toast"
+              initial={{ opacity: 0, y: -20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92%] w-auto"
+            >
+              <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-amber-500/20">
+                {/* Animated gradient background */}
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-600/95 via-orange-500/95 to-amber-600/95" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.1),transparent_70%)]" />
+                
+                {/* Progress bar showing time remaining */}
+                <motion.div
+                  className="absolute bottom-0 left-0 h-[3px] bg-white/40 rounded-full"
+                  initial={{ width: '100%' }}
+                  animate={{ width: '0%' }}
+                  transition={{ duration: rateLimitCountdown, ease: 'linear' }}
+                />
+
+                <div className="relative flex items-center gap-3 px-5 py-3">
+                  {/* Pulsing icon */}
+                  <div className="relative shrink-0">
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                      className="absolute inset-0 bg-white/20 rounded-full blur-sm"
+                    />
+                    {rateLimitType === 'rpd' ? (
+                      <Zap className="w-5 h-5 text-white relative" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-white relative" />
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-white text-sm font-semibold leading-tight">
+                      {rateLimitType === 'rpd' ? 'Daily limit reached' : 'Slow down — rate limit hit'}
+                    </span>
+                    <span className="text-white/75 text-xs leading-tight">
+                      {rateLimitType === 'rpd'
+                        ? `Your daily quota resets in ${rateLimitCountdown >= 3600
+                            ? `${Math.floor(rateLimitCountdown / 3600)}h ${Math.floor((rateLimitCountdown % 3600) / 60)}m`
+                            : rateLimitCountdown >= 60
+                              ? `${Math.floor(rateLimitCountdown / 60)}m ${rateLimitCountdown % 60}s`
+                              : `${rateLimitCountdown}s`
+                          }`
+                        : `You can send again in ${rateLimitCountdown}s`
+                      }
+                    </span>
+                  </div>
+
+                  {/* Countdown badge */}
+                  <div className="shrink-0 ml-auto">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl px-3 py-1.5 text-white font-mono text-sm font-bold tabular-nums">
+                      {rateLimitCountdown >= 3600
+                        ? `${Math.floor(rateLimitCountdown / 3600)}:${String(Math.floor((rateLimitCountdown % 3600) / 60)).padStart(2, '0')}:${String(rateLimitCountdown % 60).padStart(2, '0')}`
+                        : rateLimitCountdown >= 60
+                          ? `${Math.floor(rateLimitCountdown / 60)}:${String(rateLimitCountdown % 60).padStart(2, '0')}`
+                          : `0:${String(rateLimitCountdown).padStart(2, '0')}`
+                      }
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setRateLimitCountdown(0);
+                      setRateLimitType(null);
+                      if (rateLimitTimerRef.current) {
+                        clearInterval(rateLimitTimerRef.current);
+                        rateLimitTimerRef.current = null;
+                      }
+                    }}
+                    aria-label="Dismiss rate limit notice"
+                    className="shrink-0 hover:bg-white/20 rounded-full p-1 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 text-white/80" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Toast Error */}
         <AnimatePresence>
           {(toastError || micPermissionError) && (
@@ -1525,6 +1650,7 @@ export default function BotPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }} 
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-5 py-2.5 rounded-2xl text-sm font-medium shadow-lg flex items-center gap-2 backdrop-blur-sm max-w-[90%]"
+              style={{ top: rateLimitCountdown > 0 ? '7.5rem' : undefined }}
             >
               <FileWarning className="w-4 h-4 shrink-0" />
               <span>{toastError || micPermissionError}</span>
@@ -2018,7 +2144,7 @@ export default function BotPage() {
                     >
                       <motion.button
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={sending || attachmentLoading}
+                        disabled={sending || attachmentLoading || rateLimitCountdown > 0}
                         whileHover={{ scale: 1.06, rotate: -8 }}
                         whileTap={{ scale: 0.94 }}
                         title="Attach an image or video"
@@ -2038,7 +2164,7 @@ export default function BotPage() {
                           onBlur={() => setIsComposerFocused(false)}
                           placeholder={pendingAttachment?.type === 'audio' ? "Add a note about this voice message (optional)..." : pendingAttachment ? "Ask something about this file (optional)..." : "Message VokiToki AI..."}
                           rows={1}
-                          disabled={sending}
+                          disabled={sending || rateLimitCountdown > 0}
                           className="w-full resize-none bg-transparent border-none px-2 py-3 pr-10 text-sm text-chat-text-primary placeholder:text-chat-text-tertiary focus:outline-none focus:ring-0 transition-all overflow-y-auto"
                           style={{ minHeight: '48px', maxHeight: '180px' }}
                           onInput={e => {
@@ -2123,7 +2249,7 @@ export default function BotPage() {
                           animate={{ scale: 1, opacity: 1, rotate: 0 }}
                           exit={{ scale: 0.6, opacity: 0 }}
                           onClick={() => sendMessage()}
-                          disabled={!hasComposerContent}
+                          disabled={!hasComposerContent || rateLimitCountdown > 0}
                           whileHover={{ scale: 1.06 }}
                           whileTap={{ scale: 0.92 }}
                           title="Send message"

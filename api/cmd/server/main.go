@@ -158,7 +158,7 @@ func main() {
 			bot.GET("/chats", handlers.GetBotChats)
 			bot.POST("/chats", middleware.RateLimiter(10, time.Minute, "bot:create"), handlers.CreateBotChat)
 			bot.GET("/chats/:id", handlers.GetBotChat)
-			bot.POST("/chats/:id/message", middleware.RateLimiter(20, time.Minute, "bot:msg"), handlers.SendBotMessage)
+			bot.POST("/chats/:id/message", middleware.GeminiRateLimiter(), handlers.SendBotMessage)
 			bot.DELETE("/chats/:id", handlers.DeleteBotChat)
 			bot.PATCH("/chats/:id", handlers.RenameBotChat)
 			bot.PATCH("/chats/:id/pin", handlers.PinBotChat)
