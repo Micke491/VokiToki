@@ -40,7 +40,7 @@ func main() {
 		auth.POST("/register", middleware.RateLimiter(5, 5*time.Minute, "auth:register"), handlers.Register)
 		auth.GET("/verify-email", handlers.VerifyEmail)
 		auth.POST("/login", middleware.RateLimiter(10, 5*time.Minute, "auth:login"), handlers.Login)
-		auth.POST("/password-reset-request", middleware.RateLimiter(3, 10*time.Minute, "auth:reset-request"), handlers.RequestPasswordReset)
+		auth.POST("/password-reset-request", middleware.RateLimiter(1, time.Second, "auth:reset-request"), handlers.RequestPasswordReset)
 		auth.POST("/reset-password", middleware.RateLimiter(5, 10*time.Minute, "auth:reset-execute"), handlers.ExecutePasswordReset)
 		auth.POST("/2fa/verify-login", middleware.RateLimiter(10, 5*time.Minute, "auth:verify-login-2fa"), handlers.VerifyLogin2FA)
 	}
@@ -67,11 +67,11 @@ func main() {
 		api.GET("/users/sessions", handlers.GetActiveSessions)
 		api.DELETE("/users/sessions/:id", handlers.RevokeSession)
 
-		api.POST("/auth/2fa/request-enable", handlers.RequestEnable2FA)
+		api.POST("/auth/2fa/request-enable", middleware.RateLimiter(1, time.Second, "2fa:request-enable"), handlers.RequestEnable2FA)
 		api.POST("/auth/2fa/confirm-enable", handlers.ConfirmEnable2FA)
 		api.POST("/auth/2fa/disable", handlers.Disable2FA)
 
-		api.POST("/users/profile/upload", handlers.UploadProfilePicture)
+		api.POST("/users/profile/upload", middleware.RateLimiter(5, 5*time.Minute, "profile:upload"), handlers.UploadProfilePicture)
 
 		api.GET("/users/search", handlers.SearchUsers)
 		api.GET("/users/suggested-contacts", handlers.GetSuggestedContacts)
@@ -118,7 +118,7 @@ func main() {
 		api.POST("/chats", middleware.RateLimiter(5, 5*time.Minute, "chat:create"), handlers.CreateChat)
 		api.POST("/chats/GroupChat", handlers.CreateGroupChat)
 		api.DELETE("/chats/:id", handlers.HideChat)
-		api.POST("/chat/typing", handlers.TypingIndicator)
+		api.POST("/chat/typing", middleware.RateLimiter(60, time.Minute, "chat:typing"), handlers.TypingIndicator)
 
 		api.POST("/chat/message", middleware.RateLimiter(60, time.Minute, "message:send"), handlers.SendMessage)
 		api.GET("/chat/message", handlers.GetMessages)
@@ -140,8 +140,7 @@ func main() {
 		api.DELETE("/chat/:chatId/pinned", handlers.UnpinMessage)
 
 		api.GET("/chat/media/list", handlers.ListMedia)
-		api.POST("/chat/media/upload", handlers.UploadMedia)
-		api.GET("/chat/media/signature", handlers.GetUploadSignature)
+		api.POST("/chat/media/upload", middleware.RateLimiter(10, time.Minute, "chat:media:upload"), handlers.UploadMedia)
 
 		api.GET("/sync", handlers.SyncData)
 

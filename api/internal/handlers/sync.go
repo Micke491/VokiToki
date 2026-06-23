@@ -81,7 +81,7 @@ func SyncData(c *gin.Context) {
 			{"createdAt": bson.M{"$gt": since}},
 		},
 	}
-	msgCursor, err := db.MessageCollection.Find(ctx, msgFilter)
+	msgCursor, err := db.MessageCollection.Find(ctx, msgFilter, options.Find().SetLimit(1000))
 	if err == nil {
 		defer msgCursor.Close(ctx)
 		var messages []models.Message

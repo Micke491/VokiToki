@@ -361,7 +361,7 @@ export default function AccountSettingsTab({
         {/* Save Button */}
         <button
           type="submit"
-          disabled={savingProfile}
+          disabled={savingProfile || !(name !== (currentUser.name || '') || bio !== (currentUser.bio || '') || gender !== (currentUser.gender || '') || locationQuery !== (currentUser.location || '') || JSON.stringify(links) !== JSON.stringify(currentUser.links || []))}
           className="px-6 py-4 bg-chat-accent hover:bg-chat-accent-hover text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-chat-accent/20 disabled:opacity-50"
         >
           {savingProfile ? (
