@@ -15,11 +15,13 @@ type BroadcastMessage struct {
 }
 
 type Client struct {
-	UserID   string
-	Conn     *websocket.Conn
-	Channels map[string]bool
-	Send     chan []byte
-	mu       sync.Mutex
+	UserID    string
+	Conn      *websocket.Conn
+	Channels  map[string]bool
+	Send      chan []byte
+	done      chan struct{}
+	closeOnce sync.Once
+	mu        sync.Mutex
 }
 
 func (c *Client) Subscribe(channel string) {
@@ -32,6 +34,14 @@ func (c *Client) Unsubscribe(channel string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.Channels, channel)
+}
+
+// Close safely terminates the client connection and signals to goroutines
+func (c *Client) Close() {
+	c.closeOnce.Do(func() {
+		close(c.done)
+		c.Conn.Close()
+	})
 }
 
 type Hub struct {
@@ -66,7 +76,7 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				close(client.Send)
+				client.Close() 
 				
 				client.mu.Lock()
 				for ch := range client.Channels {
@@ -101,8 +111,9 @@ func (h *Hub) Run() {
 					select {
 					case client.Send <- payload:
 					default:
-						// Send buffer full, kick client
-						h.unregister <- client
+						// If the client write buffer is full, close their connection.
+						// The readPump will catch this, exit, and safely trigger the unregister channel.
+						client.Close()
 					}
 				}
 			}

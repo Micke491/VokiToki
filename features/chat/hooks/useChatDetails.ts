@@ -57,7 +57,7 @@ export function useChatDetails(chatId: string | undefined, currentUser: User | n
   useEffect(() => {
     if (!chatId || chatId === "[chatId]") return;
     const token = getAuthToken();
-    if (!token) return;
+    if (!token || !wsClient) return;
 
     const channel = wsClient.subscribe(`chat-${chatId}`);
 
@@ -67,12 +67,12 @@ export function useChatDetails(chatId: string | undefined, currentUser: User | n
 
     return () => {
       channel.unbind('chat-updated');
-      wsClient.unsubscribe(`chat-${chatId}`);
+      wsClient?.unsubscribe(`chat-${chatId}`);
     };
   }, [chatId]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !wsClient) return;
 
     const channel = wsClient.subscribe(`user-${currentUser._id}`);
 

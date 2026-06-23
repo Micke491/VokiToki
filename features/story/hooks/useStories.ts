@@ -63,7 +63,7 @@ export function useStories(currentUser: { _id: string, username: string, avatar?
   useEffect(() => {
     fetchStories();
 
-    if (!currentUser?._id) return;
+    if (!currentUser?._id || !wsClient) return;
 
     const channel = wsClient.subscribe(`user-${currentUser._id}`);
 

@@ -36,9 +36,10 @@ export function useCalls(currentUser: User | null) {
   }, [activeCall]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !wsClient) return;
 
-    const userChannel = wsClient.subscribe(`user-${currentUser._id}`);
+    const userChannel = wsClient?.subscribe(`user-${currentUser._id}`);
+    if (!userChannel) return;
 
     const handleIncomingCall = (data: any) => {
       const callerId = data.caller_id?.toString();

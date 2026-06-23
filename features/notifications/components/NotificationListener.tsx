@@ -82,7 +82,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
   }, []);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !wsClient) return;
 
     const userChannel = wsClient.subscribe(`user-${currentUser._id}`);
 

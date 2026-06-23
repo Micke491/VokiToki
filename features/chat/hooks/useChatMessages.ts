@@ -307,6 +307,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
 
   // Pusher subscriptions for message-related actions
   useEffect(() => {
+    if (!wsClient) return;
     const channel = wsClient.subscribe(`chat-${chatId}`);
 
     channel.bind("receive-message", (message: Message) => {
@@ -594,7 +595,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
       channel.unbind("message-reaction-removed");
       channel.unbind("message-pinned");
       channel.unbind("message-unpinned");
-      wsClient.unsubscribe(`chat-${chatId}`);
+      wsClient?.unsubscribe(`chat-${chatId}`);
     };
   }, [chatId, currentUserId, scrollToBottom]);
 

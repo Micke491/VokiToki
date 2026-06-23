@@ -79,7 +79,7 @@ export function useChatSidebar({
   }, [recipientUsername]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !wsClient) return;
 
     const channel = wsClient.subscribe(`chat-${chatId}`);
     

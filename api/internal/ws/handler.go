@@ -20,12 +20,12 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for now
+		return true 
 	},
 }
 
 type clientMessage struct {
-	Action  string `json:"action"` // "subscribe" or "unsubscribe"
+	Action  string `json:"action"` 
 	Channel string `json:"channel"`
 }
 
@@ -61,6 +61,7 @@ func HandleWebSocket(hub *Hub) gin.HandlerFunc {
 			Conn:     conn,
 			Channels: make(map[string]bool),
 			Send:     make(chan []byte, 256),
+			done:     make(chan struct{}),
 		}
 
 		hub.register <- client
@@ -73,7 +74,7 @@ func HandleWebSocket(hub *Hub) gin.HandlerFunc {
 func readPump(client *Client, hub *Hub) {
 	defer func() {
 		hub.unregister <- client
-		client.Conn.Close()
+		client.Close()
 	}()
 	client.Conn.SetReadLimit(512)
 	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -111,7 +112,7 @@ func writePump(client *Client) {
 	ticker := time.NewTicker(50 * time.Second)
 	defer func() {
 		ticker.Stop()
-		client.Conn.Close()
+		client.Close()
 	}()
 
 	for {
@@ -119,7 +120,6 @@ func writePump(client *Client) {
 		case message, ok := <-client.Send:
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
-				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -129,7 +129,6 @@ func writePump(client *Client) {
 			}
 			w.Write(message)
 
-			// Add queued messages to the current websocket message
 			n := len(client.Send)
 			for i := 0; i < n; i++ {
 				w.Write([]byte{'\n'})
@@ -139,6 +138,8 @@ func writePump(client *Client) {
 			if err := w.Close(); err != nil {
 				return
 			}
+		case <-client.done:
+			return
 		case <-ticker.C:
 			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {

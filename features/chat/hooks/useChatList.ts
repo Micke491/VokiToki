@@ -213,7 +213,7 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
   // Real-time Pusher Event Bindings
   useEffect(() => {
     const token = getAuthToken();
-    if (!token || !currentUserId) return;
+    if (!token || !currentUserId || !wsClient) return;
 
     const channel = wsClient.subscribe(`user-${currentUserId}`);
 

@@ -56,8 +56,6 @@ export class RealtimeClient {
 
     const token = getAuthToken();
     if (!token) {
-        // Wait for token to be available
-        setTimeout(() => this.connect(), 1000);
         return;
     }
 
@@ -67,14 +65,12 @@ export class RealtimeClient {
       console.log('WebSocket connected');
       this.reconnectAttempts = 0;
       
-      // Resubscribe to all existing channels
       Object.keys(this.channels).forEach(channelName => {
         this.send({ action: 'subscribe', channel: channelName });
       });
     };
 
     this.ws.onmessage = (event) => {
-      // Handle split messages
       const messages = event.data.split('\n');
       for (const msgData of messages) {
         if (!msgData) continue;
@@ -119,7 +115,6 @@ export class RealtimeClient {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     } else {
-        // Queue or reconnect
         this.connect();
     }
   }
@@ -129,6 +124,11 @@ export class RealtimeClient {
       this.channels[channelName] = new Channel(channelName, this);
     }
     
+    const token = getAuthToken();
+    if (token && (!this.ws || this.ws.readyState === WebSocket.CLOSED)) {
+      this.connect();
+    }
+
     this.send({ action: 'subscribe', channel: channelName });
     
     return this.channels[channelName];
