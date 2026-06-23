@@ -22,6 +22,7 @@ export function RegisterForm() {
     showPassword,
     setShowPassword,
     error,
+    successMessage,
     loading,
     handleSubmit,
   } = useRegister();
@@ -51,7 +52,14 @@ export function RegisterForm() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
+            {successMessage && (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-4 flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                <p className="text-green-300 text-sm font-medium">{successMessage}</p>
+              </div>
+            )}
+            
+            {error && !successMessage && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <p className="text-red-300 text-sm font-medium">{error}</p>
@@ -139,7 +147,7 @@ export function RegisterForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !!successMessage}
               className="w-full py-4 bg-blue-600 text-zinc-100 font-bold rounded-2xl hover:bg-blue-500 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-4 shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)]"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}

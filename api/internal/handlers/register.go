@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	"chat-app/internal/config"
 	"chat-app/internal/db"
 	"chat-app/internal/models"
 	"chat-app/internal/services"
@@ -64,6 +64,9 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	verificationToken := services.GenerateRandomCode(32)
+	verificationExpires := time.Now().Add(24 * time.Hour)
+
 	newUser := models.User{
 		ID:               bson.NewObjectID(),
 		Username:         username,
@@ -87,6 +90,9 @@ func Register(c *gin.Context) {
 		FollowRequests:   []bson.ObjectID{},
 		SentFollowRequests: []bson.ObjectID{},
 		StoryPrivacy:     "everyone",
+		IsEmailVerified:  false,
+		EmailVerificationToken: &verificationToken,
+		EmailVerificationExpires: &verificationExpires,
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -98,32 +104,18 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	token, err := services.GenerateToken(newUser.ID.Hex(), newUser.Email)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate session"})
-		return
+	appURL := "http://localhost:3000"
+	if config.AppConfig != nil && config.AppConfig.AppURL != "" {
+		appURL = config.AppConfig.AppURL
 	}
-
-	ctxBg := context.Background()
-	session := models.Session{
-		ID:         bson.NewObjectID(),
-		UserID:     newUser.ID,
-		Token:      token,
-		Device:     c.Request.UserAgent(),
-		IP:         c.ClientIP(),
-		LastActive: time.Now(),
-	}
-	db.SessionCollection.InsertOne(ctxBg, session)
-
-	if db.RedisClient != nil {
-		tokenCacheKey := "session_token:" + token
-		sessJSON, _ := json.Marshal(session)
-		db.RedisClient.Set(ctxBg, tokenCacheKey, sessJSON, 7*24*time.Hour)
-	}
+	verifyLink := appURL + "/verify-email?token=" + verificationToken
+	emailBody := services.GenerateVerificationEmail(newUser.Username, verifyLink)
+	
+	go services.SendEmail(newUser.Email, "Verify Your Email Address", emailBody)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"token":   token,
+		"message": "Registration successful. Please check your email to verify your account.",
 		"user":    newUser,
 	})
 }

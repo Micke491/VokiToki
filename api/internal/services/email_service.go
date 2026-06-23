@@ -68,3 +68,27 @@ func GeneratePasswordResetEmail(username, resetURL string) string {
 		</html>
 	`, username, resetURL, resetURL)
 }
+
+func GenerateVerificationEmail(username, verifyURL string) string {
+	return fmt.Sprintf(`
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<style>
+				body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
+				.container { background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: auto; }
+				.button { background: #667eea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<h2>Verify Your Email Address</h2>
+				<p>Hi %s,</p>
+				<p>Thank you for registering! Please click the button below to verify your email address and activate your account:</p>
+				<a href="%s" class="button">Verify Email</a>
+				<p>Or copy this link: %s</p>
+			</div>
+		</body>
+		</html>
+	`, username, verifyURL, verifyURL)
+}

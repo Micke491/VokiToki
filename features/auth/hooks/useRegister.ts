@@ -12,6 +12,7 @@ export function useRegister() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
@@ -54,8 +55,8 @@ export function useRegister() {
         return;
       }
 
-      setAuthToken(data.token, rememberMe);
-      window.location.href = '/chat';
+      setSuccessMessage(data.message || 'Registration successful. Please check your email to verify your account.');
+      setLoading(false);
     } catch (err) {
       setError('Something went wrong. Please try again.');
       setLoading(false);
@@ -77,6 +78,7 @@ export function useRegister() {
     setShowPassword,
     error,
     setError,
+    successMessage,
     loading,
     handleSubmit,
   };

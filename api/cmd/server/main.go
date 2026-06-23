@@ -38,6 +38,7 @@ func main() {
 	auth := r.Group("/api/auth")
 	{
 		auth.POST("/register", middleware.RateLimiter(5, 5*time.Minute, "auth:register"), handlers.Register)
+		auth.GET("/verify-email", handlers.VerifyEmail)
 		auth.POST("/login", middleware.RateLimiter(10, 5*time.Minute, "auth:login"), handlers.Login)
 		auth.POST("/password-reset-request", middleware.RateLimiter(3, 10*time.Minute, "auth:reset-request"), handlers.RequestPasswordReset)
 		auth.POST("/reset-password", middleware.RateLimiter(5, 10*time.Minute, "auth:reset-execute"), handlers.ExecutePasswordReset)
