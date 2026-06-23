@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import { pusherClient } from "@/lib/pusher-client";
+import { wsClient } from "@/lib/ws-client";
 import { showNotification, isNotificationsEnabled, registerServiceWorker } from "@/lib/pushNotifications";
 import { usePathname } from "next/navigation";
 import IncomingCallModal from "@/features/calls/components/IncomingCallModal";
@@ -84,7 +84,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
   useEffect(() => {
     if (!currentUser) return;
 
-    const userChannel = pusherClient.subscribe(`user-${currentUser._id}`);
+    const userChannel = wsClient.subscribe(`user-${currentUser._id}`);
 
     const handleChatUpdate = (data: any) => {
       const { chatId, lastMessage } = data;

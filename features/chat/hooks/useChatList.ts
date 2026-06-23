@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuthToken } from '@/lib/storage';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import { apiFetch } from '@/lib/api';
 
 export interface ChatParticipant {
@@ -215,7 +215,7 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
     const token = getAuthToken();
     if (!token || !currentUserId) return;
 
-    const channel = pusherClient.subscribe(`user-${currentUserId}`);
+    const channel = wsClient.subscribe(`user-${currentUserId}`);
 
     const onChatUpdate = (data: { 
       chatId: string, 
@@ -494,3 +494,4 @@ export function useChatList(currentUserId: string | undefined, selectedChatId: s
     handleUnfollowUser,
   };
 }
+

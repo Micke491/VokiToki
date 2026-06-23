@@ -28,19 +28,24 @@ var (
 
 func setCache(ctx context.Context, key string, value string, duration time.Duration) {
 	if db.RedisClient != nil {
-		db.RedisClient.Set(ctx, key, value, duration)
-	} else {
-		localCache.Store(key, value)
-		go func() {
-			time.Sleep(duration)
-			localCache.Delete(key)
-		}()
+		err := db.RedisClient.Set(ctx, key, value, duration).Err()
+		if err == nil {
+			return
+		}
 	}
+	localCache.Store(key, value)
+	go func() {
+		time.Sleep(duration)
+		localCache.Delete(key)
+	}()
 }
 
 func getCache(ctx context.Context, key string) (string, error) {
 	if db.RedisClient != nil {
-		return db.RedisClient.Get(ctx, key).Result()
+		val, err := db.RedisClient.Get(ctx, key).Result()
+		if err == nil {
+			return val, nil
+		}
 	}
 	if val, ok := localCache.Load(key); ok {
 		return val.(string), nil
@@ -51,9 +56,8 @@ func getCache(ctx context.Context, key string) (string, error) {
 func delCache(ctx context.Context, key string) {
 	if db.RedisClient != nil {
 		db.RedisClient.Del(ctx, key)
-	} else {
-		localCache.Delete(key)
 	}
+	localCache.Delete(key)
 }
 
 type CallState struct {
@@ -167,7 +171,7 @@ func InitiateCall(c *gin.Context) {
 			}
 
 			callRecipients = append(callRecipients, p.ID)
-			utils.TriggerPusher("user-"+p.ID.Hex(), "incoming_call", map[string]interface{}{
+			utils.Broadcast("user-"+p.ID.Hex(), "incoming_call", map[string]interface{}{
 				"call_id":       callID,
 				"caller_id":     req.CallerID,
 				"call_type":     req.CallType,
@@ -185,11 +189,11 @@ func InitiateCall(c *gin.Context) {
 			chatOID = chat.ID
 		}
 		if chat.Status == "pending" {
-			utils.TriggerPusher("user-"+req.CalleeID, "chat-request-received", map[string]interface{}{
+			utils.Broadcast("user-"+req.CalleeID, "chat-request-received", map[string]interface{}{
 				"chatId": req.ChatID,
 			})
 		} else {
-			utils.TriggerPusher("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
+			utils.Broadcast("user-"+req.CalleeID, "incoming_call", map[string]interface{}{
 				"call_id":       callID,
 				"caller_id":     req.CallerID,
 				"call_type":     req.CallType,
@@ -263,11 +267,11 @@ func InitiateCall(c *gin.Context) {
 					"createdAt":      callMsg.CreatedAt.Format(time.RFC3339),
 				}
 				if chat.Status == "pending" {
-					utils.TriggerPusher("user-"+req.CalleeID, "chat-request-received", gin.H{"chatId": req.ChatID})
-					utils.TriggerPusher("chat-"+req.ChatID, "receive-message", populatedMsg)
+					utils.Broadcast("user-"+req.CalleeID, "chat-request-received", gin.H{"chatId": req.ChatID})
+					utils.Broadcast("chat-"+req.ChatID, "receive-message", populatedMsg)
 				} else {
-					utils.TriggerPusher("chat-"+req.ChatID, "receive-message", populatedMsg)
-					utils.TriggerPusher("user-"+req.CalleeID, "chat-update", gin.H{
+					utils.Broadcast("chat-"+req.ChatID, "receive-message", populatedMsg)
+					utils.Broadcast("user-"+req.CalleeID, "chat-update", gin.H{
 						"chatId":      req.ChatID,
 						"lastMessage": populatedMsg,
 						"unreadCount": 1,
@@ -338,7 +342,7 @@ func AcceptCall(c *gin.Context) {
 	responseToken := generateLiveKitToken(req.CallID, req.UserID, participantName)
 
 	if !isCaller {
-		utils.TriggerPusher("user-"+state.CallerID, "call_accepted", map[string]interface{}{
+		utils.Broadcast("user-"+state.CallerID, "call_accepted", map[string]interface{}{
 			"call_id": req.CallID,
 			"token":   generateLiveKitToken(req.CallID, state.CallerID, state.CallerName),
 		})
@@ -374,7 +378,7 @@ func RejectCall(c *gin.Context) {
 		delCache(c.Request.Context(), "user_status:"+state.CalleeID)
 		delCache(c.Request.Context(), "call:"+req.CallID)
 
-		utils.TriggerPusher("user-"+state.CallerID, "call_rejected", map[string]interface{}{
+		utils.Broadcast("user-"+state.CallerID, "call_rejected", map[string]interface{}{
 			"call_id": req.CallID,
 		})
 
@@ -402,7 +406,7 @@ func RejectCall(c *gin.Context) {
 				"createdAt":      msg.CreatedAt,
 				"updatedAt":      time.Now(),
 			}
-			utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
+			utils.Broadcast("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
 		}
 	}
 
@@ -438,7 +442,7 @@ func EndCall(c *gin.Context) {
 			otherUserID = state.CalleeID
 		}
 
-		utils.TriggerPusher("user-"+otherUserID, "call_ended", map[string]interface{}{
+		utils.Broadcast("user-"+otherUserID, "call_ended", map[string]interface{}{
 			"call_id": req.CallID,
 		})
 
@@ -466,7 +470,7 @@ func EndCall(c *gin.Context) {
 				"createdAt":      msg.CreatedAt,
 				"updatedAt":      time.Now(),
 			}
-			utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
+			utils.Broadcast("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
 		}
 	} else {
 		setCache(c.Request.Context(), "call:"+req.CallID, `{"status": "cancelled"}`, 60*time.Second)

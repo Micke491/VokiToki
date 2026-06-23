@@ -226,15 +226,15 @@ func SendMessage(c *gin.Context) {
 	if chat.Status == "pending" {
 		for _, pid := range chat.Participants {
 			if pid != currentUser.ID {
-				utils.TriggerPusher("user-"+pid.Hex(), "chat-request-received", gin.H{"chatId": body.ChatID})
+				utils.Broadcast("user-"+pid.Hex(), "chat-request-received", gin.H{"chatId": body.ChatID})
 			} else {
-				utils.TriggerPusher("chat-"+body.ChatID, "receive-message", populatedMsg)
+				utils.Broadcast("chat-"+body.ChatID, "receive-message", populatedMsg)
 			}
 		}
 	} else {
-		utils.TriggerPusher("chat-"+body.ChatID, "receive-message", populatedMsg)
+		utils.Broadcast("chat-"+body.ChatID, "receive-message", populatedMsg)
 		for _, pid := range chat.Participants {
-			utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 				"chatId":      body.ChatID,
 				"lastMessage": populatedMsg,
 			})
@@ -367,7 +367,7 @@ func GetMessages(c *gin.Context) {
 			"$addToSet": bson.M{"deliveredTo": currentUser.ID},
 		})
 		if err == nil {
-			utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-update", gin.H{
+			utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-update", gin.H{
 				"chatId":      chatID.Hex(),
 				"unreadCount": 0,
 			})
@@ -377,7 +377,7 @@ func GetMessages(c *gin.Context) {
 				unreadIDStrs = append(unreadIDStrs, id.Hex())
 			}
 
-			utils.TriggerPusher("chat-"+chatID.Hex(), "messages-read", gin.H{
+			utils.Broadcast("chat-"+chatID.Hex(), "messages-read", gin.H{
 				"chatId":     chatID.Hex(),
 				"messageIds": unreadIDStrs,
 				"userId":     currentUser.ID.Hex(),
@@ -577,17 +577,17 @@ func UpdateMessageStatus(c *gin.Context) {
 	if err == nil && body.ChatID != "" {
 		switch body.Status {
 		case "seen":
-			utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-update", gin.H{
+			utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-update", gin.H{
 				"chatId":      body.ChatID,
 				"unreadCount": 0,
 			})
-			utils.TriggerPusher("chat-"+body.ChatID, "messages-read", gin.H{
+			utils.Broadcast("chat-"+body.ChatID, "messages-read", gin.H{
 				"chatId":     body.ChatID,
 				"messageIds": body.MessageIDs,
 				"userId":     currentUser.ID.Hex(),
 			})
 		case "delivered":
-			utils.TriggerPusher("chat-"+body.ChatID, "messages-delivered", gin.H{
+			utils.Broadcast("chat-"+body.ChatID, "messages-delivered", gin.H{
 				"chatId":     body.ChatID,
 				"messageIds": body.MessageIDs,
 				"userId":     currentUser.ID.Hex(),
@@ -644,7 +644,7 @@ func ManageReaction(c *gin.Context) {
 			"$push": bson.M{"reactions": reaction},
 		})
 		if err == nil {
-			utils.TriggerPusher("chat-"+body.ChatID, "message-reaction-added", gin.H{
+			utils.Broadcast("chat-"+body.ChatID, "message-reaction-added", gin.H{
 				"chatId":    body.ChatID,
 				"messageId": messageIDStr,
 				"reaction": gin.H{
@@ -666,7 +666,7 @@ func ManageReaction(c *gin.Context) {
 		db.MessageCollection.UpdateOne(c, bson.M{"_id": messageID}, bson.M{
 			"$pull": bson.M{"reactions": bson.M{"userId": currentUser.ID, "emoji": emoji}},
 		})
-		utils.TriggerPusher("chat-"+chatID, "message-reaction-removed", gin.H{
+		utils.Broadcast("chat-"+chatID, "message-reaction-removed", gin.H{
 			"chatId":    chatID,
 			"messageId": messageIDStr,
 			"userId":    currentUser.ID,
@@ -757,7 +757,7 @@ func EditMessage(c *gin.Context) {
 		"reactions":      msg.Reactions,
 	}
 
-	utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
+	utils.Broadcast("chat-"+msg.ChatID.Hex(), "message-updated", populatedMsg)
 
 	c.JSON(http.StatusOK, gin.H{"message": populatedMsg})
 }
@@ -806,10 +806,10 @@ func DeleteMessage(c *gin.Context) {
 			},
 		})
 		
-		utils.TriggerPusher("chat-"+msg.ChatID.Hex(), "message-deleted", gin.H{"messageId": messageIDStr, "chatId": msg.ChatID.Hex()})
+		utils.Broadcast("chat-"+msg.ChatID.Hex(), "message-deleted", gin.H{"messageId": messageIDStr, "chatId": msg.ChatID.Hex()})
 		
 		for _, pid := range chat.Participants {
-			utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 				"chatId": msg.ChatID.Hex(),
 				"lastMessage": gin.H{
 					"_id":             messageIDStr,
@@ -938,7 +938,7 @@ func PinMessage(c *gin.Context) {
 		"reactions":      msg.Reactions,
 	}
 
-	utils.TriggerPusher("chat-"+chatIDStr, "message-pinned", populatedMsg)
+	utils.Broadcast("chat-"+chatIDStr, "message-pinned", populatedMsg)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": populatedMsg})
 }
@@ -980,7 +980,7 @@ func UnpinMessage(c *gin.Context) {
 	}
 
 	db.MessageCollection.UpdateOne(c, bson.M{"_id": msgID}, bson.M{"$set": bson.M{"isPinned": false}})
-	utils.TriggerPusher("chat-"+chatIDStr, "message-unpinned", gin.H{"messageId": msgIDStr, "chatId": chatIDStr})
+	utils.Broadcast("chat-"+chatIDStr, "message-unpinned", gin.H{"messageId": msgIDStr, "chatId": chatIDStr})
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

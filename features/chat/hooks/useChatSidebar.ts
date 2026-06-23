@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import { Message } from '@/features/chat/types/chat';
 import toast from 'react-hot-toast';
 
@@ -81,7 +81,7 @@ export function useChatSidebar({
   useEffect(() => {
     if (!chatId) return;
 
-    const channel = pusherClient.subscribe(`chat-${chatId}`);
+    const channel = wsClient.subscribe(`chat-${chatId}`);
     
     channel.bind('chat-updated', (data: any) => {
       if (data.participants) {
@@ -362,3 +362,4 @@ export function useChatSidebar({
     handleAvatarUpload,
   };
 }
+

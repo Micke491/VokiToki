@@ -562,7 +562,7 @@ func UpdateGroupChat(c *gin.Context) {
 		chatMap["groupAdmin"] = updatedChat.GroupAdmin.Hex()
 	}
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+	utils.Broadcast("chat-"+chatIDStr, "chat-updated", chatMap)
 
 	var populatedSysMsg gin.H
 	if systemMsg != "" {
@@ -578,11 +578,11 @@ func UpdateGroupChat(c *gin.Context) {
 			"isSystemMessage": true,
 			"createdAt":       newSysMsg.CreatedAt,
 		}
-		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+		utils.Broadcast("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 	}
 
 	for _, pid := range updatedChat.Participants {
-		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+		utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 			"chatId":       chatIDStr,
 			"name":         updatedChat.Name,
 			"avatar":       updatedChat.Avatar,
@@ -738,11 +738,11 @@ func RemoveParticipant(c *gin.Context) {
 		"status":          "sent",
 		"read":            false,
 	}
-	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+	utils.Broadcast("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+	utils.Broadcast("chat-"+chatIDStr, "chat-updated", chatMap)
 	for _, pid := range updatedChat.Participants {
-		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+		utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 			"chatId":       chatIDStr,
 			"name":         updatedChat.Name,
 			"avatar":       updatedChat.Avatar,
@@ -750,7 +750,7 @@ func RemoveParticipant(c *gin.Context) {
 			"lastMessage":  populatedSysMsg,
 		})
 	}
-	utils.TriggerPusher("user-"+body.UserID, "chat-removed", gin.H{"chatId": chatIDStr})
+	utils.Broadcast("user-"+body.UserID, "chat-removed", gin.H{"chatId": chatIDStr})
 
 	c.JSON(http.StatusOK, chatMap)
 }
@@ -887,9 +887,9 @@ func LeaveChat(c *gin.Context) {
 		"updatedAt":            updatedChat.UpdatedAt,
 	} 
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
-	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
-	utils.TriggerPusher("chat-"+chatIDStr, "receive-message", newSysMsg)
+	utils.Broadcast("chat-"+chatIDStr, "chat-updated", chatMap)
+	utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
+	utils.Broadcast("chat-"+chatIDStr, "receive-message", newSysMsg)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Left chat"})
 }
@@ -1052,12 +1052,12 @@ func AddParticipant(c *gin.Context) {
 			"status":          "sent",
 			"read":            false,
 		}
-		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+		utils.Broadcast("chat-"+chatIDStr, "receive-message", populatedSysMsg)
 	}
 
-	utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+	utils.Broadcast("chat-"+chatIDStr, "chat-updated", chatMap)
 	for _, pid := range updatedChat.Participants {
-		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+		utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 			"chatId":       chatIDStr,
 			"name":         updatedChat.Name,
 			"avatar":       updatedChat.Avatar,
@@ -1067,7 +1067,7 @@ func AddParticipant(c *gin.Context) {
 	}
 
 	for _, pid := range newPendingIDs {
-		utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+		utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 			"chatId":       chatIDStr,
 			"name":         updatedChat.Name,
 			"avatar":       updatedChat.Avatar,
@@ -1106,7 +1106,7 @@ func HideChat(c *gin.Context) {
 		return
 	}
 
-	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
+	utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-removed", gin.H{"chatId": chatIDStr})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Chat hidden"})
 }
@@ -1127,7 +1127,7 @@ func TypingIndicator(c *gin.Context) {
 		event = "user-typing"
 	}
 
-	utils.TriggerPusher("chat-"+body.ChatID, event, gin.H{
+	utils.Broadcast("chat-"+body.ChatID, event, gin.H{
 		"username": body.Username,
 		"userId":   currentUser.ID.Hex(),
 	})
@@ -1376,11 +1376,11 @@ func AcceptChatRequest(c *gin.Context) {
 			chatMap["groupAdmin"] = chat.GroupAdmin.Hex()
 		}
 
-		utils.TriggerPusher("chat-"+chatIDStr, "receive-message", populatedSysMsg)
-		utils.TriggerPusher("chat-"+chatIDStr, "chat-updated", chatMap)
+		utils.Broadcast("chat-"+chatIDStr, "receive-message", populatedSysMsg)
+		utils.Broadcast("chat-"+chatIDStr, "chat-updated", chatMap)
 
 		for _, pid := range newParticipants {
-			utils.TriggerPusher("user-"+pid.Hex(), "chat-update", gin.H{
+			utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 				"chatId":       chatIDStr,
 				"name":         chat.Name,
 				"avatar":       chat.Avatar,
@@ -1388,7 +1388,7 @@ func AcceptChatRequest(c *gin.Context) {
 				"lastMessage":  populatedSysMsg,
 			})
 		}
-		utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-accepted", gin.H{"chatId": chatIDStr})
+		utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-accepted", gin.H{"chatId": chatIDStr})
 
 		c.JSON(http.StatusOK, gin.H{"message": "Joined group chat"})
 		return
@@ -1407,7 +1407,7 @@ func AcceptChatRequest(c *gin.Context) {
 		return
 	}
 
-	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-accepted", gin.H{"chatId": chatIDStr})
+	utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-accepted", gin.H{"chatId": chatIDStr})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Chat accepted"})
 }
@@ -1468,7 +1468,7 @@ func RejectChatRequest(c *gin.Context) {
 			return
 		}
 
-		utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-rejected", gin.H{"chatId": chatIDStr})
+		utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-rejected", gin.H{"chatId": chatIDStr})
 
 		c.JSON(http.StatusOK, gin.H{"message": "Group invitation rejected"})
 		return
@@ -1487,7 +1487,7 @@ func RejectChatRequest(c *gin.Context) {
 		return
 	}
 
-	utils.TriggerPusher("user-"+currentUser.ID.Hex(), "chat-rejected", gin.H{"chatId": chatIDStr})
+	utils.Broadcast("user-"+currentUser.ID.Hex(), "chat-rejected", gin.H{"chatId": chatIDStr})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Chat rejected"})
 }

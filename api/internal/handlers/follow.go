@@ -42,7 +42,7 @@ func FollowUser(c *gin.Context) {
 			bson.M{"$addToSet": bson.M{"sentFollowRequests": targetID}},
 		)
 
-		utils.TriggerPusher("user-"+targetIDStr, "follow-request-received", gin.H{
+		utils.Broadcast("user-"+targetIDStr, "follow-request-received", gin.H{
 			"requesterId": authUser.ID.Hex(),
 			"requester":   authUser,
 		})
@@ -81,8 +81,8 @@ func UnfollowUser(c *gin.Context) {
 		},
 	})
 
-	utils.TriggerPusher("user-"+authUser.ID.Hex(), "follow-updated", gin.H{"userId": targetIDStr})
-	utils.TriggerPusher("user-"+targetIDStr, "follow-updated", gin.H{"userId": authUser.ID.Hex()})
+	utils.Broadcast("user-"+authUser.ID.Hex(), "follow-updated", gin.H{"userId": targetIDStr})
+	utils.Broadcast("user-"+targetIDStr, "follow-updated", gin.H{"userId": authUser.ID.Hex()})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Action successful"})
 }
@@ -119,9 +119,9 @@ func AcceptFollowRequest(c *gin.Context) {
 		},
 	)
 
-	utils.TriggerPusher("user-"+authUser.ID.Hex(), "follow-request-received", gin.H{})
-	utils.TriggerPusher("user-"+authUser.ID.Hex(), "follow-updated", gin.H{"userId": requesterIDStr})
-	utils.TriggerPusher("user-"+requesterIDStr, "follow-updated", gin.H{"userId": authUser.ID.Hex()})
+	utils.Broadcast("user-"+authUser.ID.Hex(), "follow-request-received", gin.H{})
+	utils.Broadcast("user-"+authUser.ID.Hex(), "follow-updated", gin.H{"userId": requesterIDStr})
+	utils.Broadcast("user-"+requesterIDStr, "follow-updated", gin.H{"userId": authUser.ID.Hex()})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Request accepted"})
 }
@@ -152,8 +152,8 @@ func RejectFollowRequest(c *gin.Context) {
 		bson.M{"$pull": bson.M{"sentFollowRequests": authUser.ID}},
 	)
 
-	utils.TriggerPusher("user-"+authUser.ID.Hex(), "follow-request-received", gin.H{})
-	utils.TriggerPusher("user-"+requesterIDStr, "follow-updated", gin.H{"userId": authUser.ID.Hex()})
+	utils.Broadcast("user-"+authUser.ID.Hex(), "follow-request-received", gin.H{})
+	utils.Broadcast("user-"+requesterIDStr, "follow-updated", gin.H{"userId": authUser.ID.Hex()})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Request rejected"})
 }

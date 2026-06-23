@@ -64,7 +64,7 @@ func CreateReport(c *gin.Context) {
 
 	report.ID = result.InsertedID.(bson.ObjectID)
 
-	go utils.TriggerPusher("admin-reports", "new-report", gin.H{
+	go utils.Broadcast("admin-reports", "new-report", gin.H{
 		"reportId":   report.ID.Hex(),
 		"category":   report.Category,
 		"targetType": report.TargetType,

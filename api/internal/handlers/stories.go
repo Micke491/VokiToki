@@ -337,11 +337,11 @@ func notifyNewStory(userID bson.ObjectID, story models.Story, user models.User) 
 			id := p.Hex()
 			if id != userID.Hex() && !seen[id] {
 				seen[id] = true
-				utils.TriggerPusher("user-"+id, "story-new", payload)
+				utils.Broadcast("user-"+id, "story-new", payload)
 			}
 		}
 	}
-	utils.TriggerPusher("user-"+userID.Hex(), "story-new", payload)
+	utils.Broadcast("user-"+userID.Hex(), "story-new", payload)
 }
 
 func GetUserStories(c *gin.Context) {
@@ -511,8 +511,8 @@ func MarkStoryViewed(c *gin.Context) {
 		},
 	}
 
-	go utils.TriggerPusher("user-"+targetID.Hex(), "story-viewed", payload)
-	go utils.TriggerPusher("user-"+viewerID, "story-viewed", payload)
+	go utils.Broadcast("user-"+targetID.Hex(), "story-viewed", payload)
+	go utils.Broadcast("user-"+viewerID, "story-viewed", payload)
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

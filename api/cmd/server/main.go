@@ -9,6 +9,7 @@ import (
 	"chat-app/internal/handlers"
 	"chat-app/internal/middleware"
 	"chat-app/internal/services"
+	"chat-app/internal/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,9 @@ func main() {
 	db.ConnectMongo()
 	db.ConnectRedis()
 	services.InitFCM()
+
+	ws.GlobalHub = ws.NewHub()
+	go ws.GlobalHub.Run()
 
 	r := gin.Default()
 
@@ -34,6 +38,8 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "time": time.Now()})
 	})
+
+	r.GET("/ws", ws.HandleWebSocket(ws.GlobalHub))
 
 	auth := r.Group("/api/auth")
 	{

@@ -232,7 +232,7 @@ func notifyProfileUpdated(userID bson.ObjectID, user models.User) {
 			id := p.Hex()
 			if id != userID.Hex() && !seen[id] {
 				seen[id] = true
-				utils.TriggerPusher("user-"+id, "profile-updated", payload)
+				utils.Broadcast("user-"+id, "profile-updated", payload)
 			}
 		}
 	}
@@ -296,12 +296,12 @@ func notifyStoryDeleted(userID bson.ObjectID, storyID bson.ObjectID) {
 			id := p.Hex()
 			if id != userID.Hex() && !seen[id] {
 				seen[id] = true
-				utils.TriggerPusher("user-"+id, "story-deleted", payload)
+				utils.Broadcast("user-"+id, "story-deleted", payload)
 			}
 		}
 	}
 	// Also notify the user themselves for cross-tab sync
-	utils.TriggerPusher("user-"+userID.Hex(), "story-deleted", payload)
+	utils.Broadcast("user-"+userID.Hex(), "story-deleted", payload)
 }
 
 func GetUserProfile(c *gin.Context) {

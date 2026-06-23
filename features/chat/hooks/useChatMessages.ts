@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import { Message } from '@/features/chat/types/chat';
 
 interface UseChatMessagesProps {
@@ -247,7 +247,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
   }, [messages]);
 
   const markAllAsRead = useCallback(async () => {
-    if (!pusherClient || !currentUserId || messagesRef.current.length === 0) return;
+    if (!wsClient || !currentUserId || messagesRef.current.length === 0) return;
 
     const unreadMessageIds = messagesRef.current
       .filter(
@@ -307,7 +307,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
 
   // Pusher subscriptions for message-related actions
   useEffect(() => {
-    const channel = pusherClient.subscribe(`chat-${chatId}`);
+    const channel = wsClient.subscribe(`chat-${chatId}`);
 
     channel.bind("receive-message", (message: Message) => {
       if (String(message.chatId) !== String(chatId)) return;
@@ -594,7 +594,7 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
       channel.unbind("message-reaction-removed");
       channel.unbind("message-pinned");
       channel.unbind("message-unpinned");
-      pusherClient.unsubscribe(`chat-${chatId}`);
+      wsClient.unsubscribe(`chat-${chatId}`);
     };
   }, [chatId, currentUserId, scrollToBottom]);
 
@@ -683,3 +683,4 @@ export function useChatMessages({ chatId, currentUserId, isGroup }: UseChatMessa
     firstUnreadId: firstUnreadIdRef.current,
   };
 }
+

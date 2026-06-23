@@ -2,7 +2,7 @@
 
 Real-time chat application with support for direct messages, group conversations, media sharing, and voice/video calls.
 
-Built with **Next.js 16**, **MongoDB**, **Pusher**, and **LiveKit**.
+Built with **Next.js 16**, **MongoDB**, **WebSockets**, and **LiveKit**.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Micke491/chat-app)
 
@@ -15,7 +15,7 @@ VokiToki is a full-stack messaging platform designed for seamless real-time comm
 ## Features
 
 **Messaging**
-- Real-time message delivery via Pusher Channels
+- Real-time message delivery via custom WebSockets
 - One-on-one and group conversations
 - Message editing, deletion (for self or everyone), and forwarding
 - Reply threads with quoted context
@@ -52,7 +52,7 @@ VokiToki is a full-stack messaging platform designed for seamless real-time comm
 | Framework | Next.js 16, React 19, TypeScript |
 | Styling | Tailwind CSS 4, Framer Motion |
 | Database | MongoDB, Mongoose |
-| Real-time | Pusher Channels |
+| Real-time | Custom WebSockets (Go Backend) |
 | Calls | LiveKit |
 | Storage | Cloudinary |
 | Email | Nodemailer, Brevo SMTP |
@@ -61,7 +61,6 @@ VokiToki is a full-stack messaging platform designed for seamless real-time comm
 
 - Node.js 18+
 - MongoDB instance Atlas
-- Pusher Channels account
 - Cloudinary account
 - LiveKit Cloud account
 - Giphy API key

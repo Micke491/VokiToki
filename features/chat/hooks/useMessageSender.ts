@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import { Message } from '@/features/chat/types/chat';
 import { EmojiClickData } from 'emoji-picker-react';
 import toast from 'react-hot-toast';
@@ -542,12 +542,12 @@ export function useMessageSender({
   }, [handleSend]);
 
   const handleDelete = useCallback((messageId: string) => {
-    if (!pusherClient) return;
+    if (!wsClient) return;
     setMessageToDelete(messageId);
   }, []);
 
   const confirmDeleteMessage = useCallback(async () => {
-    if (!messageToDelete || !pusherClient) return;
+    if (!messageToDelete || !wsClient) return;
     if (!navigator.onLine) {
       toast.error("Offline: Cannot delete messages for everyone without an internet connection.");
       return;
@@ -600,7 +600,7 @@ export function useMessageSender({
     emojiData: EmojiClickData,
     messageId: string
   ) => {
-    if (!pusherClient) return;
+    if (!wsClient) return;
     if (!navigator.onLine) {
       toast.error("Offline: Cannot add reactions without an internet connection.");
       return;
@@ -645,7 +645,7 @@ export function useMessageSender({
   }, [chatId, currentUserId, setMessages]);
 
   const removeReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (!pusherClient) return;
+    if (!wsClient) return;
     if (!navigator.onLine) {
       toast.error("Offline: Cannot remove reactions without an internet connection.");
       return;
@@ -683,7 +683,7 @@ export function useMessageSender({
       }).catch(() => {});
     }, 500);
 
-    if (pusherClient && val.trim() && !editingMessage) {
+    if (wsClient && val.trim() && !editingMessage) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
       if (!isTypingRef.current) {
@@ -699,7 +699,7 @@ export function useMessageSender({
       }
 
       typingTimeoutRef.current = setTimeout(() => {
-        if (pusherClient) {
+        if (wsClient) {
           apiFetch("/api/chat/typing", {
             method: "POST",
             body: JSON.stringify({
@@ -732,7 +732,7 @@ export function useMessageSender({
   }, []);
 
   const handleForwardSelection = useCallback(async (targetChatIds: string[]) => {
-    if (!pusherClient || !forwardingMessage || targetChatIds.length === 0)
+    if (!wsClient || !forwardingMessage || targetChatIds.length === 0)
       return;
 
     for (const targetChatId of targetChatIds) {

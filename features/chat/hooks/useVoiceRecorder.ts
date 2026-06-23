@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { apiFetch } from '@/lib/api';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import toast from 'react-hot-toast';
 
 interface UseVoiceRecorderProps {
@@ -72,7 +72,7 @@ export function useVoiceRecorder({
       if (!response.ok) throw new Error("Upload failed");
       const data = await response.json();
 
-      if (pusherClient) {
+      if (wsClient) {
         await apiFetch("/api/chat/message", {
           method: "POST",
           body: JSON.stringify({
@@ -147,3 +147,4 @@ export function useVoiceRecorder({
     formatRecordingTime,
   };
 }
+

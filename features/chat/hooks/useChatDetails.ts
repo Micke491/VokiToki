@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { getAuthToken } from '@/lib/storage';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import { User } from '@/hooks/useChatSession';
 
 export interface Chat {
@@ -59,7 +59,7 @@ export function useChatDetails(chatId: string | undefined, currentUser: User | n
     const token = getAuthToken();
     if (!token) return;
 
-    const channel = pusherClient.subscribe(`chat-${chatId}`);
+    const channel = wsClient.subscribe(`chat-${chatId}`);
 
     channel.bind('chat-updated', (updatedChat: Chat) => {
       setSelectedChat(updatedChat);
@@ -67,14 +67,14 @@ export function useChatDetails(chatId: string | undefined, currentUser: User | n
 
     return () => {
       channel.unbind('chat-updated');
-      pusherClient.unsubscribe(`chat-${chatId}`);
+      wsClient.unsubscribe(`chat-${chatId}`);
     };
   }, [chatId]);
 
   useEffect(() => {
     if (!currentUser) return;
 
-    const channel = pusherClient.subscribe(`user-${currentUser._id}`);
+    const channel = wsClient.subscribe(`user-${currentUser._id}`);
 
     channel.bind("profile-updated", (data: { userId: string, username: string, avatar?: string }) => {
       setSelectedChat(prev => {
@@ -131,3 +131,4 @@ export function useChatDetails(chatId: string | undefined, currentUser: User | n
     refetchChatDetails: () => chatId && fetchChatDetails(chatId),
   };
 }
+

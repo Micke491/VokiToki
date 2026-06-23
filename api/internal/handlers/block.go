@@ -60,8 +60,8 @@ func BlockUser(c *gin.Context) {
 	).Decode(&chat)
 
 	if err == nil {
-		utils.TriggerPusher("user-"+authUser.ID.Hex(), "chat-removed", gin.H{"chatId": chat.ID.Hex()})
-		utils.TriggerPusher("chat-"+chat.ID.Hex(), "user-blocked", gin.H{"blockedBy": authUser.ID.Hex()})
+		utils.Broadcast("user-"+authUser.ID.Hex(), "chat-removed", gin.H{"chatId": chat.ID.Hex()})
+		utils.Broadcast("chat-"+chat.ID.Hex(), "user-blocked", gin.H{"blockedBy": authUser.ID.Hex()})
 	}
 
 	if db.RedisClient != nil {

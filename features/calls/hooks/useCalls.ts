@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { pusherClient } from "@/lib/pusher-client";
+import { wsClient } from "@/lib/ws-client";
 import { apiFetch } from "@/lib/api";
 import { showNotification, isNotificationsEnabled } from "@/lib/pushNotifications";
 import toast from "react-hot-toast";
@@ -38,7 +38,7 @@ export function useCalls(currentUser: User | null) {
   useEffect(() => {
     if (!currentUser) return;
 
-    const userChannel = pusherClient.subscribe(`user-${currentUser._id}`);
+    const userChannel = wsClient.subscribe(`user-${currentUser._id}`);
 
     const handleIncomingCall = (data: any) => {
       const callerId = data.caller_id?.toString();

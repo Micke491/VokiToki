@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
-import { pusherClient } from '@/lib/pusher-client';
+import { wsClient } from '@/lib/ws-client';
 import { Story, StoryUser } from '@/features/story/types/story';
 
 export function useStories(currentUser: { _id: string, username: string, avatar?: string } | null) {
@@ -65,7 +65,7 @@ export function useStories(currentUser: { _id: string, username: string, avatar?
 
     if (!currentUser?._id) return;
 
-    const channel = pusherClient.subscribe(`user-${currentUser._id}`);
+    const channel = wsClient.subscribe(`user-${currentUser._id}`);
 
     channel.bind('story-viewed', (data: { storyId: string, viewedBy: string, viewedAt?: string, user?: { username: string, avatar?: string } }) => {
       setStories(prev => prev.map(storyUser => ({
@@ -138,3 +138,4 @@ export function useStories(currentUser: { _id: string, username: string, avatar?
     setStories,
   };
 }
+

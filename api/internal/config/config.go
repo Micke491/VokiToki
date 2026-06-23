@@ -23,10 +23,6 @@ type Config struct {
 	CloudinaryCloudName string
 	CloudinaryAPIKey    string
 	CloudinaryAPISecret string
-	PusherAppID   string
-	PusherKey     string
-	PusherSecret  string
-	PusherCluster string
 	Environment   string
 	LiveKitAPIKey    string
 	LiveKitAPISecret string
@@ -58,10 +54,6 @@ func LoadConfig() {
 		CloudinaryCloudName: getEnv("CLOUDINARY_CLOUD_NAME", ""),
 		CloudinaryAPIKey:    getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret: getEnv("CLOUDINARY_API_SECRET", ""),
-		PusherAppID:   getEnv("PUSHER_APP_ID", ""),
-		PusherKey:     getEnv("PUSHER_KEY", ""),
-		PusherSecret:  getEnv("PUSHER_SECRET", ""),
-		PusherCluster: getEnv("PUSHER_CLUSTER", "mt1"),
 		Environment:   getEnv("APP_ENV", "development"),
 		LiveKitAPIKey:    getEnv("LIVEKIT_API_KEY", ""),
 		LiveKitAPISecret: getEnv("LIVEKIT_API_SECRET", ""),
@@ -73,10 +65,6 @@ func LoadConfig() {
 	requiredVars := map[string]string{
         "MONGODB_URI":   AppConfig.MongoURI,
         "JWT_SECRET":    AppConfig.JWTSecret,
-        "PUSHER_APP_ID": AppConfig.PusherAppID,
-		"PUSHER_KEY": AppConfig.PusherKey,
-		"PUSHER_SECRET":  AppConfig.PusherSecret,
-		"PUSHER_CLUSTER": AppConfig.PusherCluster,
 		"LIVEKIT_API_KEY": AppConfig.LiveKitAPIKey,
 		"LIVEKIT_API_SECRET": AppConfig.LiveKitAPISecret,
 		"APP_URL": AppConfig.AppURL,
