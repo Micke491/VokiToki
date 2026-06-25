@@ -121,26 +121,10 @@ export default function NotificationListener({ currentUser: propUser }: { curren
       }
     };
 
-    const handleFollowRequestReceived = (data: any) => {
-      if (isNotificationsEnabled() && data && data.requester) {
-        const requesterName = data.requester.username || 'Someone';
-        showNotification({
-          title: 'Connection Request',
-          body: `${requesterName} wants to connect with you.`,
-          chatId: `connect-req-${data.requesterId}`,
-          type: 'message',
-          senderName: requesterName,
-          icon: data.requester.avatar,
-        });
-      }
-    };
-
     userChannel.bind("chat-update", handleChatUpdate);
-    userChannel.bind("follow-request-received", handleFollowRequestReceived);
 
     return () => {
       userChannel.unbind("chat-update", handleChatUpdate);
-      userChannel.unbind("follow-request-received", handleFollowRequestReceived);
     };
   }, [currentUser]);
 

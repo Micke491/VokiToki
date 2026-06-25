@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import StoryRing from "@/features/story/components/StoryRing";
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ReportModal from '@/components/ui/ReportModal';
-import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff, Pin, UserCheck, UserPlus, UserMinus } from 'lucide-react';
+import { Plus, Search, X, MoreVertical, LogOut, ShieldAlert, BellOff, Pin } from 'lucide-react';
 import { useChatList, ChatListItem } from '../hooks/useChatList';
 import { AnimatePresence } from 'framer-motion';
 import { useChatSession } from '@/hooks/useChatSession';
@@ -35,7 +35,6 @@ export default function ChatList({
   const [mutedChatIds, setMutedChatIds] = React.useState<string[]>([]);
   const [pinnedChatIds, setPinnedChatIds] = React.useState<string[]>([]);
   const { currentUser } = useChatSession();
-  const [showFollowRequestsModal, setShowFollowRequestsModal] = useState(false);
 
   React.useEffect(() => {
     const fetchMuted = async () => {
@@ -149,11 +148,6 @@ export default function ChatList({
     setActiveTab,
     handleAcceptRequest,
     handleRejectRequest,
-    followRequests,
-    handleAcceptFollow,
-    handleRejectFollow,
-    handleFollowUser,
-    handleUnfollowUser,
   } = useChatList(currentUserId, selectedChatId);
 
   const sortedChats = React.useMemo(() => {
@@ -234,7 +228,6 @@ export default function ChatList({
     );
   }
 
-
   const displayChats = activeTab === 'chats' ? sortedChats : requests;
 
   return (
@@ -244,18 +237,6 @@ export default function ChatList({
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-chat-text-primary tracking-tight">Messages</h2>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowFollowRequestsModal(true)}
-              className="relative p-2 text-chat-accent hover:bg-chat-accent/10 rounded-full transition-all"
-              title="Connection Requests"
-            >
-              <UserCheck className="w-6 h-6" />
-              {followRequests && followRequests.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-md">
-                  {followRequests.length}
-                </span>
-              )}
-            </button>
             <button
               onClick={onNewChat}
               className="p-2 text-chat-accent hover:bg-chat-accent/10 rounded-full transition-all"
@@ -347,7 +328,6 @@ export default function ChatList({
                       const su = storiesUsers.find(u => u.user._id === otherUser._id);
                       const hasStories = (su?.stories.length || 0) > 0;
                       const hasUnviewed = hasStories && su.stories.some((s: any) => !(s.viewedBy || []).some((v: any) => v.userId === currentUserId));
-                      const isFollowing = currentUser?.following?.includes(otherUser._id) ?? false;
 
                       return (
                         <div className="flex flex-col items-center">
@@ -376,41 +356,6 @@ export default function ChatList({
                   <div className="flex items-center justify-between">
                     <span className={`text-[15px] truncate ${isUnread ? 'font-bold text-chat-text-primary' : 'font-semibold text-chat-text-primary'} flex items-center gap-1.5`}>
                       {chatName}
-
-                      {/* Connection Action Display */}
-                      {!isGroup && !isDeleted && (() => {
-                        const isFollowing = currentUser?.following?.includes(otherUser._id) ?? false;
-                        const isRequested = currentUser?.sentFollowRequests?.includes(otherUser._id) ?? false;
-
-                        if (!isFollowing) {
-                          if (isRequested) {
-                            return (
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  await handleUnfollowUser(otherUser._id);
-                                }}
-                                className="text-[11px] text-chat-text-tertiary hover:text-red-500 font-bold shrink-0 ml-1.5 cursor-pointer transition-colors"
-                                title="Cancel Connection Request"
-                              >
-                                Pending
-                              </button>
-                            );
-                          }
-                          return (
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await handleFollowUser(otherUser._id);
-                              }}
-                              className="text-[11px] font-black text-blue-500 hover:text-blue-400 transition-colors shrink-0 ml-1.5 cursor-pointer"
-                            >
-                              Connect
-                            </button>
-                          );
-                        }
-                        return null;
-                      })()}
 
                       {pinnedChatIds.includes(chat._id) && (
                         <Pin className="w-3.5 h-3.5 text-chat-accent shrink-0 fill-chat-accent/20" />
@@ -563,34 +508,6 @@ export default function ChatList({
                           </svg>
                           View Profile
                         </button>
-                        {!isDeleted && (currentUser?.following?.includes(otherUser._id) || currentUser?.sentFollowRequests?.includes(otherUser._id)) && (
-                          <>
-                            <div className="h-px bg-chat-border mx-2" />
-                            {currentUser?.following?.includes(otherUser._id) ? (
-                              <button
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  handleUnfollowUser(otherUser._id);
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
-                              >
-                                <UserMinus className="w-4 h-4" />
-                                 Disconnect
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  handleUnfollowUser(otherUser._id);
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-chat-text-secondary hover:bg-chat-hover transition-colors"
-                              >
-                                <UserMinus className="w-4 h-4" />
-                                 Cancel Request
-                              </button>
-                            )}
-                          </>
-                        )}
                         <div className="h-px bg-chat-border mx-2" />
                         <button
                           onClick={() => handleRemoveChat(chat._id)}
@@ -715,69 +632,6 @@ export default function ChatList({
               >
                 Cancel
               </button>
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Follow Requests Modal */}
-      <AnimatePresence>
-        {showFollowRequestsModal && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFollowRequestsModal(false)} />
-            <div className="relative w-full max-w-md bg-chat-glass backdrop-blur-2xl border border-chat-border rounded-2xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h3 className="text-xl font-bold text-chat-text-primary">Connection Requests</h3>
-                <button
-                  onClick={() => setShowFollowRequestsModal(false)}
-                  className="p-1.5 hover:bg-chat-hover text-chat-text-tertiary hover:text-chat-text-primary rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
-                {!followRequests || followRequests.length === 0 ? (
-                  <div className="text-center py-8 text-chat-text-tertiary">
-                    No pending connection requests
-                  </div>
-                ) : (
-                  followRequests.map((reqUser: any) => (
-                    <div
-                      key={reqUser._id}
-                      className="flex items-center justify-between bg-chat-bg-secondary p-3.5 rounded-xl border border-chat-border hover:border-chat-border/80 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-chat-accent flex items-center justify-center text-white font-bold overflow-hidden shrink-0">
-                          {reqUser.avatar ? (
-                            <img src={reqUser.avatar} className="w-full h-full object-cover" alt="" />
-                          ) : (
-                            (reqUser.username || "U").charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-chat-text-primary truncate">{reqUser.name || reqUser.username}</span>
-                          <span className="text-xs text-chat-text-tertiary truncate">@{reqUser.username}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={() => handleRejectFollow(reqUser._id)}
-                          className="px-3 py-1.5 bg-chat-bg-primary hover:bg-chat-hover border border-chat-border text-chat-text-secondary rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          Decline
-                        </button>
-                        <button
-                          onClick={() => handleAcceptFollow(reqUser._id)}
-                          className="px-3 py-1.5 bg-chat-accent hover:bg-chat-accent-hover text-white rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          Accept
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
             </div>
           </div>
         )}

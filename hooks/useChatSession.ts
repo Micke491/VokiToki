@@ -15,10 +15,6 @@ export interface User {
   defaultWallpaper?: string;
   autoPlayGifs?: boolean;
   autoPlayVoice?: boolean;
-  followers?: string[];
-  following?: string[];
-  followRequests?: string[];
-  sentFollowRequests?: string[];
 }
 
 export function useChatSession() {
@@ -50,15 +46,6 @@ export function useChatSession() {
   useEffect(() => {
     fetchCurrentUser();
     registerServiceWorker();
-
-    const handleFollowUpdate = () => {
-      fetchCurrentUser();
-    };
-
-    window.addEventListener('user-follow-updated', handleFollowUpdate);
-    return () => {
-      window.removeEventListener('user-follow-updated', handleFollowUpdate);
-    };
   }, []);
 
   return {
