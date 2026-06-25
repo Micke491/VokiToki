@@ -67,7 +67,7 @@ export default function StoryBar({
       });
 
       if (uploadRes.ok) {
-        toast.success('Story posted!');
+        toast.success('Story published!');
         onStoryUploaded(); // notify parent to refresh its own stories state
       } else {
         const error = await uploadRes.json();
@@ -147,7 +147,7 @@ export default function StoryBar({
           </button>
         </div>
         <span className="text-[10px] md:text-xs font-medium text-chat-text-secondary">
-          {uploading ? 'Uploading...' : 'My Highlights'}
+          {uploading ? 'Uploading...' : 'My Stories'}
         </span>
         <input
           ref={fileInputRef}

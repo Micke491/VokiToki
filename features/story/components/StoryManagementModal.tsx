@@ -90,7 +90,7 @@ export default function StoryManagementModal({
           {/* Header */}
           <div className="flex items-center justify-between p-8 border-b border-white/5">
             <div>
-              <h2 className="text-3xl font-black text-white tracking-tight">My Highlights</h2>
+              <h2 className="text-3xl font-black text-white tracking-tight">My Stories</h2>
               <p className="text-gray-400 text-sm mt-1 font-medium">
                 Manage your active moments and see who's watching
               </p>
@@ -126,16 +126,16 @@ export default function StoryManagementModal({
                   <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center mb-6">
                     <ImageIcon className="w-12 h-12 text-white/20" />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2">No active highlights</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">No active stories</h3>
                   <p className="text-gray-400 max-w-xs mx-auto text-sm leading-relaxed mb-8">
-                    Share a moment with your contacts! Highlights disappear after 3 hours.
+                    Share a story with your contacts! Stories disappear after 24 hours.
                   </p>
                   <button
                     onClick={onAddStory}
                     disabled={uploading}
                     className="px-8 py-4 bg-chat-accent text-white rounded-2xl font-black transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-chat-accent/40"
                   >
-                    Post Your First Highlight
+                    Post Your First Story
                   </button>
                 </div>
               ) : (
@@ -231,7 +231,7 @@ export default function StoryManagementModal({
                 <div className="p-6 border-b border-white/5 text-left">
                   <h3 className="font-bold text-white flex items-center justify-start gap-2 text-sm uppercase tracking-wider">
                     <Eye className="w-4 h-4 text-chat-accent" />
-                    Highlight Views
+                    Story Views
                   </h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -240,7 +240,7 @@ export default function StoryManagementModal({
                       <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                         <Eye className="w-8 h-8" />
                       </div>
-                      <p className="text-xs font-semibold uppercase tracking-tight">Select a highlight to<br/>see who's watched</p>
+                      <p className="text-xs font-semibold uppercase tracking-tight">Select a story to<br/>see who's watched</p>
                     </div>
                   ) : (
                     <div className="space-y-1">
@@ -297,7 +297,7 @@ export default function StoryManagementModal({
           {/* Footer */}
           <div className="p-6 border-t border-white/5 bg-black/20 flex justify-center items-center px-8">
             <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] opacity-60">
-              Highlights expire automatically after 3 hours
+              Stories expire automatically after 24 hours
             </span>
           </div>
         </motion.div>

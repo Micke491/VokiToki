@@ -266,7 +266,7 @@ func CreateStory(c *gin.Context) {
 		mediaType = "video"
 	}
 
-	expiresAt := time.Now().Add(3 * time.Hour)
+	expiresAt := time.Now().Add(24 * time.Hour)
 	story := models.Story{
 		UserID:    authUser.ID,
 		MediaURL:  uploadResult.SecureURL,

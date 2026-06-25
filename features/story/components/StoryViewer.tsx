@@ -408,7 +408,7 @@ export default function StoryViewer({
                     setIsPaused(true);
                   }}
                   className="p-2 text-amber-500/90 hover:text-amber-500 transition-colors"
-                  title="Report Highlight"
+                  title="Report story"
                 >
                   <ShieldAlert className="w-5 h-5 shadow-sm" />
                 </button>
@@ -637,7 +637,7 @@ export default function StoryViewer({
               handlePrev(); 
             }}
             className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all group border border-white/10 shadow-xl cursor-pointer"
-            title="Previous Highlight"
+            title="Previous story"
           >
             <ArrowLeft className="w-8 h-8 text-white group-hover:-translate-x-0.5 transition-transform" />
           </button>
@@ -648,7 +648,7 @@ export default function StoryViewer({
               handleNext(); 
             }}
             className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 backdrop-blur-md flex items-center justify-center pointer-events-auto transition-all group border border-white/10 shadow-xl cursor-pointer"
-            title="Next Highlight"
+            title="Next story"
           >
             <ArrowLeft className="w-8 h-8 text-white group-hover:translate-x-0.5 transition-transform rotate-180" />
           </button>
@@ -663,7 +663,7 @@ export default function StoryViewer({
           }}
           targetId={currentStory._id}
           targetType="story"
-          targetName={`highlight by ${username}`}
+          targetName={`story by ${username}`}
         />
       </motion.div>
     </AnimatePresence>

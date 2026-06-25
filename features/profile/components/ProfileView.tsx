@@ -112,7 +112,7 @@ export function ProfileView() {
             <div className="flex-1">
               <h1 className="text-3xl font-black text-chat-text-primary tracking-tight">Profile</h1>
               <p className="text-chat-text-secondary font-medium mt-1">
-                Manage your public profile and highlights
+                Manage your public profile and stories
               </p>
             </div>
           </div>
@@ -286,7 +286,7 @@ export function ProfileView() {
                 className="text-xl font-bold text-chat-text-primary flex items-center gap-3 hover:opacity-80 transition-opacity"
               >
                 <ImageIcon className="w-6 h-6 text-chat-accent" />
-                My Highlights
+                My Stories
               </button>
               <button
                 onClick={handleAddStory}
@@ -298,14 +298,14 @@ export function ProfileView() {
                 ) : (
                   <Plus className="w-4 h-4" />
                 )}
-                Add Highlight
+                Add Story
               </button>
             </div>
 
             {stories.length === 0 ? (
               <div className="py-12 flex flex-col items-center justify-center text-center text-chat-text-tertiary bg-chat-bg-secondary rounded-2xl border border-dashed border-chat-border">
                 <ImageIcon className="w-12 h-12 mb-4 opacity-30" />
-                <p className="font-medium">No highlights yet</p>
+                <p className="font-medium">No stories yet</p>
                 <p className="text-sm mt-1">Add a photo or video to share with your contacts</p>
               </div>
             ) : (
