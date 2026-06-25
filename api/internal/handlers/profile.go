@@ -305,7 +305,6 @@ func notifyStoryDeleted(userID bson.ObjectID, storyID bson.ObjectID) {
 }
 
 func GetUserProfile(c *gin.Context) {
-	authUser := c.MustGet("user").(models.User)
 	targetUserIDStr := c.Param("userId")
 
 	targetID, err := bson.ObjectIDFromHex(strings.TrimSpace(targetUserIDStr))
@@ -340,29 +339,6 @@ func GetUserProfile(c *gin.Context) {
 		"expiresAt": bson.M{"$gt": now},
 	})
 
-	isFollowing := false
-	isRequested := false
-	isFollower := false
-
-	for _, id := range user.Followers {
-		if id == authUser.ID {
-			isFollowing = true
-			break
-		}
-	}
-	for _, id := range user.FollowRequests {
-		if id == authUser.ID {
-			isRequested = true
-			break
-		}
-	}
-	for _, id := range authUser.Followers {
-		if id == targetID {
-			isFollower = true
-			break
-		}
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
 			"_id":                user.ID,
@@ -375,9 +351,6 @@ func GetUserProfile(c *gin.Context) {
 			"links":              user.Links,
 			"createdAt":          user.CreatedAt,
 			"activeStoriesCount": activeStoriesCount,
-			"isFollowing":        isFollowing,
-			"isRequested":        isRequested,
-			"isFollower":         isFollower,
 		},
 	})
 }

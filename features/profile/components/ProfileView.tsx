@@ -16,24 +16,7 @@ import StoryViewer from '@/features/story/components/StoryViewer';
 import { useProfile } from '../hooks/useProfile';
 
 export function ProfileView() {
-  const [followRequests, setFollowRequests] = useState<any[]>([]);
 
-  useEffect(() => {
-    apiFetch('/api/users/requests')
-      .then(res => res.json())
-      .then(data => setFollowRequests(data.requests || []))
-      .catch(err => console.error("Error fetching follow requests:", err));
-  }, []);
-
-  const acceptRequest = async (id: string) => {
-    await apiFetch(`/api/users/requests/${id}/accept`, { method: 'POST' });
-    setFollowRequests(prev => prev.filter(r => r._id !== id));
-  };
-
-  const rejectRequest = async (id: string) => {
-    await apiFetch(`/api/users/requests/${id}/reject`, { method: 'POST' });
-    setFollowRequests(prev => prev.filter(r => r._id !== id));
-  };
   const {
     router,
     currentUser,
@@ -399,32 +382,7 @@ export function ProfileView() {
             )}
           </motion.section>
 
-          {/* Follow Requests Section */}
-          {followRequests.length > 0 && (
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-chat-glass backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-chat-border p-10 mb-8"
-            >
-              <h3 className="text-xl font-bold text-chat-text-primary mb-4">Connection Requests</h3>
-              <div className="space-y-4">
-                {followRequests.map(user => (
-                  <div key={user._id} className="flex items-center justify-between bg-chat-bg-secondary p-4 rounded-xl border border-chat-border">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-chat-accent flex items-center justify-center text-white font-bold overflow-hidden">
-                        {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" alt=""/> : user.username.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-semibold text-chat-text-primary">{user.username}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => rejectRequest(user._id)} className="px-3 py-1.5 bg-chat-bg-primary border border-chat-border text-chat-text-secondary rounded-lg text-sm font-medium">Decline</button>
-                      <button onClick={() => acceptRequest(user._id)} className="px-3 py-1.5 bg-chat-accent text-white rounded-lg text-sm font-medium">Accept</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-          )}
+
         </div>
       </div>
 

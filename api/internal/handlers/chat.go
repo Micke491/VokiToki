@@ -332,16 +332,8 @@ func CreateGroupChat(c *gin.Context) {
 	var pendingUsernames []string
 
 	for _, u := range users {
-		if u.ID == currentUser.ID {
-			activeIDs = append(activeIDs, u.ID)
-			activeUsernames = append(activeUsernames, u.Username)
-		} else if hasConnection(currentUser, u.ID) {
-			activeIDs = append(activeIDs, u.ID)
-			activeUsernames = append(activeUsernames, u.Username)
-		} else {
-			pendingIDs = append(pendingIDs, u.ID)
-			pendingUsernames = append(pendingUsernames, u.Username)
-		}
+		activeIDs = append(activeIDs, u.ID)
+		activeUsernames = append(activeUsernames, u.Username)
 	}
 
 	newChat := models.Chat{
@@ -961,13 +953,8 @@ func AddParticipant(c *gin.Context) {
 		if !exists {
 			var u models.User
 			db.UserCollection.FindOne(c, bson.M{"_id": id}).Decode(&u)
-			if hasConnection(currentUser, id) {
-				newActiveIDs = append(newActiveIDs, id)
-				newActiveUsernames = append(newActiveUsernames, u.Username)
-			} else {
-				newPendingIDs = append(newPendingIDs, id)
-				newPendingUsernames = append(newPendingUsernames, u.Username)
-			}
+			newActiveIDs = append(newActiveIDs, id)
+			newActiveUsernames = append(newActiveUsernames, u.Username)
 		}
 	}
 
@@ -1063,16 +1050,6 @@ func AddParticipant(c *gin.Context) {
 			"avatar":       updatedChat.Avatar,
 			"participants": formatParticipants(participants),
 			"lastMessage":  populatedSysMsg,
-		})
-	}
-
-	for _, pid := range newPendingIDs {
-		utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
-			"chatId":       chatIDStr,
-			"name":         updatedChat.Name,
-			"avatar":       updatedChat.Avatar,
-			"participants": formatParticipants(participants),
-			"lastMessage":  nil,
 		})
 	}
 
@@ -1492,16 +1469,3 @@ func RejectChatRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Chat rejected"})
 }
 
-func hasConnection(u1 models.User, u2ID bson.ObjectID) bool {
-	for _, id := range u1.Followers {
-		if id == u2ID {
-			return true
-		}
-	}
-	for _, id := range u1.Following {
-		if id == u2ID {
-			return true
-		}
-	}
-	return false
-}

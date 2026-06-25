@@ -109,13 +109,6 @@ func main() {
 
 		api.GET("/url-metadata", middleware.RateLimiter(30, time.Minute, "url-metadata"), handlers.GetURLMetadata)
 
-		api.POST("/users/:id/follow", handlers.FollowUser)
-		api.POST("/users/:id/unfollow", handlers.UnfollowUser)
-		api.POST("/users/requests/:id/accept", handlers.AcceptFollowRequest)
-		api.POST("/users/requests/:id/reject", handlers.RejectFollowRequest)
-		api.GET("/users/requests", handlers.GetFollowRequests)
-		api.GET("/users/connections", handlers.GetConnections)
-
 		api.GET("/chats/requests", handlers.GetChatRequests)
 		api.POST("/chats/:id/accept", handlers.AcceptChatRequest)
 		api.POST("/chats/:id/reject", handlers.RejectChatRequest)

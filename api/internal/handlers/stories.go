@@ -47,9 +47,6 @@ func GetAllStories(c *gin.Context) {
 			}
 		}
 	}
-	for _, f := range authUser.Following {
-		contactSet[f.Hex()] = true
-	}
 	contactOIDs := make([]bson.ObjectID, 0, len(contactSet))
 	for id := range contactSet {
 		if oid, err := bson.ObjectIDFromHex(id); err == nil {
@@ -369,29 +366,8 @@ func GetUserStories(c *gin.Context) {
 
 	var targetUser models.User
 	db.UserCollection.FindOne(ctx, bson.M{"_id": targetID},
-		options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1, "storyPrivacy": 1, "followers": 1}),
+		options.FindOne().SetProjection(bson.M{"username": 1, "avatar": 1}),
 	).Decode(&targetUser)
-
-	if targetUser.StoryPrivacy == "followers" && authUser.ID != targetID {
-		isFollower := false
-		for _, followerID := range targetUser.Followers {
-			if followerID == authUser.ID {
-				isFollower = true
-				break
-			}
-		}
-		if !isFollower {
-			c.JSON(http.StatusOK, gin.H{
-				"user": gin.H{
-					"_id":      targetUser.ID,
-					"username": targetUser.Username,
-					"avatar":   targetUser.Avatar,
-				},
-				"stories": []bson.M{},
-			})
-			return
-		}
-	}
 
 	now := time.Now()
 	cursor, err := db.StoryCollection.Find(ctx, bson.M{

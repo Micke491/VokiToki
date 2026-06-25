@@ -14,9 +14,7 @@ import PrivacySettingsTab from '@/features/settings/components/PrivacySettingsTa
 import NotificationSettingsTab from '@/features/settings/components/NotificationSettingsTab';
 import AppearanceSettingsTab from '@/features/settings/components/AppearanceSettingsTab';
 import DangerZoneTab from '@/features/settings/components/DangerZoneTab';
-import ConnectionsSettingsTab from '@/features/settings/components/ConnectionsSettingsTab';
 import AISettingsTab, { BotPersona } from '@/features/settings/components/AISettingsTab';
-import { Users as UsersIcon } from 'lucide-react';
 
 interface User {
   _id: string;
@@ -37,7 +35,7 @@ interface User {
   botPersona?: BotPersona;
 }
 
-type TabType = 'account' | 'privacy' | 'connections' | 'notifications' | 'appearance' | 'ai' | 'danger';
+type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'ai' | 'danger';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -92,7 +90,6 @@ export default function SettingsPage() {
   const TABS = [
     { id: 'account', label: 'Account Settings', icon: UserIcon, danger: false },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield, danger: false },
-    { id: 'connections', label: 'Connections', icon: UsersIcon, danger: false },
     { id: 'notifications', label: 'Notifications', icon: Bell, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
     { id: 'ai', label: 'AI Assistant', icon: Bot, danger: false },
@@ -210,9 +207,6 @@ export default function SettingsPage() {
                       onUserUpdate={handleUserUpdate}
                       setFeedback={setFeedback}
                     />
-                  )}
-                  {activeTab === 'connections' && (
-                    <ConnectionsSettingsTab setFeedback={setFeedback} />
                   )}
                   {activeTab === 'ai' && (
                     <AISettingsTab
