@@ -145,6 +145,19 @@ export function RegisterForm() {
               </label>
             </div>
 
+            <p className="text-[11px] text-zinc-500 text-center mt-4">
+              By creating an account, you agree to our{' '}
+              <Link href="/terms" className="text-blue-500 hover:underline">
+                Terms of Service
+              </Link>
+              {' '}
+              and{' '}
+              <Link href="/privacy" className="text-blue-500 hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+
             <button
               type="submit"
               disabled={loading || !!successMessage}

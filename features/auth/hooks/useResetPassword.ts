@@ -14,6 +14,10 @@ export function useResetPassword(token: string | string[] | undefined) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
     if (password !== confirm) {
       setError('Passwords do not match');
       return;
@@ -26,7 +30,7 @@ export function useResetPassword(token: string | string[] | undefined) {
         method: 'POST',
         body: JSON.stringify({ token, newPassword: password }),
       });
-      if (!res.ok) throw new Error('Invalid token or expired');
+      if (!res.ok) throw new Error('Invalid or expired reset link');
       setSuccess(true);
       setTimeout(() => router.push('/auth-pages/login'), 3000);
     } catch (err: any) {

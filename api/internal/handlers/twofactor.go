@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -57,9 +58,11 @@ func RequestEnable2FA(c *gin.Context) {
 	}
 
 	code := services.GenerateRandomCode(6)
+	redisKey := "2fa_enable:" + user.ID.Hex()
+	log.Printf("DEBUG: Storing 2FA code for key=%s code=%s", redisKey, code)
 
 	services.Store2FACode(ctx, timeoutKey, "1", 15*time.Second)
-	services.Store2FACode(ctx, "2fa_enable:"+user.ID.Hex(), code, 10*time.Minute)
+	services.Store2FACode(ctx, redisKey, code, 10*time.Minute)
 
 	services.SendEmail(user.Email, "Your 2FA Setup Code", "Your 2FA setup code is: "+code)
 
@@ -84,7 +87,9 @@ func ConfirmEnable2FA(c *gin.Context) {
 	defer cancel()
 
 	redisKey := "2fa_enable:" + userID
+	log.Printf("DEBUG: Looking up 2FA code for key=%s", redisKey)
 	storedCode, err := services.Get2FACode(ctx, redisKey)
+	log.Printf("DEBUG: Got storedCode=%s err=%v, submitted=%s", storedCode, err, req.Code)
 	if err != nil || storedCode != req.Code {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired code"})
 		return

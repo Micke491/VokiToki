@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -52,32 +53,42 @@ func RequestPasswordReset(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": blindMessage})
 
 	if err == nil {
-		go func(u models.User) {
+		ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel2()
+
+		tokenBytes := make([]byte, 32)
+		rand.Read(tokenBytes)
+		resetToken := hex.EncodeToString(tokenBytes)
+		hash := sha256.Sum256([]byte(resetToken))
+		resetTokenHash := hex.EncodeToString(hash[:])
+
+		expires := time.Now().Add(1 * time.Hour)
+		result, updateErr := db.UserCollection.UpdateOne(ctx2, bson.M{"_id": user.ID}, bson.M{
+			"$set": bson.M{
+				"resetPasswordToken":   resetTokenHash,
+				"resetPasswordExpires": expires,
+			},
+		})
+
+		if updateErr != nil || result.MatchedCount == 0 {
+			var count int64
+			if result != nil {
+				count = result.MatchedCount
+			}
+			log.Printf("ERROR: failed to save reset token for user %s: err=%v matched=%d", user.ID.Hex(), updateErr, count)
+			return
+		}
+		log.Printf("DEBUG: Reset token stored for user=%s hash=%s", user.ID.Hex(), resetTokenHash[:8])
+
+		go func(u models.User, token string) {
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer bgCancel()
 
-			tokenBytes := make([]byte, 32)
-			rand.Read(tokenBytes)
-			resetToken := hex.EncodeToString(tokenBytes)
-			hash := sha256.Sum256([]byte(resetToken))
-			resetTokenHash := hex.EncodeToString(hash[:])
-
-			expires := time.Now().Add(1 * time.Hour)
-			_, updateErr := db.UserCollection.UpdateOne(bgCtx, bson.M{"_id": u.ID}, bson.M{
-				"$set": bson.M{
-					"resetPasswordToken":   resetTokenHash,
-					"resetPasswordExpires": expires,
-				},
-			})
-
-			if updateErr != nil {
-				return
-			}
-
-			resetURL := fmt.Sprintf("%s/auth-pages/reset-password/%s", config.AppConfig.AppURL, resetToken)
+			resetURL := fmt.Sprintf("%s/auth-pages/reset-password/%s", config.AppConfig.AppURL, token)
 			emailBody := services.GeneratePasswordResetEmail(u.Username, resetURL)
-			
+
 			if sendErr := services.SendEmail(u.Email, "Password Reset Request", emailBody); sendErr != nil {
+				log.Printf("ERROR: failed to send password reset email to %s: %v", u.Email, sendErr)
 				db.UserCollection.UpdateOne(bgCtx, bson.M{"_id": u.ID}, bson.M{
 					"$unset": bson.M{
 						"resetPasswordToken":   "",
@@ -85,7 +96,7 @@ func RequestPasswordReset(c *gin.Context) {
 					},
 				})
 			}
-		}(user)
+		}(user, resetToken)
 	}
 }
 
@@ -98,9 +109,15 @@ func ExecutePasswordReset(c *gin.Context) {
 
 	hash := sha256.Sum256([]byte(req.Token))
 	resetTokenHash := hex.EncodeToString(hash[:])
+	log.Printf("DEBUG: Looking for reset token hash=%s", resetTokenHash[:8])
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	log.Printf("DEBUG: ExecutePasswordReset looking for hash=%s, now=%v", resetTokenHash[:8], time.Now())
+	var count int64
+	count, _ = db.UserCollection.CountDocuments(ctx, bson.M{"resetPasswordToken": resetTokenHash})
+	log.Printf("DEBUG: Documents with that token hash: %d", count)
 
 	var user models.User
 	err := db.UserCollection.FindOne(ctx, bson.M{

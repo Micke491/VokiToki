@@ -27,8 +27,8 @@ type User struct {
 	IsEmailVerified          bool                 `bson:"isEmailVerified" json:"isEmailVerified"`
 	EmailVerificationToken   *string              `bson:"emailVerificationToken,omitempty" json:"emailVerificationToken,omitempty"`
 	EmailVerificationExpires *time.Time           `bson:"emailVerificationExpires,omitempty" json:"emailVerificationExpires,omitempty"`
-	ResetPasswordToken       *string              `bson:"resetPasswordToken,omitempty" json:"resetPasswordToken,omitempty"`
-	ResetPasswordExpires     *time.Time           `bson:"resetPasswordExpires,omitempty" json:"resetPasswordExpires,omitempty"`
+	ResetPasswordToken       *string              `bson:"resetPasswordToken" json:"resetPasswordToken,omitempty"`
+	ResetPasswordExpires     *time.Time           `bson:"resetPasswordExpires" json:"resetPasswordExpires,omitempty"`
 	Links                []UserLink           `bson:"links" json:"links"`
 	Location             string               `bson:"location" json:"location"`
 	Gender               string               `bson:"gender" json:"gender"`
