@@ -63,7 +63,7 @@ func GeminiRateLimiter() gin.HandlerFunc {
 			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(rpmTTL).Unix()))
 
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":      "You've reached the AI message limit. Please wait a moment before sending another message.",
+				"error":      fmt.Sprintf("Slow down! You can send at most %d AI messages per minute. Please wait %ds.", rpmLimit, retryAfter),
 				"limitType":  "rpm",
 				"limit":      rpmLimit,
 				"window":     "minute",
@@ -98,7 +98,7 @@ func GeminiRateLimiter() gin.HandlerFunc {
 			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(rpdTTL).Unix()))
 
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":      "You've reached the daily AI message limit (1,000 messages/day). Your limit resets automatically.",
+				"error": fmt.Sprintf("You've reached the daily AI message limit (%d messages/day). Your quota resets in %s.", rpdLimit, formatTTL(retryAfter)),
 				"limitType":  "rpd",
 				"limit":      rpdLimit,
 				"window":     "day",
@@ -122,4 +122,16 @@ func GeminiRateLimiter() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func formatTTL(seconds int) string {
+    if seconds >= 3600 {
+        h := seconds / 3600
+        m := (seconds % 3600) / 60
+        return fmt.Sprintf("%dh %dm", h, m)
+    }
+    if seconds >= 60 {
+        return fmt.Sprintf("%dm %ds", seconds/60, seconds%60)
+    }
+    return fmt.Sprintf("%ds", seconds)
 }

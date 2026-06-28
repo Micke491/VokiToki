@@ -27,7 +27,7 @@ import (
 
 const (
 	geminiModel          = "gemini-3.5-flash"
-	maxUserMessageRunes  = 8000
+	maxUserMessageRunes  = 4000
 	maxTitleRunes        = 60
 	geminiRequestTimeout = 60 * time.Second
 
@@ -39,8 +39,11 @@ const (
 	maxImageBytes         = 8 * 1024 * 1024
 	maxVideoBytes         = 15 * 1024 * 1024
 	maxAudioBytes         = 12 * 1024 * 1024
-
 	maxThumbnailB64Len = 60 * 1024
+
+	maxMessagesPerChat   = 100        
+    maxHistoryChars      = 8000       
+    geminiMaxOutputTokens = 1000 
 )
 
 var geminiHTTPClient = &http.Client{
@@ -357,9 +360,14 @@ type GeminiContent struct {
 type GeminiSysInst struct {
 	Parts []GeminiPart `json:"parts"`
 }
+type GeminiGenConfig struct {
+    MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
+    Temperature     float64 `json:"temperature,omitempty"`
+}
 type GeminiRequest struct {
 	SystemInstruction *GeminiSysInst  `json:"system_instruction,omitempty"`
 	Contents          []GeminiContent `json:"contents"`
+	GenerationConfig  *GeminiGenConfig `json:"generationConfig,omitempty"`
 }
 
 func getSystemInstruction(persona string) string {
@@ -430,6 +438,30 @@ func sanitizeTitle(s string) string {
 	}
 	runes := []rune(s)
 	return strings.TrimSpace(string(runes[:maxTitleRunes])) + "…"
+}
+
+func trimHistory(msgs []models.BotMessage, maxChars int) []models.BotMessage {
+    if len(msgs) == 0 {
+        return msgs
+    }
+
+    total := 0
+    start := len(msgs)
+    for i := len(msgs) - 1; i >= 0; i-- {
+        total += len(msgs[i].Text)
+        if total > maxChars {
+            break
+        }
+        start = i
+    }
+
+    trimmed := msgs[start:]
+
+    for len(trimmed) > 0 && trimmed[0].Role != "user" {
+        trimmed = trimmed[1:]
+    }
+
+    return trimmed
 }
 
 type incomingAttachment struct {
@@ -563,6 +595,16 @@ func SendBotMessage(c *gin.Context) {
 
 	isFirstMessage := len(chat.Messages) == 0
 
+	if len(chat.Messages) >= maxMessagesPerChat {
+    c.JSON(http.StatusBadRequest, gin.H{
+        "error": fmt.Sprintf(
+            "This chat has reached the maximum of %d messages. Please start a new chat to continue.",
+            maxMessagesPerChat,
+        ),
+    })
+    return
+}
+
 	var attachType string
 	var attachBytes []byte
 	var attachMime string
@@ -628,7 +670,8 @@ func SendBotMessage(c *gin.Context) {
 		Contents: make([]GeminiContent, 0, len(chat.Messages)+1),
 	}
 
-	for _, m := range chat.Messages {
+	trimmedMessages := trimHistory(chat.Messages, maxHistoryChars)
+	for _, m := range trimmedMessages {
 		role := m.Role
 		if role == "bot" {
 			role = "model"
@@ -638,6 +681,11 @@ func SendBotMessage(c *gin.Context) {
 			Parts: []GeminiPart{{Text: m.Text}},
 		})
 	}
+
+	geminiReq.GenerationConfig = &GeminiGenConfig{
+    MaxOutputTokens: geminiMaxOutputTokens,
+    Temperature:     0.7,
+}
 
 	currentParts := make([]GeminiPart, 0, 2)
 	textForGemini := userInput

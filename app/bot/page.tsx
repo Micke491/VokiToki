@@ -1194,6 +1194,13 @@ export default function BotPage() {
            return;
          }
 
+         if (res.status == 400 && errData.error?.includes('maximum')) {
+            setToastError(errData.error);
+            setSending(false);
+            setAbortController(null);
+            return;
+         }
+
          throw new Error(errData.error || 'Failed');
       }
 
