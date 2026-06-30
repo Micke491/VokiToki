@@ -12,11 +12,13 @@ import (
 	"chat-app/internal/services"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Email      string `json:"email" binding:"required"`
+	Password   string `json:"password" binding:"required"`
+	RememberMe bool   `json:"rememberMe"`
 }
 
 func Login(c *gin.Context) {
@@ -98,27 +100,45 @@ func Login(c *gin.Context) {
 		}
 	}
 
-	token, err := services.GenerateToken(user.ID.Hex(), user.Email)
+	token, err := services.GenerateToken(user.ID.Hex(), user.Email, req.RememberMe)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to generate session"})
 		return
 	}
 
 	ctxBg := context.Background()
-	session := models.Session{
-		ID:         bson.NewObjectID(),
-		UserID:     user.ID,
-		Token:      token,
-		Device:     c.Request.UserAgent(),
-		IP:         c.ClientIP(),
-		LastActive: time.Now(),
+	device := c.Request.UserAgent()
+	ip := c.ClientIP()
+
+	// Upsert session by userId+device+IP to prevent duplicate entries
+	filter := bson.M{"userId": user.ID, "device": device, "ip": ip}
+	update := bson.M{
+		"$set": bson.M{
+			"token":      token,
+			"lastActive": time.Now(),
+		},
+		"$setOnInsert": bson.M{
+			"_id":    bson.NewObjectID(),
+			"userId": user.ID,
+			"device": device,
+			"ip":     ip,
+		},
 	}
-	db.SessionCollection.InsertOne(ctxBg, session)
+	upsertTrue := true
+	db.SessionCollection.UpdateOne(ctxBg, filter, update, options.UpdateOne().SetUpsert(upsertTrue))
+
+	// Re-fetch the upserted session to get its ID for caching
+	var session models.Session
+	db.SessionCollection.FindOne(ctxBg, bson.M{"token": token}).Decode(&session)
 
 	if db.RedisClient != nil {
 		tokenCacheKey := "session_token:" + token
 		sessJSON, _ := json.Marshal(session)
-		db.RedisClient.Set(ctxBg, tokenCacheKey, sessJSON, 7*24*time.Hour)
+		cacheTTL := 7 * 24 * time.Hour
+		if req.RememberMe {
+			cacheTTL = 0 // no expiry
+		}
+		db.RedisClient.Set(ctxBg, tokenCacheKey, sessJSON, cacheTTL)
 	}
 
 	db.UserCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{

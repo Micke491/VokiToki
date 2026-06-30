@@ -21,3 +21,15 @@ export const removeAuthToken = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
 };
+
+const TRUSTED_DEVICE_KEY = 'trusted_device_token';
+
+export const getTrustedDeviceToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TRUSTED_DEVICE_KEY);
+};
+
+export const setTrustedDeviceToken = (token: string) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TRUSTED_DEVICE_KEY, token);
+};

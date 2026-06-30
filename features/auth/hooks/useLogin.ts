@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { setAuthToken } from '@/lib/storage';
+import { setAuthToken, setTrustedDeviceToken } from '@/lib/storage';
 
 export function useLogin() {
   const [email, setEmail] = useState('');
@@ -25,7 +25,7 @@ export function useLogin() {
     try {
       const response = await apiFetch(`/api/auth/login`, {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
 
       const data = await response.json();
@@ -58,7 +58,7 @@ export function useLogin() {
     try {
       const response = await apiFetch(`/api/auth/2fa/verify-login`, {
         method: 'POST',
-        body: JSON.stringify({ temp_token: tempToken, code: twoFaCode, rememberDevice }),
+        body: JSON.stringify({ temp_token: tempToken, code: twoFaCode, rememberDevice, rememberMe }),
       });
 
       const data = await response.json();
@@ -68,6 +68,9 @@ export function useLogin() {
         return;
       }
 
+      if (data.trusted_device_token) {
+        setTrustedDeviceToken(data.trusted_device_token);
+      }
       setAuthToken(data.token, rememberMe);
       window.location.href = '/chat'; 
     } catch (err) {

@@ -64,7 +64,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 			if db.RedisClient != nil {
 				sessJSON, _ := json.Marshal(sess)
-				db.RedisClient.Set(c, tokenCacheKey, sessJSON, 7*24*time.Hour)
+				db.RedisClient.Set(c, tokenCacheKey, sessJSON, 0)
 			}
 		}
 

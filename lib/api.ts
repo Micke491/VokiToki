@@ -14,6 +14,11 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
+  const trustedDeviceToken = require('./storage').getTrustedDeviceToken?.();
+  if (trustedDeviceToken && !headers.has('X-Trusted-Device-Token')) {
+    headers.set('X-Trusted-Device-Token', trustedDeviceToken);
+  }
+
   const response = await fetch(url, {
     credentials: 'include',
     ...options,

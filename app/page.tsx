@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef, ReactNode, useCallback } from "react";
 import Link from "next/link";
+import { useSessionCheck } from "@/features/auth/hooks/useSessionCheck";
+import { Logo } from "@/components/ui/Logo";
 import {
   MessageSquare,
   Video,
@@ -196,50 +198,7 @@ function TiltCard({
   );
 }
 
-const Logo = () => (
-  <div className="flex items-center gap-3 group cursor-pointer">
-    <div className="shrink-0 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center transition-transform duration-500 group-hover:rotate-[180deg]">
-      <svg width="100%" height="100%" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="4" fill="#2563eb" />
-        <path
-          d="M12 10 Q7 16 12 22"
-          fill="none"
-          stroke="#2563eb"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          opacity="0.9"
-        />
-        <path
-          d="M9 7 Q2 16 9 25"
-          fill="none"
-          stroke="#2563eb"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.5"
-        />
-        <path
-          d="M20 10 Q25 16 20 22"
-          fill="none"
-          stroke="#60a5fa"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          opacity="0.9"
-        />
-        <path
-          d="M23 7 Q30 16 23 25"
-          fill="none"
-          stroke="#60a5fa"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.5"
-        />
-      </svg>
-    </div>
-    <span className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 to-zinc-400 tracking-tight">
-      Vokitoki
-    </span>
-  </div>
-);
+
 
 function ComingSoonModal({ onClose }: { onClose: () => void }) {
   return (
@@ -350,6 +309,7 @@ const STATS = [
 ];
 
 export default function LandingPage() {
+  const { checking } = useSessionCheck();
   const [showModal, setShowModal] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -363,6 +323,10 @@ export default function LandingPage() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  if (checking) {
+    return <div className="min-h-screen bg-[#050505]" />;
+  }
 
   return (
     <>

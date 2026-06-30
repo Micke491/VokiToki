@@ -4,6 +4,7 @@ import { Mail, ArrowLeft, Loader2, CheckCircle, MessageCircle } from 'lucide-rea
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useForgotPassword } from '../hooks/useForgotPassword';
+import { Logo } from '@/components/ui/Logo';
 
 export function ForgotPasswordForm() {
   const {
@@ -22,11 +23,11 @@ export function ForgotPasswordForm() {
       
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 w-full max-w-[440px]">
         <div className="bg-[#09090b]/80 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-zinc-800 p-10">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-xl shadow-blue-600/20 mb-6">
-              <MessageCircle className="w-8 h-8 text-zinc-100" />
-            </div>
-            <h1 className="text-3xl font-black text-zinc-100 tracking-tight">Recover Access</h1>
+          <div className="text-center mb-8 flex flex-col items-center">
+            <Link href="/" className="inline-flex items-center justify-center mb-6 transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+              <Logo iconClassName="w-10 h-10 md:w-12 md:h-12" textClassName="text-2xl md:text-3xl" />
+            </Link>
+            <h1 className="text-3xl font-black text-zinc-100 tracking-tight mt-2">Recover Access</h1>
             <p className="text-zinc-400 font-medium mt-2">Enter your email to reset your password</p>
           </div>
 

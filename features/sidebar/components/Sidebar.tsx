@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Bot } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 interface SideBarProps {
   currentUser?: {
@@ -118,20 +119,7 @@ export default function SideBar({
       >
         {/* Sidebar Header */}
         <div className="p-5 border-b border-chat-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="shrink-0 w-10 h-10 flex items-center justify-center">
-              <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
-                <circle cx="16" cy="16" r="4" fill="#6366F1"/>
-                <path d="M12 10 Q7 16 12 22" fill="none" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round" opacity="0.75"/>
-                <path d="M9 7 Q2 16 9 25" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" opacity="0.45"/>
-                <path d="M20 10 Q25 16 20 22" fill="none" stroke="#818CF8" strokeWidth="2.5" strokeLinecap="round" opacity="0.75"/>
-                <path d="M23 7 Q30 16 23 25" fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round" opacity="0.45"/>
-              </svg>
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-chat-text-primary to-chat-text-secondary tracking-tight">
-              Vokitoki
-            </span>
-          </div>
+          <Logo iconClassName="w-9 h-9" textClassName="text-xl text-chat-text-primary" />
         </div>
 
         {/* Navigation */}

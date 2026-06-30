@@ -84,12 +84,16 @@ type TokenPayload struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID, email string) (string, error) {
+func GenerateToken(userID, email string, rememberMe bool) (string, error) {
+	expiry := 7 * 24 * time.Hour
+	if rememberMe {
+		expiry = 100 * 365 * 24 * time.Hour // effectively forever
+	}
 	claims := &TokenPayload{
 		UserID: userID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -124,7 +128,7 @@ func GenerateTrustedDeviceToken(userID string) (string, error) {
 	claims := &TokenPayload{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(100 * 365 * 24 * time.Hour)),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
