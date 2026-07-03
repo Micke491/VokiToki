@@ -9,6 +9,7 @@ import (
 	"chat-app/internal/handlers"
 	"chat-app/internal/middleware"
 	"chat-app/internal/services"
+	"chat-app/internal/utils"
 	"chat-app/internal/ws"
 
 	"github.com/gin-contrib/cors"
@@ -23,6 +24,8 @@ func main() {
 
 	ws.GlobalHub = ws.NewHub()
 	go ws.GlobalHub.Run()
+
+	utils.InitRedisPubSub() 
 
 	r := gin.Default()
 
