@@ -119,7 +119,8 @@ func UploadMedia(c *gin.Context) {
 	}
 
 	resp, err := cld.Upload.Upload(c, src, uploader.UploadParams{
-		Folder: "chat_media",
+		Folder:       "chat_media",
+		ResourceType: "auto",
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Upload failed", "details": err.Error()})

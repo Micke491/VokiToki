@@ -7,6 +7,7 @@ import (
 
 	"chat-app/internal/db"
 	"chat-app/internal/models"
+	"chat-app/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -60,6 +61,7 @@ func MuteChat(c *gin.Context) {
 		return
 	}
 
+	utils.Broadcast("user-"+authUser.ID.Hex(), "chat-muted", gin.H{"chatId": chatOID.Hex()})
 	c.JSON(http.StatusOK, gin.H{"message": "Chat muted successfully", "mutedUntil": mutedUntil})
 }
 
@@ -84,6 +86,7 @@ func UnmuteChat(c *gin.Context) {
 		return
 	}
 
+	utils.Broadcast("user-"+authUser.ID.Hex(), "chat-unmuted", gin.H{"chatId": chatOID.Hex()})
 	c.JSON(http.StatusOK, gin.H{"message": "Chat unmuted"})
 }
 
@@ -227,6 +230,7 @@ func PinChat(c *gin.Context) {
 		return
 	}
 
+	utils.Broadcast("user-"+authUser.ID.Hex(), "chat-pinned", gin.H{"chatId": chatOID.Hex()})
 	c.JSON(http.StatusOK, gin.H{"message": "Chat pinned successfully"})
 }
 
@@ -259,6 +263,7 @@ func UnpinChat(c *gin.Context) {
 		return
 	}
 
+	utils.Broadcast("user-"+authUser.ID.Hex(), "chat-unpinned", gin.H{"chatId": chatOID.Hex()})
 	c.JSON(http.StatusOK, gin.H{"message": "Chat unpinned"})
 }
 
