@@ -1,35 +1,23 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  useParticipants,
-  useLocalParticipant,
-  useTracks,
-  VideoTrack,
-  useRoomContext,
-  useMediaDeviceSelect,
-} from "@livekit/components-react";
-import "@livekit/components-styles";
-import { RoomEvent, Track } from "livekit-client";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  PhoneOff, 
-  Video as VideoIcon, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  Loader2, 
-  MonitorUp, 
+import {
+  PhoneOff,
+  Video as VideoIcon,
+  VideoOff,
+  Mic,
+  MicOff,
+  Loader2,
+  MonitorUp,
   MonitorOff,
-  ChevronDown
+  ChevronDown,
 } from "lucide-react";
+import { useWebRTC, CallParticipant } from "../hooks/useWebRTC";
 
 interface CallModalProps {
   onLeave: () => void;
-  token: string;
-  roomName: string;
+  callId: string;
   callType: "voice" | "video";
   currentUser: {
     _id: string;
@@ -43,16 +31,55 @@ interface CallModalProps {
   };
 }
 
+function VideoSurface({
+  stream,
+  mirror,
+  className,
+}: {
+  stream: MediaStream | null;
+  mirror?: boolean;
+  className?: string;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (ref.current && ref.current.srcObject !== stream) {
+      ref.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={ref}
+      autoPlay
+      playsInline
+      muted
+      className={className}
+      style={mirror ? { transform: "scaleX(-1)" } : undefined}
+    />
+  );
+}
+
+function AudioSink({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (ref.current && ref.current.srcObject !== stream) {
+      ref.current.srcObject = stream;
+      ref.current.play().catch(() => {});
+    }
+  }, [stream]);
+
+  return <audio ref={ref} autoPlay />;
+}
+
 export default function CallModal({
   onLeave,
-  token,
-  roomName,
+  callId,
   callType,
   remoteUser,
   currentUser,
 }: CallModalProps) {
-  const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-
   const rUser = {
     username: remoteUser?.username || "Remote User",
     avatar: remoteUser?.avatar,
@@ -60,10 +87,16 @@ export default function CallModal({
   };
 
   const cUser = {
+    _id: currentUser?._id,
     username: currentUser?.username || "You",
     avatar: currentUser?.avatar,
-    _id: currentUser?._id,
   };
+
+  const rtc = useWebRTC({
+    callId,
+    currentUser: cUser,
+    withVideo: callType === "video",
+  });
 
   const renderConnectingLayout = () => (
     <div className="flex flex-col h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-neutral-950 to-black text-white p-6 justify-between select-none">
@@ -140,50 +173,23 @@ export default function CallModal({
     </div>
   );
 
-  if (!serverUrl || !token) {
-    return (
-      <div className="fixed inset-0 z-[1000] bg-black">
-        {renderConnectingLayout()}
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-[1000] bg-black">
-      <LiveKitRoom
-        video={false}
-        audio={true}
-        token={token}
-        serverUrl={serverUrl}
-        onDisconnected={onLeave}
-      >
-        <RoomConnectionListener onLeave={onLeave} />
-        <LiveKitCallActive
-          callType={callType}
-          remoteUser={rUser}
-          currentUser={cUser}
-          onLeave={onLeave}
-        />
-        <RoomAudioRenderer />
-      </LiveKitRoom>
+      {!rtc.ready ? (
+        renderConnectingLayout()
+      ) : (
+        <CallActive rtc={rtc} remoteUser={rUser} currentUser={cUser} onLeave={onLeave} />
+      )}
+      {/* Remote audio playback */}
+      {rtc.participants.map(
+        (p) => p.stream && <AudioSink key={p.sid} stream={p.stream} />
+      )}
     </div>
   );
 }
 
-function RoomConnectionListener({ onLeave }: { onLeave: () => void }) {
-  const room = useRoomContext();
-  useEffect(() => {
-    room.on(RoomEvent.Disconnected, onLeave);
-    return () => {
-      room.off(RoomEvent.Disconnected, onLeave);
-    };
-  }, [room, onLeave]);
-
-  return null;
-}
-
-interface CallLayoutProps {
-  callType: "voice" | "video";
+interface CallActiveProps {
+  rtc: ReturnType<typeof useWebRTC>;
   currentUser: {
     username: string;
     avatar?: string;
@@ -196,33 +202,32 @@ interface CallLayoutProps {
   onLeave: () => void;
 }
 
-function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallLayoutProps) {
-  const participants = useParticipants();
-  const { 
-    localParticipant, 
-    cameraTrack, 
-    isCameraEnabled, 
-    isMicrophoneEnabled, 
-    isScreenShareEnabled 
-  } = useLocalParticipant();
+function CallActive({ rtc, remoteUser, currentUser, onLeave }: CallActiveProps) {
+  const {
+    participants,
+    localStream,
+    localScreenStream,
+    micEnabled,
+    camEnabled,
+    screenSharing,
+    localSpeaking,
+    mediaError,
+    micDevices,
+    camDevices,
+    activeMicId,
+    activeCamId,
+    toggleMic,
+    toggleCamera,
+    toggleScreenShare,
+    switchMic,
+    switchCam,
+  } = rtc;
 
   const [showMicMenu, setShowMicMenu] = useState(false);
   const [showCamMenu, setShowCamMenu] = useState(false);
 
   const micDropdownRef = useRef<HTMLDivElement>(null);
   const camDropdownRef = useRef<HTMLDivElement>(null);
-
-  const {
-    devices: micDevices,
-    activeDeviceId: activeMicId,
-    setActiveMediaDevice: setActiveMic,
-  } = useMediaDeviceSelect({ kind: "audioinput", requestPermissions: true });
-
-  const {
-    devices: camDevices,
-    activeDeviceId: activeCamId,
-    setActiveMediaDevice: setActiveCam,
-  } = useMediaDeviceSelect({ kind: "videoinput", requestPermissions: true });
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -237,39 +242,8 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  useEffect(() => {
-    let active = true;
-
-    const initDevices = async () => {
-      try {
-        await localParticipant.setMicrophoneEnabled(true);
-      } catch (err) {
-        console.warn("Could not capture audio device on start:", err);
-      }
-
-      if (callType === "video" && active) {
-        try {
-          await localParticipant.setCameraEnabled(true);
-        } catch (err) {
-          console.warn("Could not capture video device on start:", err);
-        }
-      }
-    };
-
-    initDevices();
-
-    return () => {
-      active = false;
-    };
-  }, [localParticipant, callType]);
-
-  const tracks = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: false },
-    { source: Track.Source.ScreenShare, withPlaceholder: false }
-  ]);
-
-  const remoteParticipants = participants.filter((p) => !p.isLocal);
-  const isRemoteConnected = remoteParticipants.length > 0;
+  const isRemoteConnected = participants.length > 0;
+  const totalParticipants = participants.length + 1;
 
   const [hasRemoteConnected, setHasRemoteConnected] = useState(false);
 
@@ -295,83 +269,51 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
     return () => clearTimeout(timer);
   }, [isRemoteConnected, hasRemoteConnected, onLeave]);
 
-  const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare);
-  const hasScreenShare = screenShareTracks.length > 0;
-
-  const getParticipantDetails = (p: any) => {
-    if (p.isLocal) {
-      return {
-        username: currentUser.username,
-        avatar: currentUser.avatar,
-      };
+  const getParticipantDetails = (p: CallParticipant) => {
+    let username = p.username;
+    let avatar = p.avatar;
+    if ((!username || username === "User") && remoteUser.id && p.userId === remoteUser.id) {
+      username = remoteUser.username;
+      avatar = avatar || remoteUser.avatar;
     }
-
-    let username = remoteUser.username || "Remote User";
-    let avatar = remoteUser.avatar;
-
-    if (p.metadata) {
-      try {
-        const meta = JSON.parse(p.metadata);
-        if (meta.username) username = meta.username;
-        if (meta.avatar) avatar = meta.avatar;
-      } catch {
-        if (
-          p.metadata.startsWith("http") || 
-          p.metadata.startsWith("/") || 
-          p.metadata.startsWith("data:")
-        ) {
-          avatar = p.metadata;
-        }
-      }
-    } else {
-      if (p.name && (!remoteUser.username || remoteUser.username === "User")) {
-        username = p.name;
-      } else if (p.identity && (!remoteUser.username || remoteUser.username === "User")) {
-        username = p.identity;
-      }
-    }
-
-    return { username, avatar };
+    return { username: username || "Remote User", avatar };
   };
 
-  const toggleMic = async () => {
-    try {
-      await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
-    } catch (err) {
-      console.error("Microphone switch failed:", err);
+  const screenShares: { label: string; stream: MediaStream }[] = [];
+  if (screenSharing && localScreenStream) {
+    screenShares.push({ label: "Your Screen Share", stream: localScreenStream });
+  }
+  participants.forEach((p) => {
+    if (p.screenStream) {
+      screenShares.push({
+        label: `${getParticipantDetails(p).username}'s Screen`,
+        stream: p.screenStream,
+      });
     }
-  };
+  });
+  const hasScreenShare = screenShares.length > 0;
 
-  const toggleCamera = async () => {
-    try {
-      await localParticipant.setCameraEnabled(!isCameraEnabled);
-    } catch (err) {
-      console.error("Camera switch failed:", err);
-    }
-  };
-
-  const toggleScreenShare = async () => {
-    try {
-      await localParticipant.setScreenShareEnabled(!isScreenShareEnabled);
-    } catch (err) {
-      console.error("Screen share action failed:", err);
-    }
-  };
+  const localHasVideo = camEnabled && localStream && localStream.getVideoTracks().length > 0;
 
   return (
     <div className="flex flex-col h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-neutral-950 to-black text-white p-6 justify-between select-none">
       {/* Top Details bar */}
       <div className="flex items-center justify-between">
         <span className="text-xs bg-zinc-900/80 px-4 py-2 rounded-full border border-zinc-850 text-zinc-300 backdrop-blur-md shadow-md">
-          {hasScreenShare ? "Screen Presentation" : isCameraEnabled ? "Video Meeting" : "Voice Call"} • {participants.length} Active
+          {hasScreenShare ? "Screen Presentation" : camEnabled ? "Video Meeting" : "Voice Call"} • {totalParticipants} Active
         </span>
+        {mediaError && (
+          <span className="text-xs bg-red-500/10 px-4 py-2 rounded-full border border-red-500/20 text-red-400 backdrop-blur-md">
+            {mediaError}
+          </span>
+        )}
       </div>
 
       {/* Grid container with balanced animations */}
       <AnimatePresence mode="wait">
         {hasScreenShare ? (
           /* Split Screen Share Layout */
-          <motion.div 
+          <motion.div
             key="screenshare-layout"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -380,34 +322,27 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
           >
             {/* Main Shared Screen Presentation */}
             <div className="flex-[3] rounded-3xl bg-zinc-950/60 border border-indigo-500/20 overflow-hidden relative shadow-2xl flex flex-col justify-between group min-h-[320px]">
-              {screenShareTracks[0] && (
-                <VideoTrack
-                  trackRef={screenShareTracks[0] as any}
-                  className="absolute inset-0 w-full h-full object-contain"
-                />
-              )}
+              <VideoSurface
+                stream={screenShares[0].stream}
+                className="absolute inset-0 w-full h-full object-contain"
+              />
               <div className="absolute top-4 left-4 z-10">
                 <span className="bg-black/60 backdrop-blur-xl text-xs font-semibold px-4 py-2 rounded-xl border border-white/10 text-indigo-300 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                  {screenShareTracks[0]?.participant?.identity === localParticipant.identity
-                    ? "Your Screen Share"
-                    : `${getParticipantDetails(screenShareTracks[0]?.participant).username}'s Screen`}
+                  {screenShares[0].label}
                 </span>
               </div>
             </div>
 
             {/* Sidebar for Small Participant Windows */}
             <div className="flex-1 lg:max-w-[280px] flex lg:flex-col gap-4 overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden p-1 shrink-0 scrollbar-none justify-center lg:justify-start">
-              
+
               {/* Local Video Thumbnail */}
               <div className="relative aspect-video w-44 lg:w-full rounded-2xl bg-zinc-900/90 border border-zinc-800 overflow-hidden shrink-0 shadow-lg flex items-center justify-center">
-                {isCameraEnabled && cameraTrack ? (
-                  <VideoTrack
-                    trackRef={{
-                      participant: localParticipant,
-                      source: Track.Source.Camera,
-                      publication: cameraTrack,
-                    }}
+                {localHasVideo ? (
+                  <VideoSurface
+                    stream={localStream}
+                    mirror
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 ) : (
@@ -423,26 +358,23 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                 )}
                 <div className="absolute bottom-2 left-2 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] flex items-center gap-1.5 border border-zinc-800/80">
                   <span className="font-medium text-zinc-300">You</span>
-                  {!isMicrophoneEnabled && <MicOff className="w-3 h-3 text-red-500" />}
+                  {!micEnabled && <MicOff className="w-3 h-3 text-red-500" />}
                 </div>
               </div>
 
               {/* Remote Participant Thumbnails */}
-              {remoteParticipants.map((p) => {
-                const remoteTrack = tracks.find(
-                  (t) => t.participant.identity === p.identity && t.source === Track.Source.Camera
-                );
-                const isCameraActive = p.isCameraEnabled && remoteTrack && !remoteTrack.publication?.isMuted;
+              {participants.map((p) => {
+                const isCameraActive = p.camEnabled && p.stream;
                 const { username: pName, avatar: pAvatar } = getParticipantDetails(p);
 
                 return (
                   <div
-                    key={p.identity}
+                    key={p.sid}
                     className="relative aspect-video w-44 lg:w-full rounded-2xl bg-zinc-900/90 border border-zinc-800 overflow-hidden shrink-0 shadow-lg flex items-center justify-center"
                   >
                     {isCameraActive ? (
-                      <VideoTrack
-                        trackRef={remoteTrack as any}
+                      <VideoSurface
+                        stream={p.stream}
                         className="absolute inset-0 w-full h-full object-cover"
                       />
                     ) : (
@@ -480,7 +412,7 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                     )}
                     <div className="absolute bottom-2 left-2 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] flex items-center gap-1.5 border border-zinc-800/80">
                       <span className="font-medium text-zinc-300">{pName}</span>
-                      {!p.isMicrophoneEnabled && <MicOff className="w-3 h-3 text-red-500" />}
+                      {!p.micEnabled && <MicOff className="w-3 h-3 text-red-500" />}
                     </div>
                   </div>
                 );
@@ -489,40 +421,37 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
           </motion.div>
         ) : (
           /* Responsive Balanced Grid Layout */
-          <motion.div 
+          <motion.div
             key="grid-layout"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             className={`grid gap-6 w-full max-w-6xl mx-auto my-auto items-center justify-center ${
-              participants.length <= 2 
-                ? "grid-cols-1 md:grid-cols-2" 
-                : participants.length <= 4 
-                ? "grid-cols-1 sm:grid-cols-2" 
+              totalParticipants <= 2
+                ? "grid-cols-1 md:grid-cols-2"
+                : totalParticipants <= 4
+                ? "grid-cols-1 sm:grid-cols-2"
                 : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
             }`}
           >
             {/* Local Participant Block */}
             <div className="aspect-video w-full rounded-3xl bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all duration-300 hover:border-zinc-700/60">
-              {isCameraEnabled && cameraTrack ? (
+              {localHasVideo ? (
                 <>
-                  <VideoTrack
-                    trackRef={{
-                      participant: localParticipant,
-                      source: Track.Source.Camera,
-                      publication: cameraTrack,
-                    }}
+                  <VideoSurface
+                    stream={localStream}
+                    mirror
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                   <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-xl text-sm flex items-center gap-2 border border-zinc-800/80">
                     <span className="font-medium text-zinc-200">{currentUser.username} (You)</span>
-                    {!isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
+                    {!micEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
                   </div>
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative w-24 h-24 mb-4">
-                    {isMicrophoneEnabled && localParticipant.isSpeaking && (
+                    {micEnabled && localSpeaking && (
                       <>
                         <motion.div
                           className="absolute inset-0 rounded-full bg-emerald-500/20"
@@ -541,19 +470,19 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                         src={currentUser.avatar}
                         alt={currentUser.username}
                         className={`w-24 h-24 rounded-full object-cover border-2 relative z-10 transition-all duration-300 ${
-                          localParticipant.isSpeaking ? "border-emerald-500 ring-4 ring-emerald-500/30" : "border-zinc-700/50"
+                          localSpeaking ? "border-emerald-500 ring-4 ring-emerald-500/30" : "border-zinc-700/50"
                         }`}
                       />
                     ) : (
                       <div className={`w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center text-3xl font-bold uppercase border-2 relative z-10 transition-all duration-300 ${
-                        localParticipant.isSpeaking ? "border-emerald-500 ring-4 ring-emerald-500/30" : "border-zinc-700/50"
+                        localSpeaking ? "border-emerald-500 ring-4 ring-emerald-500/30" : "border-zinc-700/50"
                       }`}>
                         {currentUser.username.charAt(0)}
                       </div>
                     )}
                   </div>
                   <span className="text-lg font-semibold text-zinc-200">{currentUser.username} (You)</span>
-                  {!isMicrophoneEnabled && (
+                  {!micEnabled && (
                     <span className="text-xs text-red-400 mt-1 flex items-center gap-1">
                       <MicOff className="w-3.5 h-3.5" /> Muted
                     </span>
@@ -564,27 +493,24 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
 
             {/* Remote Participant Block */}
             {isRemoteConnected ? (
-              remoteParticipants.map((p) => {
-                const remoteTrack = tracks.find(
-                  (t) => t.participant.identity === p.identity && t.source === Track.Source.Camera
-                );
-                const isCameraActive = p.isCameraEnabled && remoteTrack && !remoteTrack.publication?.isMuted;
+              participants.map((p) => {
+                const isCameraActive = p.camEnabled && p.stream;
                 const { username: pName, avatar: pAvatar } = getParticipantDetails(p);
 
                 return (
                   <div
-                    key={p.identity}
+                    key={p.sid}
                     className="aspect-video w-full rounded-3xl bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all duration-300 hover:border-zinc-700/60"
                   >
                     {isCameraActive ? (
                       <>
-                        <VideoTrack
-                          trackRef={remoteTrack as any}
+                        <VideoSurface
+                          stream={p.stream}
                           className="absolute inset-0 w-full h-full object-cover"
                         />
                         <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-xl text-sm flex items-center gap-2 border border-zinc-800/80">
                           <span className="font-medium text-zinc-200">{pName}</span>
-                          {!p.isMicrophoneEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
+                          {!p.micEnabled && <MicOff className="w-3.5 h-3.5 text-red-500" />}
                         </div>
                       </>
                     ) : (
@@ -621,7 +547,7 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                           )}
                         </div>
                         <span className="text-lg font-semibold text-zinc-200">{pName}</span>
-                        {!p.isMicrophoneEnabled && (
+                        {!p.micEnabled && (
                           <span className="text-xs text-red-400 mt-1 flex items-center gap-1">
                             <MicOff className="w-3.5 h-3.5" /> Muted
                           </span>
@@ -673,22 +599,22 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
 
       {/* Floating Glassmorphic Call Action Bar */}
       <div className="flex justify-center items-center gap-4 md:gap-6 mb-6">
-        
+
         {/* Toggle Audio Button + Dropdown */}
         <div ref={micDropdownRef} className="relative flex items-center bg-zinc-900 border border-zinc-850 rounded-full shadow-lg hover:border-zinc-800 transition-all">
           <button
             onClick={toggleMic}
             className={`w-14 h-14 rounded-l-full flex items-center justify-center transition-all active:scale-95 ${
-              isMicrophoneEnabled
+              micEnabled
                 ? "text-white hover:bg-zinc-850"
                 : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
             }`}
           >
-            {isMicrophoneEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+            {micEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
           </button>
-          
+
           <div className="w-[1px] h-6 bg-zinc-800" />
-          
+
           <button
             onClick={() => {
               setShowMicMenu(!showMicMenu);
@@ -722,11 +648,7 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                     <button
                       key={device.deviceId}
                       onClick={async () => {
-                        try {
-                          await setActiveMic(device.deviceId);
-                        } catch (err) {
-                          console.error("Failed to set active microphone:", err);
-                        }
+                        await switchMic(device.deviceId);
                         setShowMicMenu(false);
                       }}
                       className={`w-full text-left text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-between ${
@@ -754,16 +676,16 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
           <button
             onClick={toggleCamera}
             className={`w-14 h-14 rounded-l-full flex items-center justify-center transition-all active:scale-95 ${
-              isCameraEnabled
+              camEnabled
                 ? "text-white hover:bg-zinc-850"
                 : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
             }`}
           >
-            {isCameraEnabled ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+            {camEnabled ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </button>
-          
+
           <div className="w-[1px] h-6 bg-zinc-800" />
-          
+
           <button
             onClick={() => {
               setShowCamMenu(!showCamMenu);
@@ -797,11 +719,7 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
                     <button
                       key={device.deviceId}
                       onClick={async () => {
-                        try {
-                          await setActiveCam(device.deviceId);
-                        } catch (err) {
-                          console.error("Failed to set active camera:", err);
-                        }
+                        await switchCam(device.deviceId);
                         setShowCamMenu(false);
                       }}
                       className={`w-full text-left text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-between ${
@@ -828,12 +746,12 @@ function LiveKitCallActive({ callType, remoteUser, currentUser, onLeave }: CallL
         <button
           onClick={toggleScreenShare}
           className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border ${
-            isScreenShareEnabled
+            screenSharing
               ? "bg-indigo-650 text-white border-indigo-550 hover:bg-indigo-600"
               : "bg-zinc-900 border-zinc-800 hover:bg-zinc-850 text-zinc-300"
           }`}
         >
-          {isScreenShareEnabled ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
+          {screenSharing ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
         </button>
 
         {/* Hang Up Button */}

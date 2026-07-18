@@ -9,7 +9,7 @@ import (
 	"chat-app/internal/ws"
 )
 
-const RedisPubSubChannel = "vokitoki_ws_events"
+const RedisPubSubChannel = ws.RedisPubSubChannel
 
 func InitRedisPubSub() {
 	if db.RedisClient == nil {
@@ -19,7 +19,7 @@ func InitRedisPubSub() {
 
 	ctx := context.Background()
 	pubsub := db.RedisClient.Subscribe(ctx, RedisPubSubChannel)
-	
+
 	go func() {
 		ch := pubsub.Channel()
 		for msg := range ch {
@@ -37,19 +37,5 @@ func InitRedisPubSub() {
 }
 
 func Broadcast(channel, event string, data interface{}) {
-	if db.RedisClient != nil {
-		payload := ws.BroadcastMessage{
-			Channel: channel,
-			Event:   event,
-			Data:    data,
-		}
-		b, err := json.Marshal(payload)
-		if err == nil {
-			db.RedisClient.Publish(context.Background(), RedisPubSubChannel, b)
-		} else {
-			log.Printf("Failed to marshal Broadcast payload: %v", err)
-		}
-	} else if ws.GlobalHub != nil {
-		ws.GlobalHub.Broadcast(channel, event, data)
-	}
+	ws.Dispatch(channel, event, data)
 }

@@ -2,7 +2,7 @@
 
 Real-time chat application with support for direct messages, group conversations, media sharing, and voice/video calls.
 
-Built with **Next.js 16**, **MongoDB**, **WebSockets**, and **LiveKit**.
+Built with **Next.js 16**, **MongoDB**, **WebSockets**, and **peer-to-peer WebRTC**.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Micke491/chat-app)
 
@@ -30,7 +30,7 @@ VokiToki is a full-stack messaging platform designed for seamless real-time comm
 - Automatic link preview generation with metadata extraction
 
 **Calls**
-- Voice and video calling over LiveKit
+- Voice and video calling over peer-to-peer WebRTC (custom signaling, no external media service)
 - Incoming call notifications with accept/decline handling
 
 **Authentication & Security**
@@ -53,7 +53,7 @@ VokiToki is a full-stack messaging platform designed for seamless real-time comm
 | Styling | Tailwind CSS 4, Framer Motion |
 | Database | MongoDB, Mongoose |
 | Real-time | Custom WebSockets (Go Backend) |
-| Calls | LiveKit |
+| Calls | Custom WebRTC (mesh, WebSocket signaling) |
 | Storage | Cloudinary |
 | Email | Nodemailer, Brevo SMTP |
 
@@ -62,7 +62,7 @@ VokiToki is a full-stack messaging platform designed for seamless real-time comm
 - Node.js 18+
 - MongoDB instance Atlas
 - Cloudinary account
-- LiveKit Cloud account
+- (Optional) A TURN server (e.g. coturn) for calls behind strict NATs
 - Giphy API key
 - Brevo (Sendinblue) SMTP credentials
 

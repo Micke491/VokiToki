@@ -1,17 +1,44 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
 
+	"chat-app/internal/db"
+
 	"github.com/gorilla/websocket"
 )
+
+const RedisPubSubChannel = "vokitoki_ws_events"
 
 type BroadcastMessage struct {
 	Channel string      `json:"channel"`
 	Event   string      `json:"event"`
 	Data    interface{} `json:"data"`
+}
+
+// Dispatch delivers an event to every subscriber of a channel across all
+// server instances: through Redis Pub/Sub when configured, otherwise via the
+// local hub only.
+func Dispatch(channel, event string, data interface{}) {
+	if db.RedisClient != nil {
+		payload := BroadcastMessage{
+			Channel: channel,
+			Event:   event,
+			Data:    data,
+		}
+		b, err := json.Marshal(payload)
+		if err == nil {
+			db.RedisClient.Publish(context.Background(), RedisPubSubChannel, b)
+			return
+		}
+		log.Printf("Failed to marshal Broadcast payload: %v", err)
+	}
+	if GlobalHub != nil {
+		GlobalHub.Broadcast(channel, event, data)
+	}
 }
 
 type Client struct {

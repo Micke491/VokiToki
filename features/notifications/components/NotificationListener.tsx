@@ -140,8 +140,7 @@ export default function NotificationListener({ currentUser: propUser }: { curren
 
       {activeCall && currentUser && (
         <CallModal
-          roomName={activeCall.callId}
-          token={activeCall.token}
+          callId={activeCall.callId}
           callType={activeCall.type}
           remoteUser={activeCall.remoteUser}
           currentUser={currentUser}

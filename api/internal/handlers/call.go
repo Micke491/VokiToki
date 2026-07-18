@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,7 +21,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/livekit/protocol/auth"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -318,39 +320,17 @@ func AcceptCall(c *gin.Context) {
 		setCache(c.Request.Context(), "user_status:"+state.CalleeID, "busy", 2*time.Hour)
 	}
 
-	callerName := state.CallerName
-	if callerName == "" {
-		callerObjID, err := bson.ObjectIDFromHex(state.CallerID)
-		if err == nil {
-			var caller models.User
-			db.UserCollection.FindOne(c, bson.M{"_id": callerObjID}).Decode(&caller)
-			callerName = caller.Username
-		}
-		if callerName == "" {
-			callerName = "Caller"
-		}
-	}
-
 	isCaller := req.UserID == state.CallerID
-
-	var participantName string
-	participantName = currentUser.Username
-	if participantName == "" {
-		participantName = "User"
-	}
-
-	responseToken := generateLiveKitToken(req.CallID, req.UserID, participantName)
 
 	if !isCaller {
 		utils.Broadcast("user-"+state.CallerID, "call_accepted", map[string]interface{}{
 			"call_id": req.CallID,
-			"token":   generateLiveKitToken(req.CallID, state.CallerID, state.CallerName),
+			"user_id": currentUser.ID.Hex(),
 		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Call accepted",
-		"token":   responseToken,
 	})
 }
 
@@ -479,29 +459,51 @@ func EndCall(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Call ended"})
 }
 
-func generateLiveKitToken(roomName string, participantIdentity string, participantName string) string {
-	apiKey := config.AppConfig.LiveKitAPIKey
-	apiSecret := config.AppConfig.LiveKitAPISecret
+type iceServer struct {
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username,omitempty"`
+	Credential string   `json:"credential,omitempty"`
+}
 
-	if apiKey == "" || apiSecret == "" {
-		log.Println("Error: LiveKit credentials not found in config")
-		return ""
+func splitAndTrim(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// GetIceServers returns the STUN/TURN configuration clients use to build
+// their RTCPeerConnection. STUN defaults to Google's free public servers.
+// A TURN relay is optional but improves connectivity behind strict NATs:
+// either static credentials (TURN_USERNAME/TURN_CREDENTIAL) or, when
+// TURN_SECRET is set, coturn-style time-limited credentials are issued.
+func GetIceServers(c *gin.Context) {
+	servers := []iceServer{}
+
+	if stun := strings.TrimSpace(config.AppConfig.StunURLs); stun != "" {
+		servers = append(servers, iceServer{URLs: splitAndTrim(stun)})
 	}
 
-	at := auth.NewAccessToken(apiKey, apiSecret)
-	grant := &auth.VideoGrant{
-		RoomJoin: true,
-		Room:     roomName,
+	if turn := strings.TrimSpace(config.AppConfig.TurnURLs); turn != "" {
+		turnServer := iceServer{URLs: splitAndTrim(turn)}
+		if secret := config.AppConfig.TurnSecret; secret != "" {
+			userObj, _ := c.Get("user")
+			currentUser := userObj.(models.User)
+			expiry := time.Now().Add(6 * time.Hour).Unix()
+			turnServer.Username = fmt.Sprintf("%d:%s", expiry, currentUser.ID.Hex())
+			mac := hmac.New(sha1.New, []byte(secret))
+			mac.Write([]byte(turnServer.Username))
+			turnServer.Credential = base64.StdEncoding.EncodeToString(mac.Sum(nil))
+		} else {
+			turnServer.Username = config.AppConfig.TurnUsername
+			turnServer.Credential = config.AppConfig.TurnCredential
+		}
+		servers = append(servers, turnServer)
 	}
-	at.AddGrant(grant).
-		SetIdentity(participantIdentity).
-		SetName(participantName).
-		SetValidFor(2 * time.Hour)
 
-	token, err := at.ToJWT()
-	if err != nil {
-		log.Println("Error generating token:", err)
-		return ""
-	}
-	return token
+	c.JSON(http.StatusOK, gin.H{"iceServers": servers})
 }

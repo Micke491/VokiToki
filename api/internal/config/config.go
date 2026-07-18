@@ -24,9 +24,11 @@ type Config struct {
 	CloudinaryAPIKey    string
 	CloudinaryAPISecret string
 	Environment   string
-	LiveKitAPIKey    string
-	LiveKitAPISecret string
-	LiveKitURL       string
+	StunURLs       string
+	TurnURLs       string
+	TurnUsername   string
+	TurnCredential string
+	TurnSecret     string
 	AppURL           string
 	GeminiAPIKey     string
 }
@@ -55,9 +57,11 @@ func LoadConfig() {
 		CloudinaryAPIKey:    getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret: getEnv("CLOUDINARY_API_SECRET", ""),
 		Environment:   getEnv("APP_ENV", "development"),
-		LiveKitAPIKey:    getEnv("LIVEKIT_API_KEY", ""),
-		LiveKitAPISecret: getEnv("LIVEKIT_API_SECRET", ""),
-		LiveKitURL:       getEnv("NEXT_PUBLIC_LIVEKIT_URL", ""),
+		StunURLs:       getEnv("STUN_URLS", "stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302"),
+		TurnURLs:       getEnv("TURN_URLS", ""),
+		TurnUsername:   getEnv("TURN_USERNAME", ""),
+		TurnCredential: getEnv("TURN_CREDENTIAL", ""),
+		TurnSecret:     getEnv("TURN_SECRET", ""),
 		AppURL:           getEnv("APP_URL", "https://chat-app-gules-six-81.vercel.app"),
 		GeminiAPIKey:     getEnv("GEMINI_API_KEY", ""),
 	}
@@ -65,8 +69,6 @@ func LoadConfig() {
 	requiredVars := map[string]string{
         "MONGODB_URI":   AppConfig.MongoURI,
         "JWT_SECRET":    AppConfig.JWTSecret,
-		"LIVEKIT_API_KEY": AppConfig.LiveKitAPIKey,
-		"LIVEKIT_API_SECRET": AppConfig.LiveKitAPISecret,
 		"APP_URL": AppConfig.AppURL,
 	}
 

@@ -44,6 +44,7 @@ export class RealtimeClient {
   maxReconnectAttempts = 5;
   reconnectDelay = 1000;
   pingInterval: NodeJS.Timeout | null = null;
+  pendingMessages: any[] = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -64,10 +65,14 @@ export class RealtimeClient {
     this.ws.onopen = () => {
       console.log('WebSocket connected');
       this.reconnectAttempts = 0;
-      
+
       Object.keys(this.channels).forEach(channelName => {
         this.send({ action: 'subscribe', channel: channelName });
       });
+
+      const queued = this.pendingMessages;
+      this.pendingMessages = [];
+      queued.forEach(msg => this.send(msg));
     };
 
     this.ws.onmessage = (event) => {
@@ -115,6 +120,9 @@ export class RealtimeClient {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     } else {
+        if (this.pendingMessages.length < 100) {
+          this.pendingMessages.push(data);
+        }
         this.connect();
     }
   }

@@ -154,6 +154,7 @@ func main() {
 		api.POST("/call/accept", handlers.AcceptCall)
 		api.POST("/call/reject", handlers.RejectCall)
 		api.POST("/call/end", handlers.EndCall)
+		api.GET("/call/ice-servers", handlers.GetIceServers)
 
 		bot := api.Group("/bot")
 		{

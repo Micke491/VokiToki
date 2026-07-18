@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"chat-app/internal/db"
@@ -25,8 +26,9 @@ var upgrader = websocket.Upgrader{
 }
 
 type clientMessage struct {
-	Action  string `json:"action"` 
-	Channel string `json:"channel"`
+	Action  string          `json:"action"`
+	Channel string          `json:"channel"`
+	Data    json.RawMessage `json:"data"`
 }
 
 func HandleWebSocket(hub *Hub) gin.HandlerFunc {
@@ -76,7 +78,9 @@ func readPump(client *Client, hub *Hub) {
 		hub.unregister <- client
 		client.Close()
 	}()
-	client.Conn.SetReadLimit(512)
+	// WebRTC SDP offers/answers relayed through the "signal" action are
+	// several KB, so the read limit must be large enough to carry them.
+	client.Conn.SetReadLimit(64 * 1024)
 	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	client.Conn.SetPongHandler(func(string) error {
 		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -103,6 +107,26 @@ func readPump(client *Client, hub *Hub) {
 				if msg.Channel != "" {
 					hub.Unsubscribe(client, msg.Channel)
 				}
+			case "signal":
+				// Relay WebRTC signaling (offers/answers/ICE candidates)
+				// between participants of a call channel. Only channels the
+				// client has actually joined can be used, and the sender's
+				// user ID is stamped server-side so it cannot be spoofed.
+				if !strings.HasPrefix(msg.Channel, "call-") {
+					break
+				}
+				client.mu.Lock()
+				subscribed := client.Channels[msg.Channel]
+				client.mu.Unlock()
+				if !subscribed {
+					break
+				}
+				var payload map[string]interface{}
+				if err := json.Unmarshal(msg.Data, &payload); err != nil || payload == nil {
+					break
+				}
+				payload["from"] = client.UserID
+				Dispatch(msg.Channel, "webrtc_signal", payload)
 			}
 		}
 	}

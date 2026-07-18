@@ -15,7 +15,6 @@ interface User {
 interface ActiveCall {
   callId: string;
   type: "voice" | "video";
-  token: string;
   remoteUser: {
     username: string;
     avatar?: string;
@@ -65,13 +64,6 @@ export function useCalls(currentUser: User | null) {
 
     const handleCallAccepted = (data: any) => {
       if (pendingCallId === data.call_id) {
-        setActiveCall((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            token: prev.token || data.token,
-          };
-        });
         setPendingCallId(null);
       }
     };
@@ -117,7 +109,6 @@ export function useCalls(currentUser: User | null) {
       setActiveCall({
         callId: newCallId,
         type,
-        token: "",
         remoteUser: {
           username: calleeName || "User",
           avatar: calleeAvatar,
@@ -132,11 +123,8 @@ export function useCalls(currentUser: User | null) {
             method: "POST",
             body: JSON.stringify({ call_id: existingCallId, user_id: currentUser._id }),
           });
-          
-          if (res.ok) {
-            const data = await res.json();
-            setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
-          } else {
+
+          if (!res.ok) {
             const err = await res.json();
             toast.error(err.error || "Could not join call.");
             setActiveCall(null);
@@ -155,13 +143,8 @@ export function useCalls(currentUser: User | null) {
               chat_id: chatId,
             }),
           });
-          
-          if (res.ok) {
-            const data = await res.json();
-            if (data.token) {
-              setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
-            }
-          } else {
+
+          if (!res.ok) {
             const err = await res.json();
             toast.error(err.error || "Could not start call.");
             setActiveCall(null);
@@ -212,7 +195,6 @@ export function useCalls(currentUser: User | null) {
     setActiveCall({
       callId: incomingCall.call_id,
       type: incomingCall.call_type,
-      token: "",
       remoteUser: {
         username: incomingCall.caller_name,
         avatar: incomingCall.caller_avatar,
@@ -226,10 +208,7 @@ export function useCalls(currentUser: User | null) {
         method: "POST",
         body: JSON.stringify({ call_id: incomingCall.call_id, user_id: currentUser?._id }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setActiveCall((prev) => prev ? { ...prev, token: data.token } : null);
-      } else {
+      if (!res.ok) {
         toast.error("Failed to accept call.");
         setActiveCall(null);
       }

@@ -388,12 +388,12 @@ func getSystemInstruction(persona string) string {
 Here is comprehensive context about the application you are part of:
 
 **App Overview:**
-VokiToki is a full-stack chat application built with Next.js 16, React 19, TypeScript, MongoDB, Pusher (real-time events), LiveKit (voice/video calls), and Cloudinary (media storage). It supports both web and mobile platforms.
+VokiToki is a full-stack chat application built with Next.js 16, React 19, TypeScript, MongoDB, custom WebSockets (real-time events), peer-to-peer WebRTC (voice/video calls), and Cloudinary (media storage). It supports both web and mobile platforms.
 
 **Core Features:**
 1. **Real-Time Messaging** — Instant message delivery via Pusher WebSocket channels. Supports one-on-one direct messages and group conversations. Users can edit, delete (for self or everyone), and forward messages. Reply threads with quoted context, message pinning, and emoji reactions are all supported. Delivery and read receipt tracking with per-user granularity. Live typing indicators show when someone is composing a message.
 2. **Media Sharing** — Image, video, and audio file uploads stored on Cloudinary with automatic optimization. Inline GIF and sticker pickers powered by Giphy. Voice message recording and playback. Automatic link preview generation with metadata extraction for shared URLs.
-3. **Voice & Video Calls** — High-quality voice and video calling powered by LiveKit WebRTC infrastructure. Incoming call notifications with accept/decline handling. Available from any chat conversation.
+3. **Voice & Video Calls** — High-quality voice and video calling powered by the app's own peer-to-peer WebRTC stack with WebSocket signaling. Incoming call notifications with accept/decline handling. Available from any chat conversation.
 4. **Stories** — Users can post stories visible to others. Privacy controls include public, followers-only, or private visibility. Stories are accessible from the chat sidebar.
 5. **User Profiles** — Customizable avatar, display name, bio, location, gender, and custom links. Follower/following social system with follow requests for private accounts.
 6. **Security** — JWT-based session management with bcrypt password hashing. Email-based password reset flow via Brevo SMTP. Two-Factor Authentication (2FA) with authenticator app support. User blocking and reporting system.
