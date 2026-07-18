@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, ReactNode, useCallback } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useSessionCheck } from "@/features/auth/hooks/useSessionCheck";
 import { Logo } from "@/components/ui/Logo";
 import {
@@ -11,312 +12,383 @@ import {
   Lock,
   Users,
   Palette,
-  Download,
   Github,
   ArrowRight,
   Zap,
-  Globe,
   Shield,
   Activity,
   CheckCircle2,
-  Server,
   Smartphone,
+  Monitor,
+  Globe,
+  Bot,
+  KeyRound,
+  ChevronDown,
+  Sparkles,
 } from "lucide-react";
 
-function useScrollProgress() {
-  const [progress, setProgress] = useState(0);
+function useIsMobileDevice() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const val = Math.min(window.scrollY / 800, 1);
-          setProgress(val);
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const ua = navigator.userAgent;
+    const mobileUA =
+      /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    // iPadOS reports as Macintosh but has multi-touch
+    const iPadOS = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+    setIsMobile(mobileUA || iPadOS);
   }, []);
-  return progress;
+  return isMobile;
 }
 
-function ScrollProgressBar() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onScroll = () => {
-      if (ref.current) {
-        const winScroll =
-          document.body.scrollTop || document.documentElement.scrollTop;
-        const height =
-          document.documentElement.scrollHeight -
-          document.documentElement.clientHeight;
-        const scrolled = (winScroll / height) * 100;
-        ref.current.style.width = scrolled + "%";
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0 },
+};
 
-  return (
-    <div
-      className="fixed top-0 left-0 h-1 bg-gradient-to-r from-blue-600 to-indigo-500 z-[200] transition-all duration-75"
-      ref={ref}
-      style={{ width: "0%" }}
-    />
-  );
-}
-
-function Parallax({
+function Reveal({
   children,
-  speed = 0.5,
-  className = "",
-}: {
-  children: ReactNode;
-  speed?: number;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let ticking = false;
-    const onScroll = () => {
-      if (window.innerWidth < 768) return;
-
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (ref.current) {
-            const yPos = window.scrollY * speed;
-            ref.current.style.transform = `translate3d(0, ${yPos}px, 0)`;
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [speed]);
-
-  return (
-    <div ref={ref} className={`will-change-transform ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function ScrollReveal({
-  children,
-  className = "",
   delay = 0,
-  threshold = 0.1,
-}: {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
-  threshold?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold, rootMargin: "0px 0px -50px 0px" },
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-1000 ease-out ${
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
-      } ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function TiltCard({
-  children,
   className = "",
 }: {
   children: ReactNode;
+  delay?: number;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({
-    transform:
-      "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
-  });
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.innerWidth < 768 || !ref.current) return;
-    const { left, top, width, height } = ref.current.getBoundingClientRect();
-    const x = (e.clientX - left) / width;
-    const y = (e.clientY - top) / height;
-    const rotateX = (0.5 - y) * 10;
-    const rotateY = (x - 0.5) * 10;
-    setStyle({
-      transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
-      transition: "none",
-    });
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setStyle({
-      transform:
-        "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
-      transition: "transform 0.5s ease-out",
-    });
-  }, []);
-
   return (
-    <div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ ...style, transformStyle: "preserve-3d" }}
-      className={`will-change-transform ${className}`}
+    <motion.div
+      className={className}
+      variants={fadeUp}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "0px 0px -80px 0px" }}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div style={{ transform: "translateZ(20px)" }} className="h-full">
-        {children}
-      </div>
-    </div>
+      {children}
+    </motion.div>
   );
 }
 
+const DEMO_MESSAGES = [
+  { me: false, name: "Lena", text: "Hey! Are we still on for the call tonight?" },
+  { me: true, name: "You", text: "Yep, starting the video room now" },
+  { me: false, name: "Lena", text: "Perfect, sending you the photos meanwhile" },
+  { me: true, name: "You", text: "Got them instantly. This app is fast" },
+];
 
+function ChatDemo() {
+  const [shown, setShown] = useState(0);
+  const [typing, setTyping] = useState(false);
 
-function ComingSoonModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    if (shown < DEMO_MESSAGES.length) {
+      setTyping(true);
+      t = setTimeout(() => {
+        setTyping(false);
+        setShown((c) => c + 1);
+      }, 1200);
+    } else {
+      t = setTimeout(() => setShown(0), 4000);
+    }
+    return () => clearTimeout(t);
+  }, [shown]);
+
+  const nextIsMe = shown < DEMO_MESSAGES.length && DEMO_MESSAGES[shown].me;
+
   return (
-    <div
-      className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 animate-fadeIn"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[#111113] border border-zinc-800 rounded-3xl p-6 md:p-8 text-center max-w-sm w-full shadow-2xl relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center mb-6 text-blue-500 relative">
-          <Server size={48} className="relative z-10" />
+    <div className="relative w-full rounded-2xl border border-white/10 bg-[#0a0a0c]/90 backdrop-blur-xl shadow-2xl shadow-blue-950/40 overflow-hidden">
+      {/* Window chrome */}
+      <div className="h-11 border-b border-white/10 flex items-center px-4 bg-white/[0.03]">
+        <div className="flex gap-2">
+          <div className="w-3 h-3 rounded-full bg-zinc-700" />
+          <div className="w-3 h-3 rounded-full bg-zinc-700" />
+          <div className="w-3 h-3 rounded-full bg-zinc-700" />
         </div>
-        <h2 className="text-2xl font-bold text-zinc-50 mb-3 tracking-tight">
-          Deployment Pending
-        </h2>
-        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-          The standalone desktop and mobile applications are currently
-          undergoing testing. Please use the web platform in the meantime.
-        </p>
-        <button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] cursor-pointer"
-          onClick={onClose}
-        >
-          Acknowledge
-        </button>
+        <div className="mx-auto flex items-center gap-2 bg-white/5 px-4 py-1 rounded-md text-[11px] text-zinc-500 font-mono tracking-wider">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+          </span>
+          vokitoki — Lena
+        </div>
       </div>
-    </div>
-  );
-}
 
-function MobileAppModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 animate-fadeIn"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[#111113] border border-zinc-800 rounded-3xl p-6 md:p-8 text-center max-w-sm w-full shadow-2xl relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center mb-6 text-blue-500 relative">
-          <Smartphone size={48} className="relative z-10 animate-pulse" />
-        </div>
-        <h2 className="text-2xl font-bold text-zinc-50 mb-3 tracking-tight">
-          Use Mobile App
-        </h2>
-        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-          The web platform registration is optimized exclusively for desktop/PC
-          environments. To connect via mobile or tablet devices, please use our
-          mobile app.
-        </p>
-        <div className="flex flex-col gap-3">
-          <div className="bg-zinc-900 border border-zinc-800 text-zinc-400 py-3 rounded-xl text-xs font-mono font-medium">
-            Mobile Releases Under Testing
+      {/* Conversation */}
+      <div className="h-[340px] flex flex-col justify-end gap-3 p-5 overflow-hidden">
+        <AnimatePresence>
+          {DEMO_MESSAGES.slice(0, shown).map((m, i) => (
+            <motion.div
+              key={`${i}-${m.text}`}
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className={`max-w-[75%] ${m.me ? "self-end" : "self-start"}`}
+            >
+              <div
+                className={`px-4 py-2.5 text-sm leading-relaxed rounded-2xl ${
+                  m.me
+                    ? "bg-blue-600 text-white rounded-br-sm"
+                    : "bg-white/5 border border-white/10 text-zinc-300 rounded-bl-sm"
+                }`}
+              >
+                {m.text}
+              </div>
+            </motion.div>
+          ))}
+          {typing && (
+            <motion.div
+              key="typing"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className={`flex gap-1.5 px-4 py-3 rounded-2xl w-fit ${
+                nextIsMe
+                  ? "self-end bg-blue-600/30"
+                  : "self-start bg-white/5 border border-white/10"
+              }`}
+            >
+              {[0, 1, 2].map((d) => (
+                <motion.span
+                  key={d}
+                  className="w-1.5 h-1.5 rounded-full bg-zinc-400"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: d * 0.2 }}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Input bar */}
+        <div className="mt-2 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center px-4 gap-3 shrink-0">
+          <div className="h-2.5 bg-white/15 rounded w-36" />
+          <div className="ml-auto w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+            <ArrowRight size={14} className="text-white" />
           </div>
-          <button
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] cursor-pointer"
-            onClick={onClose}
-          >
-            Acknowledge
-          </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AuroraBackground() {
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div className="absolute inset-0 bg-grid-pattern" />
+      <motion.div
+        className="absolute top-[-15%] left-[-5%] w-[550px] h-[550px] rounded-full bg-blue-600/15 blur-[140px]"
+        animate={{ x: [0, 60, -30, 0], y: [0, 40, 80, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/12 blur-[140px]"
+        animate={{ x: [0, -70, 30, 0], y: [0, -50, 30, 0] }}
+        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-[-20%] left-[30%] w-[450px] h-[450px] rounded-full bg-blue-500/10 blur-[130px]"
+        animate={{ x: [0, 50, -50, 0] }}
+        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+      />
     </div>
   );
 }
 
 const FEATURES = [
   {
-    icon: <MessageSquare className="text-blue-400" size={24} />,
-    title: "Real-Time Protocol",
-    desc: "Built on optimized WebSocket channels ensuring messages are delivered and synchronized instantaneously across all devices.",
+    icon: MessageSquare,
+    title: "Instant Messaging",
+    desc: "Messages are delivered in real time over persistent WebSocket connections with read receipts, replies, pinning and full message history.",
   },
   {
-    icon: <Video className="text-blue-400" size={24} />,
-    title: "High-Fidelity Calling",
-    desc: "Enterprise-grade WebRTC infrastructure for uninterrupted, crystal-clear voice and high-definition video conferences.",
+    icon: Video,
+    title: "Voice & Video Calls",
+    desc: "Peer-to-peer WebRTC calls with crystal-clear audio and HD video. Your call streams travel directly between participants whenever possible.",
   },
   {
-    icon: <ImageIcon className="text-blue-400" size={24} />,
-    title: "Media Management",
-    desc: "Secure cloud infrastructure for sharing documents, images, and videos with automatic format optimization and compression.",
+    icon: ImageIcon,
+    title: "File & Media Sharing",
+    desc: "Share images, videos and documents with automatic optimization and compression, so media loads fast on any connection.",
   },
   {
-    icon: <Lock className="text-blue-400" size={24} />,
-    title: "Advanced Security",
-    desc: "Rigorous security standards including strict JWT sessions, automated threat blocking, and optional Two-Factor Authentication.",
+    icon: Users,
+    title: "Group Conversations",
+    desc: "Create group chats with admin controls, member management and pinned messages — for friends, teams or whole communities.",
   },
   {
-    icon: <Users className="text-blue-400" size={24} />,
-    title: "Scalable Workspaces",
-    desc: "Support for direct messaging and large-scale group environments, complete with administrative controls and pinning features.",
+    icon: Bot,
+    title: "Built-in AI Assistant",
+    desc: "Chat with an integrated AI bot right inside the app, ask questions, draft messages or get quick answers without leaving a conversation.",
   },
   {
-    icon: <Palette className="text-blue-400" size={24} />,
-    title: "Adaptive Interface",
-    desc: "A precision-engineered user interface offering seamless transitions between intelligent light and dark modes.",
+    icon: Palette,
+    title: "Light & Dark Themes",
+    desc: "A polished interface that adapts to your preference, with carefully tuned light and dark modes and smooth transitions between them.",
+  },
+];
+
+const SECURITY_POINTS = [
+  {
+    icon: KeyRound,
+    title: "Two-Factor Authentication",
+    desc: "Protect your account with optional 2FA, a second verification step whenever you sign in from a new device.",
+  },
+  {
+    icon: Shield,
+    title: "Secure Sessions",
+    desc: "Strict JWT-based sessions with automatic expiry, keep your account safe even on shared computers.",
+  },
+  {
+    icon: Lock,
+    title: "Protected Infrastructure",
+    desc: "Encrypted transport (TLS) for all traffic, automated threat blocking and rate limiting against abuse.",
+  },
+];
+
+const STEPS = [
+  {
+    title: "Create your account",
+    desc: "Sign up with your email in under a minute. Verify your address, optionally enable 2FA, and you're in.",
+  },
+  {
+    title: "Find your people",
+    desc: "Search for friends by username, send contact requests and build your network — or create a group right away.",
+  },
+  {
+    title: "Start talking",
+    desc: "Send messages, share files and jump into voice or video calls. Everything happens in real time.",
+  },
+];
+
+const FAQS = [
+  {
+    q: "Is VokiToki free to use?",
+    a: "Yes. VokiToki is completely free — messaging, group chats, file sharing and voice/video calls are all included at no cost. The project is also open source under the MIT license.",
+  },
+  {
+    q: "Can I use VokiToki on my phone?",
+    a: "The web platform is built exclusively for desktop and laptop computers. On phones and tablets you'll use the dedicated mobile app instead — mobile releases are currently in final testing.",
+  },
+  {
+    q: "How do voice and video calls work?",
+    a: "Calls use WebRTC, the same technology behind major video platforms. Audio and video streams connect peer-to-peer whenever possible, which keeps latency low and quality high.",
+  },
+  {
+    q: "Which browsers are supported?",
+    a: "Any modern desktop browser works, Chrome, Edge, Firefox and Safari. For the best calling experience we recommend a Chromium-based browser.",
+  },
+  {
+    q: "How is my account protected?",
+    a: "All traffic is encrypted in transit, sessions use strict JWT tokens with automatic expiry, and you can enable two-factor authentication for an extra layer of protection on new devices.",
   },
 ];
 
 const STATS = [
-  { value: "<50ms", label: "Delivery Latency" },
-  { value: "AES-256", label: "Encryption Standard" },
-  { value: "WebRTC", label: "Call Architecture" },
-  { value: "99.9%", label: "Platform Uptime" },
+  { value: "<50ms", label: "Message Latency" },
+  { value: "P2P", label: "WebRTC Calls" },
+  { value: "2FA", label: "Account Security" },
+  { value: "100%", label: "Free & Open Source" },
 ];
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="glass-panel rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer group"
+      >
+        <span className="text-base font-semibold text-white group-hover:text-blue-300 transition-colors">
+          {q}
+        </span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+          className="text-zinc-500 shrink-0"
+        >
+          <ChevronDown size={20} />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <p className="px-6 pb-5 text-sm text-zinc-400 leading-relaxed">
+              {a}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MobileGate() {
+  const [note, setNote] = useState(false);
+  return (
+    <div className="min-h-screen bg-[#050505] text-zinc-100 flex flex-col items-center justify-center px-6 text-center relative overflow-hidden">
+      <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[120px]" />
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 flex flex-col items-center max-w-sm"
+      >
+        <Logo className="mb-10" />
+        <div className="w-16 h-16 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-6 text-blue-400">
+          <Smartphone size={30} />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight text-white mb-4">
+          VokiToki is built for the big screen
+        </h1>
+        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+          The web platform works exclusively on desktop and laptop computers.
+          On your phone, VokiToki lives in the dedicated mobile app, faster,
+          smoother and made for touch.
+        </p>
+        <button
+          onClick={() => setNote(true)}
+          className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+        >
+          <Smartphone size={18} /> Download Mobile App
+        </button>
+        <AnimatePresence>
+          {note && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+              className="w-full overflow-hidden"
+            >
+              <div className="bg-zinc-900 border border-zinc-800 text-zinc-400 py-3 px-4 rounded-xl text-xs leading-relaxed">
+                The mobile app is in final testing and will be available for
+                download very soon. Check back shortly!
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <a
+          href="https://github.com/Micke491/chat-app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-6 text-xs text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1.5"
+        >
+          <Github size={13} /> Open source on GitHub
+        </a>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const { checking } = useSessionCheck();
-  const [showModal, setShowModal] = useState(false);
-  const [showMobileModal, setShowMobileModal] = useState(false);
+  const isMobile = useIsMobileDevice();
   const [scrolled, setScrolled] = useState(false);
-
-  const scrollProgress = useScrollProgress();
-  const heroRotateX = Math.max(0, 20 - scrollProgress * 30);
-  const heroScale = Math.min(1, 0.9 + scrollProgress * 0.1);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -324,264 +396,210 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  if (checking) {
+  if (checking || isMobile === null) {
     return <div className="min-h-screen bg-[#050505]" />;
+  }
+
+  if (isMobile) {
+    return <MobileGate />;
   }
 
   return (
     <>
       <style>{`
-        @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
-        
-        .animate-fadeSlideDown { animation: fadeSlideDown 0.8s cubic-bezier(0.16,1,0.3,1) both; }
-        .animate-fadeSlideUp-1 { animation: fadeSlideUp 0.8s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
-        .animate-fadeSlideUp-2 { animation: fadeSlideUp 0.8s 0.2s cubic-bezier(0.16,1,0.3,1) both; }
-        .animate-fadeSlideUp-3 { animation: fadeSlideUp 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) both; }
-        .animate-fadeIn        { animation: fadeIn 0.3s ease; }
-        .animate-marquee       { animation: marquee 40s linear infinite; }
-        
+        .animate-marquee { animation: marquee 38s linear infinite; }
+
         .bg-grid-pattern {
-          background-size: 50px 50px;
-          background-image: 
-            linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-          mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+          background-size: 48px 48px;
+          background-image:
+            linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+          mask-image: linear-gradient(to bottom, black 30%, transparent 90%);
         }
-        
+
         .glass-panel {
           background: rgba(15, 15, 17, 0.6);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
+
+        html { scroll-behavior: smooth; }
       `}</style>
 
-      <ScrollProgressBar />
+      <div className="font-sans bg-[#050505] text-zinc-100 min-h-screen relative selection:bg-blue-500/30 selection:text-blue-200">
+        <AuroraBackground />
 
-      <div className="font-sans bg-[#050505] text-zinc-100 min-h-screen overflow-hidden relative selection:bg-blue-500/30 selection:text-blue-200">
-        {/* Background Grid & Glows */}
-        <div className="fixed inset-0 bg-grid-pattern pointer-events-none z-0" />
-        <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none z-0" />
-        <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none z-0" />
-
-        {/* Parallax Background Icons (Hidden on Mobile) */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 hidden md:block">
-          <Parallax
-            speed={0.15}
-            className="absolute top-[15%] left-[10%] opacity-[0.03]"
-          >
-            <MessageSquare size={120} />
-          </Parallax>
-          <Parallax
-            speed={0.25}
-            className="absolute top-[40%] right-[12%] opacity-[0.03]"
-          >
-            <Lock size={140} />
-          </Parallax>
-          <Parallax
-            speed={0.1}
-            className="absolute top-[75%] left-[15%] opacity-[0.03]"
-          >
-            <Globe size={100} />
-          </Parallax>
-        </div>
-
-        {showModal && <ComingSoonModal onClose={() => setShowModal(false)} />}
-        {showMobileModal && (
-          <MobileAppModal onClose={() => setShowMobileModal(false)} />
-        )}
-
-        {/* Navigation */}
+        {/* ---------------- Navigation ---------------- */}
         <nav
-          className={`fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-10 h-16 md:h-20 transition-all duration-300 ${
+          className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
             scrolled
               ? "bg-[#050505]/80 backdrop-blur-xl border-b border-white/5"
               : "bg-transparent"
           }`}
         >
-          <a href="#" className="no-underline">
-            <Logo />
-          </a>
+          <div className="max-w-7xl mx-auto h-20 px-8 flex items-center justify-between">
+            <a href="#" className="no-underline">
+              <Logo />
+            </a>
 
-          {/* Desktop Nav (Only visible on screens 1024px and wider) */}
-          <div className="hidden lg:flex items-center gap-6">
-            <Link
-              href="/auth-pages/login"
-              className="text-sm font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
-            >
-              Sign In
-            </Link>
-            <button
-              className="text-sm font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
-              onClick={() => setShowModal(true)}
-            >
-              <Download size={16} /> Desktop App
-            </button>
-            <Link
-              href="/auth-pages/register"
-              className="bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors"
-            >
-              Get Started <ArrowRight size={16} />
-            </Link>
-          </div>
+            <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+              {[
+                ["Features", "#features"],
+                ["How it works", "#how-it-works"],
+                ["Security", "#security"],
+                ["FAQ", "#faq"],
+              ].map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                >
+                  {label}
+                </a>
+              ))}
+            </div>
 
-          {/* Mobile/Tablet Nav (Visible on screens smaller than 1024px; removes web registration/login links) */}
-          <div className="flex lg:hidden items-center gap-3">
-            <button
-              onClick={() => setShowMobileModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer"
-            >
-              <Smartphone size={16} /> Get App
-            </button>
+            <div className="flex items-center gap-5">
+              <Link
+                href="/auth-pages/login"
+                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/auth-pages/register"
+                className="bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors"
+              >
+                Get Started <ArrowRight size={15} />
+              </Link>
+            </div>
           </div>
         </nav>
 
-        {/* Hero Section */}
-        <section className="relative pt-32 pb-16 md:pt-48 md:pb-24 px-4 md:px-6 flex flex-col items-center text-center z-10 min-h-[90vh] md:min-h-0">
-          <div className="animate-fadeSlideDown inline-flex items-center gap-2 glass-panel text-zinc-300 text-xs md:text-sm font-medium px-4 py-2 rounded-full mb-8">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-            VokiToki Systems Operational
-          </div>
+        {/* ---------------- Hero ---------------- */}
+        <section className="relative z-10 pt-40 pb-24 px-8">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <motion.div
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="inline-flex items-center gap-2 glass-panel text-zinc-300 text-xs font-medium px-4 py-2 rounded-full mb-8"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                </span>
+                All systems operational free & open source
+              </motion.div>
 
-          <h1 className="animate-fadeSlideUp-1 text-4xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight mb-6 text-white max-w-4xl">
-            Unify Your <br className="md:hidden" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-              Communication
-            </span>
-          </h1>
+              <motion.h1
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="text-5xl xl:text-6xl font-black leading-[1.05] tracking-tight text-white mb-6"
+              >
+                Talk, call and share.
+                <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
+                  All in one place.
+                </span>
+              </motion.h1>
 
-          <p className="animate-fadeSlideUp-2 text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed text-base md:text-lg px-4 md:px-0">
-            Experience real-time messaging, crystal-clear voice integration, and
-            high-definition video conferencing in a single, secure platform
-            designed for modern teams and communities.
-          </p>
+              <motion.p
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="text-zinc-400 text-lg leading-relaxed mb-10 max-w-xl"
+              >
+                VokiToki brings real-time messaging, peer-to-peer voice and
+                video calls, and effortless file sharing into a single secure
+                platform, free forever, no ads, open source.
+              </motion.p>
 
-          {/* Desktop CTAs (Only visible on screens 1024px and wider) */}
-          <div className="hidden lg:flex animate-fadeSlideUp-3 flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto px-4 sm:px-0">
-            <Link
-              href="/auth-pages/register"
-              className="bg-white text-black px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors shadow-lg"
-            >
-              Launch Platform <ArrowRight size={18} />
-            </Link>
-            <a
-              href="https://github.com/Micke491/chat-app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-panel text-white px-8 py-4 rounded-xl text-base font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
-            >
-              <Github size={18} /> Source Repository
-            </a>
-          </div>
+              <motion.div
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="flex items-center gap-4"
+              >
+                <Link
+                  href="/auth-pages/register"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl text-base font-bold flex items-center gap-2 transition-colors shadow-lg shadow-blue-950/50"
+                >
+                  Create Free Account <ArrowRight size={18} />
+                </Link>
+                <a
+                  href="https://github.com/Micke491/chat-app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="glass-panel text-white px-8 py-4 rounded-xl text-base font-medium flex items-center gap-2 hover:bg-white/10 transition-colors"
+                >
+                  <Github size={18} /> View Source
+                </a>
+              </motion.div>
 
-          {/* Mobile/Tablet CTAs (Visible on screens smaller than 1024px; replaced platform links with mobile app prompt) */}
-          <div className="flex lg:hidden animate-fadeSlideUp-3 flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto px-4 sm:px-0">
-            <button
-              onClick={() => setShowMobileModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-colors shadow-lg cursor-pointer"
-            >
-              <Smartphone size={18} /> Download Mobile App{" "}
-              <ArrowRight size={18} />
-            </button>
-            <a
-              href="https://github.com/Micke491/chat-app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-panel text-white px-8 py-4 rounded-xl text-base font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
-            >
-              <Github size={18} /> Source Repository
-            </a>
-          </div>
-
-          {/* 3D Dashboard Mockup */}
-          <div className="w-full max-w-5xl mx-auto mt-16 md:mt-24 px-2 md:px-0 perspective-1000">
-            <div
-              style={{
-                transform: `rotateX(${heroRotateX}deg) scale(${heroScale})`,
-                transition: "transform 0.1s ease-out",
-              }}
-              className="will-change-transform rounded-2xl md:rounded-3xl border border-white/10 bg-[#0a0a0c]/90 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col h-[400px] md:h-[600px] mx-auto w-full"
-            >
-              {/* Mockup Header */}
-              <div className="h-10 md:h-12 border-b border-white/10 flex items-center px-4 bg-white/[0.02]">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
-                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
-                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
-                </div>
-                <div className="mx-auto bg-white/5 px-4 py-1 rounded text-[10px] md:text-xs text-zinc-500 font-mono tracking-widest">
-                  vokitoki-environment
-                </div>
-              </div>
-
-              {/* Mockup Body */}
-              <div className="flex-1 flex p-4 md:p-6 gap-6 relative">
-                <div className="hidden md:flex w-64 flex-col gap-4 border-r border-white/5 pr-6">
-                  <div className="h-8 bg-white/5 rounded-md w-full" />
-                  <div className="flex flex-col gap-4 mt-4">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/10 shrink-0" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-2.5 bg-white/10 rounded w-2/3" />
-                          <div className="h-2 bg-white/5 rounded w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col justify-end gap-4 relative pb-2">
-                  <div className="self-start max-w-[85%] md:max-w-[70%] bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm p-3 md:p-4 text-sm text-zinc-300">
-                    The deployment was successful. Let's sync on the new
-                    architecture.
-                  </div>
-                  <div className="self-end max-w-[85%] md:max-w-[70%] bg-blue-600 text-white rounded-2xl rounded-tr-sm p-3 md:p-4 text-sm">
-                    Reviewing the logs now. Everything looks stable across all
-                    nodes.
-                  </div>
-                  <div className="self-start max-w-[85%] md:max-w-[70%] bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm p-3 md:p-4 text-sm text-zinc-300">
-                    Excellent. Initiating the secure video bridge for the
-                    review.
-                  </div>
-
-                  <div className="mt-2 h-12 md:h-14 bg-white/5 border border-white/10 rounded-xl w-full flex items-center px-4">
-                    <div className="h-3 bg-white/20 rounded w-32" />
-                  </div>
-                </div>
-              </div>
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0a0a0c] to-transparent pointer-events-none" />
+              <motion.div
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="flex items-center gap-6 mt-10 text-xs text-zinc-500 font-medium"
+              >
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-blue-500" /> No credit card
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-blue-500" /> Setup in 1 minute
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-blue-500" /> MIT licensed
+                </span>
+              </motion.div>
             </div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <ChatDemo />
+            </motion.div>
           </div>
         </section>
 
-        {/* Marquee Banner */}
-        <div className="relative z-20 py-4 bg-zinc-900 border-y border-zinc-800 overflow-hidden flex items-center">
+        {/* ---------------- Marquee ---------------- */}
+        <div className="relative z-20 py-4 bg-zinc-900/60 border-y border-zinc-800 overflow-hidden flex items-center backdrop-blur-sm">
           <div className="flex w-max animate-marquee items-center">
             {[...Array(4)].map((_, idx) => (
               <div
                 key={idx}
-                className="flex gap-8 md:gap-16 items-center px-8 text-xs md:text-sm font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap"
+                className="flex gap-14 items-center px-7 text-xs font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap"
               >
                 <span className="flex items-center gap-2">
-                  <Zap size={16} /> Zero Latency
+                  <Zap size={15} /> Real-Time Messaging
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-2">
-                  <Lock size={16} /> Encrypted Data
+                  <Video size={15} /> P2P Video Calls
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-2">
-                  <Activity size={16} /> WebRTC Ready
+                  <Shield size={15} /> 2FA Security
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-2">
-                  <Shield size={16} /> 2FA Security
+                  <Activity size={15} /> WebRTC Powered
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-2">
+                  <Sparkles size={15} /> AI Assistant
                 </span>
                 <span>•</span>
               </div>
@@ -589,232 +607,312 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Core Metrics */}
-        <section className="relative z-10 py-20 md:py-28 bg-[#050505]">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12 text-center">
+        {/* ---------------- Stats ---------------- */}
+        <section className="relative z-10 py-24">
+          <div className="max-w-6xl mx-auto px-8">
+            <div className="grid grid-cols-4 gap-12 text-center">
               {STATS.map((s, idx) => (
-                <ScrollReveal
-                  key={s.label}
-                  delay={idx * 100}
-                  className="relative"
-                >
-                  <div className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">
+                <Reveal key={s.label} delay={idx * 0.1}>
+                  <div className="text-5xl font-black text-white tracking-tight mb-2">
                     {s.value}
                   </div>
-                  <div className="text-xs md:text-sm text-zinc-500 font-bold uppercase tracking-widest">
+                  <div className="text-xs text-zinc-500 font-bold uppercase tracking-widest">
                     {s.label}
                   </div>
-                </ScrollReveal>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Feature Grid */}
-        <section className="px-4 md:px-8 py-20 md:py-32 max-w-7xl mx-auto relative z-10 border-t border-white/5">
-          <ScrollReveal className="text-center mb-16 md:mb-24">
-            <h2 className="text-3xl md:text-5xl font-black leading-tight mb-4 text-white tracking-tight">
-              Engineered for Performance
+        {/* ---------------- Features ---------------- */}
+        <section
+          id="features"
+          className="relative z-10 px-8 py-28 max-w-7xl mx-auto border-t border-white/5 scroll-mt-20"
+        >
+          <Reveal className="text-center mb-20">
+            <h2 className="text-4xl xl:text-5xl font-black leading-tight mb-4 text-white tracking-tight">
+              Everything you need to stay connected
             </h2>
-            <p className="text-zinc-400 text-base md:text-lg max-w-2xl mx-auto">
-              A robust feature set built to facilitate reliable and secure
-              communication.
+            <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+              One platform for conversations of every kind — from a quick
+              message to a full video call with your whole group.
             </p>
-          </ScrollReveal>
+          </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-3 gap-7">
             {FEATURES.map((f, idx) => (
-              <ScrollReveal key={f.title} delay={idx * 100}>
-                <TiltCard className="h-full">
-                  <div className="h-full glass-panel rounded-2xl p-8 relative transition-colors duration-300 hover:bg-white/[0.05] group">
-                    <div className="mb-6 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/10 group-hover:bg-blue-600/10 transition-colors">
-                      {f.icon}
-                    </div>
-                    <h3 className="text-lg font-bold text-white mb-3 tracking-tight">
-                      {f.title}
-                    </h3>
-                    <p className="text-zinc-400 leading-relaxed text-sm">
-                      {f.desc}
-                    </p>
+              <Reveal key={f.title} delay={(idx % 3) * 0.1}>
+                <div className="h-full glass-panel rounded-2xl p-8 group transition-all duration-300 hover:bg-white/[0.05] hover:-translate-y-1 hover:border-blue-500/30">
+                  <div className="mb-6 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-blue-400 group-hover:bg-blue-600/15 group-hover:border-blue-500/30 transition-colors">
+                    <f.icon size={22} />
                   </div>
-                </TiltCard>
-              </ScrollReveal>
+                  <h3 className="text-lg font-bold text-white mb-3 tracking-tight">
+                    {f.title}
+                  </h3>
+                  <p className="text-zinc-400 leading-relaxed text-sm">
+                    {f.desc}
+                  </p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </section>
 
-        {/* Process Section */}
-        <section className="px-4 md:px-8 py-20 md:py-28 relative z-10 bg-zinc-950/50 border-y border-white/5">
-          <div className="max-w-4xl mx-auto">
-            <ScrollReveal className="mb-16">
-              <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
-                Implementation Workflow
+        {/* ---------------- How it works ---------------- */}
+        <section
+          id="how-it-works"
+          className="relative z-10 px-8 py-28 bg-zinc-950/50 border-y border-white/5 scroll-mt-20"
+        >
+          <div className="max-w-6xl mx-auto">
+            <Reveal className="text-center mb-20">
+              <h2 className="text-4xl font-black text-white mb-4 tracking-tight">
+                Up and running in three steps
               </h2>
-              <p className="text-zinc-400 text-base">
-                Initialize your workspace in three streamlined steps.
+              <p className="text-zinc-400 text-lg">
+                No downloads, no configuration, just open your browser.
               </p>
-            </ScrollReveal>
+            </Reveal>
 
-            <div className="relative border-l border-zinc-800 ml-4 md:ml-6 space-y-12 pb-4">
-              {[
-                {
-                  title: "Secure Account Setup",
-                  desc: "Create your workspace parameters in seconds and establish protective configurations.",
-                },
-                {
-                  title: "Establish Connections",
-                  desc: "Locate peers securely through our optimized directory and construct your secure contact network.",
-                },
-                {
-                  title: "Initiate Communication",
-                  desc: "Deploy real-time messaging, share critical files, or launch encrypted WebRTC calls seamlessly.",
-                },
-              ].map((step, idx) => (
-                <ScrollReveal
-                  key={idx}
-                  delay={150}
-                  className="relative pl-8 md:pl-10"
-                >
-                  <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-[#050505]" />
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-2">
-                    {step.title}
-                  </h3>
-                  <p className="text-zinc-400 leading-relaxed text-sm md:text-base max-w-xl">
-                    {step.desc}
-                  </p>
-                </ScrollReveal>
+            <div className="grid grid-cols-3 gap-8">
+              {STEPS.map((step, idx) => (
+                <Reveal key={step.title} delay={idx * 0.15}>
+                  <div className="relative glass-panel rounded-2xl p-8 h-full">
+                    <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-500/40 to-blue-500/5 mb-4">
+                      {String(idx + 1).padStart(2, "0")}
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-3">
+                      {step.title}
+                    </h3>
+                    <p className="text-zinc-400 leading-relaxed text-sm">
+                      {step.desc}
+                    </p>
+                  </div>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section className="px-4 md:px-8 py-24 md:py-32 text-center relative overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none z-0" />
-
-          <div className="relative max-w-3xl mx-auto z-10 glass-panel border border-white/10 rounded-[2rem] p-8 md:p-16 shadow-2xl">
-            <ScrollReveal>
-              <h2 className="text-3xl md:text-5xl font-black mb-6 text-white tracking-tight">
-                Establish Your Secure Node
+        {/* ---------------- Security ---------------- */}
+        <section
+          id="security"
+          className="relative z-10 px-8 py-28 max-w-7xl mx-auto scroll-mt-20"
+        >
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <Reveal>
+              <div className="inline-flex items-center gap-2 text-blue-400 text-sm font-bold uppercase tracking-widest mb-4">
+                <Shield size={16} /> Security first
+              </div>
+              <h2 className="text-4xl font-black text-white mb-6 tracking-tight leading-tight">
+                Your conversations,
+                <br /> properly protected
               </h2>
-              <p className="text-zinc-400 max-w-xl mx-auto mb-10 text-base md:text-lg">
-                Access the communication platform engineered for reliability and
-                privacy. No complex configuration required.
+              <p className="text-zinc-400 text-lg leading-relaxed mb-8 max-w-lg">
+                Security isn&apos;t an afterthought. Every layer of VokiToki —
+                from sign-in to calls, is built with protection in mind, and
+                because the code is open source, anyone can verify it.
               </p>
-            </ScrollReveal>
+              <a
+                href="https://github.com/Micke491/chat-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 font-semibold text-sm transition-colors"
+              >
+                Inspect the code yourself <ArrowRight size={15} />
+              </a>
+            </Reveal>
 
-            {/* Desktop final CTA (Only visible on screens 1024px and wider) */}
-            <ScrollReveal
-              delay={150}
-              className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center w-full"
-            >
-              <Link
-                href="/auth-pages/register"
-                className="bg-blue-600 text-white px-8 py-4 rounded-xl text-sm md:text-base font-bold shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                Access Platform <ArrowRight size={18} />
-              </Link>
-              <button
-                className="glass-panel text-white px-8 py-4 rounded-xl text-sm md:text-base font-medium hover:bg-white/10 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                onClick={() => setShowModal(true)}
-              >
-                <Download size={18} /> Download Client
-              </button>
-            </ScrollReveal>
-
-            {/* Mobile/Tablet final CTA (Visible on screens smaller than 1024px) */}
-            <ScrollReveal
-              delay={150}
-              className="flex lg:hidden flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center w-full"
-            >
-              <button
-                onClick={() => setShowMobileModal(true)}
-                className="bg-blue-600 text-white px-8 py-4 rounded-xl text-sm md:text-base font-bold shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 cursor-pointer w-full"
-              >
-                <Smartphone size={18} /> Download Mobile App{" "}
-                <ArrowRight size={18} />
-              </button>
-            </ScrollReveal>
+            <div className="flex flex-col gap-5">
+              {SECURITY_POINTS.map((p, idx) => (
+                <Reveal key={p.title} delay={idx * 0.12}>
+                  <div className="glass-panel rounded-2xl p-6 flex gap-5 items-start hover:border-blue-500/30 transition-colors">
+                    <div className="shrink-0 w-11 h-11 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                      <p.icon size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white mb-1.5">
+                        {p.title}
+                      </h3>
+                      <p className="text-zinc-400 text-sm leading-relaxed">
+                        {p.desc}
+                      </p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Footer */}
+        {/* ---------------- Platforms ---------------- */}
+        <section className="relative z-10 px-8 py-28 bg-zinc-950/50 border-y border-white/5">
+          <div className="max-w-6xl mx-auto">
+            <Reveal className="text-center mb-16">
+              <h2 className="text-4xl font-black text-white mb-4 tracking-tight">
+                Available where you work
+              </h2>
+              <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+                The web platform is designed for desktop computers. Phone and
+                tablet users get a dedicated mobile app,
+              </p>
+            </Reveal>
+
+            <div className="grid grid-cols-3 gap-7">
+              <Reveal>
+                <div className="glass-panel rounded-2xl p-8 h-full border-blue-500/30 relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-3 py-1 rounded-full">
+                    Available now
+                  </div>
+                  <Globe size={28} className="text-blue-400 mb-5" />
+                  <h3 className="text-lg font-bold text-white mb-2">
+                    Web — Desktop &amp; Laptop
+                  </h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    The full VokiToki experience in any modern browser. No
+                    installation needed just sign in and start talking.
+                  </p>
+                </div>
+              </Reveal>
+              <Reveal delay={0.1}>
+                <div className="glass-panel rounded-2xl p-8 h-full relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full">
+                    In testing
+                  </div>
+                  <Smartphone size={28} className="text-blue-400 mb-5" />
+                  <h3 className="text-lg font-bold text-white mb-2">
+                    Mobile App
+                  </h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    A native-feeling app for phones and tablets. Currently in
+                    final testing launching soon.
+                  </p>
+                </div>
+              </Reveal>
+              <Reveal delay={0.2}>
+                <div className="glass-panel rounded-2xl p-8 h-full relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full">
+                    Coming soon
+                  </div>
+                  <Monitor size={28} className="text-blue-400 mb-5" />
+                  <h3 className="text-lg font-bold text-white mb-2">
+                    Desktop Client
+                  </h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    A standalone desktop application with system notifications
+                    and deeper OS integration is on the roadmap.
+                  </p>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- FAQ ---------------- */}
+        <section
+          id="faq"
+          className="relative z-10 px-8 py-28 max-w-3xl mx-auto scroll-mt-20"
+        >
+          <Reveal className="text-center mb-14">
+            <h2 className="text-4xl font-black text-white mb-4 tracking-tight">
+              Frequently asked questions
+            </h2>
+            <p className="text-zinc-400 text-lg">
+              Everything you might want to know before getting started.
+            </p>
+          </Reveal>
+          <div className="flex flex-col gap-4">
+            {FAQS.map((f, idx) => (
+              <Reveal key={f.q} delay={idx * 0.07}>
+                <FaqItem q={f.q} a={f.a} />
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
+        {/* ---------------- Final CTA ---------------- */}
+        <section className="relative z-10 px-8 py-32 text-center overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+          <Reveal className="relative max-w-3xl mx-auto glass-panel rounded-[2rem] p-16 shadow-2xl">
+            <h2 className="text-5xl font-black mb-6 text-white tracking-tight">
+              Ready to start talking?
+            </h2>
+            <p className="text-zinc-400 max-w-xl mx-auto mb-10 text-lg">
+              Create your free account and be chatting in under a minute. No
+              credit card, no ads just great communication.
+            </p>
+            <div className="flex gap-4 justify-center items-center">
+              <Link
+                href="/auth-pages/register"
+                className="bg-blue-600 text-white px-8 py-4 rounded-xl text-base font-bold shadow-lg shadow-blue-950/50 hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                Get Started Free <ArrowRight size={18} />
+              </Link>
+              <Link
+                href="/auth-pages/login"
+                className="glass-panel text-white px-8 py-4 rounded-xl text-base font-medium hover:bg-white/10 transition-colors"
+              >
+                Sign In
+              </Link>
+            </div>
+          </Reveal>
+        </section>
+
+        {/* ---------------- Footer ---------------- */}
         <footer className="relative z-10 border-t border-zinc-900 bg-[#050505]">
-          <div className="px-6 md:px-10 py-12 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
-              <Logo />
-
-              {/* Desktop Footer Options */}
-              <div className="hidden lg:flex flex-wrap gap-6 justify-center">
-                <Link
-                  href="/help"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Help
-                </Link>
-                <Link
-                  href="/terms"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Terms
-                </Link>
-                <Link
-                  href="/privacy"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Privacy
-                </Link>
-                <a
-                  href="https://github.com/Micke491/chat-app"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Repository
-                </a>
-                <Link
-                  href="/auth-pages/login"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Login
-                </Link>
+          <div className="px-8 py-16 max-w-7xl mx-auto">
+            <div className="grid grid-cols-4 gap-12 mb-12">
+              <div className="col-span-1">
+                <Logo className="mb-4" />
+                <p className="text-sm text-zinc-500 leading-relaxed max-w-xs">
+                  Free, open-source communication for everyone. Messaging,
+                  calls and file sharing — all in one place.
+                </p>
               </div>
-
-              {/* Mobile/Tablet Footer Options */}
-              <div className="flex lg:hidden flex-wrap gap-6 justify-center">
-                <Link
-                  href="/help"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Help
-                </Link>
-                <Link
-                  href="/terms"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Terms
-                </Link>
-                <Link
-                  href="/privacy"
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Privacy
-                </Link>
-                <button
-                  onClick={() => setShowMobileModal(true)}
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-                >
-                  Get App
-                </button>
+              <div>
+                <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
+                  Product
+                </h4>
+                <div className="flex flex-col gap-3">
+                  <a href="#features" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Features</a>
+                  <a href="#security" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Security</a>
+                  <a href="#faq" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">FAQ</a>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
+                  Account
+                </h4>
+                <div className="flex flex-col gap-3">
+                  <Link href="/auth-pages/register" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Create Account</Link>
+                  <Link href="/auth-pages/login" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Sign In</Link>
+                  <Link href="/help" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Help Center</Link>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
+                  Legal & More
+                </h4>
+                <div className="flex flex-col gap-3">
+                  <Link href="/terms" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Terms of Service</Link>
+                  <Link href="/privacy" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Privacy Policy</Link>
+                  <a
+                    href="https://github.com/Micke491/chat-app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1.5"
+                  >
+                    <Github size={13} /> GitHub
+                  </a>
+                </div>
               </div>
             </div>
-            <div className="pt-8 border-t border-zinc-900 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+            <div className="pt-8 border-t border-zinc-900 flex items-center justify-between">
               <span className="text-xs text-zinc-600 font-medium">
-                © 2026 VokiToki. All systems operational.
+                © 2026 VokiToki. All rights reserved.
               </span>
               <span className="text-xs text-zinc-600 font-medium">
-                MIT Licensed
+                MIT Licensed · Open Source
               </span>
             </div>
           </div>
