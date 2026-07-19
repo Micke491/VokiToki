@@ -3,52 +3,24 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Shield } from 'lucide-react';
 
+const sections = [
+  ['1. Who We Are and Contact', 'VokiToki is operated by [INSERT LEGAL NAME AND ADDRESS]. For privacy requests, contact [INSERT PRIVACY CONTACT EMAIL]. Replace these placeholders before publishing.'],
+  ['2. Information We Collect', 'We collect account and profile information such as username, email address, password hash, display name, bio, avatar, links, location and gender if you choose to provide them. We also process messages, media, stories, reactions, read receipts, device/session information, notification tokens, reports, and service logs needed to operate and secure VokiToki.'],
+  ['3. How We Use Information', 'We use information to provide messaging, profiles, stories, calls, notifications, account security, support, moderation, abuse prevention, and service improvement. The legal basis depends on the use: performance of our contract with you, consent where required, compliance with legal obligations, and our legitimate interests in security, fraud prevention, and keeping the service safe.'],
+  ['4. Service Providers and Sharing', 'We use MongoDB for application data, Cloudinary for media storage, Firebase Cloud Messaging for notifications, Brevo for transactional email, Google STUN/TURN services where configured for call connectivity, Giphy for GIF search, and Google Gemini for the optional AI Assistant. These providers may process data only as needed to provide their services. We may also disclose information when required by law or to protect users, the public, or our rights.'],
+  ['5. AI Assistant', 'When you use the optional AI Assistant, your prompts and any files you choose to send to it are transmitted to Google Gemini to generate a response. Do not send sensitive information to the AI Assistant unless you understand and accept this processing. AI responses may be inaccurate.'],
+  ['6. Calls and Location', 'Voice and video calls use WebRTC and are designed to connect participants directly where possible. Call setup signaling passes through our service and connectivity may use STUN or TURN services. We do not intentionally record call audio or video. If you choose to add location to your profile, the app requests location permission and uses it for that profile feature.'],
+  ['7. Retention and Account Deletion', 'We retain personal data only for as long as needed for the purposes described here. When you delete an account, the account record is deleted; messages or media already delivered to other users may remain in their conversations, and limited information may be retained where necessary for security, abuse investigations, backups, legal obligations, or legal claims.'],
+  ['8. Your Rights', 'Depending on where you live, you may request access, correction, deletion, restriction, objection, or portability of your personal data, and may withdraw consent where processing relies on consent. Contact us using the privacy email above. We may need to verify your identity before responding.'],
+  ['9. International Transfers and Security', 'Our providers may process information in countries other than yours. We use reasonable technical and organizational safeguards, including access controls and password hashing, but no online service can guarantee absolute security.'],
+  ['10. Children, Changes, and Complaints', 'VokiToki is not intended for users below the minimum age required by applicable law. We may update this Policy and will update the date above. You may also have the right to complain to your local data-protection authority.'],
+];
+
 export default function PrivacyPage() {
   const router = useRouter();
-
-  return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans px-4 py-12 relative overflow-hidden">
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[100%] max-w-[60rem] h-[30rem] bg-indigo-500/10 blur-[120px] rounded-full"></div>
-
-      <div className="max-w-3xl mx-auto relative z-10">
-        <button onClick={() => router.back()} className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-8 font-medium text-sm">
-          <ArrowLeft size={16} /> Back
-        </button>
-
-        <div className="bg-[#09090b]/80 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-zinc-800 p-8 md:p-12">
-          <div className="flex items-center gap-4 mb-8 border-b border-zinc-800 pb-8">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <Shield className="w-6 h-6 text-indigo-500" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight text-zinc-100">Privacy Policy</h1>
-              <p className="text-zinc-400 mt-1">Last updated: October 2023</p>
-            </div>
-          </div>
-
-          <div className="space-y-8 text-zinc-300 leading-relaxed text-sm md:text-base">
-            <section>
-              <h2 className="text-xl font-bold text-zinc-100 mb-3">1. Information We Collect</h2>
-              <p>We collect information you provide directly to us, including your username, email address, profile picture, and the messages/media you transmit through VokiToki.</p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-bold text-zinc-100 mb-3">2. How We Use Your Information</h2>
-              <p>Your information is used solely to provide, maintain, and improve our services. We use WebRTC for calls, meaning audio and video streams are peer-to-peer when possible and not stored on our servers.</p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-bold text-zinc-100 mb-3">3. Data Security</h2>
-              <p>We implement standard security measures, including JSON Web Tokens (JWT) for authentication and bcrypt for password hashing. However, no electronic transmission over the internet is entirely secure.</p>
-            </section>
-            
-            <section>
-              <h2 className="text-xl font-bold text-zinc-100 mb-3">4. Data Deletion</h2>
-              <p>You may request the deletion of your account at any time through the "Danger Zone" in your settings. Deleting your account will permanently remove your personal data from our active databases.</p>
-            </section>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <main className="min-h-screen bg-[#09090b] px-4 py-12 font-sans text-zinc-100"><div className="mx-auto max-w-3xl">
+    <button onClick={() => router.back()} className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white"><ArrowLeft size={16} /> Back</button>
+    <article className="rounded-[2.5rem] border border-zinc-800 bg-[#09090b]/80 p-8 shadow-2xl backdrop-blur-2xl md:p-12"><header className="mb-8 flex items-center gap-4 border-b border-zinc-800 pb-8"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-600/10"><Shield className="h-6 w-6 text-indigo-500" /></div><div><h1 className="text-3xl font-black tracking-tight">Privacy Policy</h1><p className="mt-1 text-zinc-400">Last updated: July 19, 2026</p></div></header>
+      <div className="space-y-8 text-sm leading-relaxed text-zinc-300 md:text-base">{sections.map(([title, body]) => <section key={title}><h2 className="mb-3 text-xl font-bold text-zinc-100">{title}</h2><p>{body}</p></section>)}<section className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-5"><h2 className="mb-2 text-lg font-bold text-amber-100">Action required before launch</h2><p className="text-amber-50/80">Replace the legal-entity and privacy-contact placeholders, confirm every provider and retention practice, and obtain legal review for your launch jurisdictions.</p></section></div>
+    </article></div></main>;
 }

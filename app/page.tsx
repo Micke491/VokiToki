@@ -896,6 +896,7 @@ export default function LandingPage() {
                 <div className="flex flex-col gap-3">
                   <Link href="/terms" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Terms of Service</Link>
                   <Link href="/privacy" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Privacy Policy</Link>
+                  <Link href="/moderation" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">Moderation Policy</Link>
                   <a
                     href="https://github.com/Micke491/chat-app"
                     target="_blank"
