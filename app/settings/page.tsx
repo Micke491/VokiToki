@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api';
 import SideBar from '@/features/sidebar/components/Sidebar';
 import {
   ArrowLeft, Loader2, CheckCircle, AlertTriangle,
-  User as UserIcon, Shield, Bell, Palette, Bot
+  User as UserIcon, Shield, Bell, Palette, Bot, LifeBuoy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AccountSettingsTab from '@/features/settings/components/AccountSettingsTab';
@@ -15,6 +15,7 @@ import NotificationSettingsTab from '@/features/settings/components/Notification
 import AppearanceSettingsTab from '@/features/settings/components/AppearanceSettingsTab';
 import DangerZoneTab from '@/features/settings/components/DangerZoneTab';
 import AISettingsTab, { BotPersona } from '@/features/settings/components/AISettingsTab';
+import SupportAndLegalTab from '@/features/settings/components/SupportAndLegalTab';
 
 interface User {
   _id: string;
@@ -35,7 +36,7 @@ interface User {
   botPersona?: BotPersona;
 }
 
-type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'ai' | 'danger';
+type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'ai' | 'support' | 'danger';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -93,6 +94,7 @@ export default function SettingsPage() {
     { id: 'notifications', label: 'Notifications', icon: Bell, danger: false },
     { id: 'appearance', label: 'Appearance', icon: Palette, danger: false },
     { id: 'ai', label: 'AI Assistant', icon: Bot, danger: false },
+    { id: 'support', label: 'Support & Legal', icon: LifeBuoy, danger: false },
     { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
   ] as const;
 
@@ -215,6 +217,7 @@ export default function SettingsPage() {
                       setFeedback={setFeedback}
                     />
                   )}
+                  {activeTab === 'support' && <SupportAndLegalTab />}
                   {activeTab === 'danger' && (
                     <DangerZoneTab setFeedback={setFeedback} />
                   )}
