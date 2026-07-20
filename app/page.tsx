@@ -25,7 +25,27 @@ import {
   KeyRound,
   ChevronDown,
   Sparkles,
+  Download,
+  ShieldCheck,
 } from "lucide-react";
+
+const APK_URL =
+  "https://github.com/Micke491/voki-toki-mobile/releases/latest/download/vokitoki.apk";
+
+const INSTALL_STEPS = [
+  {
+    title: "Download the APK",
+    body: "Tap the button above to download vokitoki.apk.",
+  },
+  {
+    title: "Allow the install",
+    body: 'Open the downloaded file. If Android asks, allow installs from this source ("Install unknown apps") for your browser or Files app.',
+  },
+  {
+    title: "Install & open",
+    body: "Tap Install, then Open. Sign in with your VokiToki account and you're ready to go.",
+  },
+];
 
 function useIsMobileDevice() {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -268,7 +288,7 @@ const FAQS = [
   },
   {
     q: "Can I use VokiToki on my phone?",
-    a: "The web platform is built exclusively for desktop and laptop computers. On phones and tablets you'll use the dedicated mobile app instead — mobile releases are currently in final testing.",
+    a: "The web platform is built exclusively for desktop and laptop computers. On phones and tablets you'll use the dedicated mobile app instead — open vokitoki.com on your Android phone to get the direct download.",
   },
   {
     q: "How do voice and video calls work?",
@@ -329,59 +349,101 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 function MobileGate() {
-  const [note, setNote] = useState(false);
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 flex flex-col items-center justify-center px-6 text-center relative overflow-hidden">
-      <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[120px]" />
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col items-center max-w-sm"
-      >
-        <Logo className="mb-10" />
-        <div className="w-16 h-16 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mb-6 text-blue-400">
-          <Smartphone size={30} />
+    <main className="relative min-h-screen bg-[#050505] text-zinc-100 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute left-1/2 top-[-10%] h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-blue-600/20 blur-[130px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-10">
+        {/* Header */}
+        <div className="flex items-center justify-center">
+          <Logo />
         </div>
-        <h1 className="text-3xl font-black tracking-tight text-white mb-4">
-          VokiToki is built for the big screen
-        </h1>
-        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-          The web platform works exclusively on desktop and laptop computers.
-          On your phone, VokiToki lives in the dedicated mobile app, faster,
-          smoother and made for touch.
-        </p>
-        <button
-          onClick={() => setNote(true)}
-          className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-        >
-          <Smartphone size={18} /> Download Mobile App
-        </button>
-        <AnimatePresence>
-          {note && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{ opacity: 1, height: "auto", marginTop: 12 }}
-              exit={{ opacity: 0, height: 0, marginTop: 0 }}
-              className="w-full overflow-hidden"
+
+        {/* Hero */}
+        <div className="flex flex-1 flex-col justify-center py-14">
+          <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold uppercase tracking-widest text-blue-300">
+            <Smartphone size={14} /> Android app
+          </div>
+
+          <h1 className="text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl">
+            Get VokiToki
+            <br />
+            on your phone
+          </h1>
+          <p className="mt-4 max-w-lg text-lg leading-relaxed text-zinc-400">
+            The web platform works exclusively on desktop and laptop
+            computers. Download the app directly, no app store required. It
+            connects to the same VokiToki account you use on the web.
+          </p>
+
+          {/* Download button */}
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a
+              href={APK_URL}
+              download
+              className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-[0_0_40px_-10px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-0.5 hover:bg-blue-500"
             >
-              <div className="bg-zinc-900 border border-zinc-800 text-zinc-400 py-3 px-4 rounded-xl text-xs leading-relaxed">
-                The mobile app is in final testing and will be available for
-                download very soon. Check back shortly!
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <Download size={20} /> Download for Android
+            </a>
+            <span className="text-sm text-zinc-500">
+              .apk &middot; Android only
+            </span>
+          </div>
+
+          {/* Highlights */}
+          <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3">
+            <span className="inline-flex items-center gap-2 text-sm text-zinc-400">
+              <MessageSquare size={16} className="text-blue-400" /> Real-time chat
+            </span>
+            <span className="inline-flex items-center gap-2 text-sm text-zinc-400">
+              <Video size={16} className="text-blue-400" /> Voice &amp; video calls
+            </span>
+            <span className="inline-flex items-center gap-2 text-sm text-zinc-400">
+              <ShieldCheck size={16} className="text-blue-400" /> Same account as web
+            </span>
+          </div>
+        </div>
+
+        {/* Install steps */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8">
+          <h2 className="mb-5 text-lg font-bold tracking-tight text-white">
+            How to install
+          </h2>
+          <ol className="space-y-5">
+            {INSTALL_STEPS.map((step, i) => (
+              <li key={step.title} className="flex gap-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-500/30 bg-blue-600/15 text-sm font-bold text-blue-300">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-zinc-100">{step.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-400">
+                    {step.body}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 border-t border-white/10 pt-4 text-xs leading-relaxed text-zinc-500">
+            Your phone may warn that the app is from an unknown source because
+            it&apos;s installed outside the Play Store. That&apos;s expected
+            for a direct download. iPhone is not supported for direct
+            install.
+          </p>
+        </div>
+
         <a
           href="https://github.com/Micke491/chat-app"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-6 text-xs text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1.5"
+          className="mt-8 flex items-center justify-center gap-1.5 text-xs text-zinc-600 transition-colors hover:text-zinc-400"
         >
           <Github size={13} /> Open source on GitHub
         </a>
-      </motion.div>
-    </div>
+      </div>
+    </main>
   );
 }
 
@@ -776,16 +838,16 @@ export default function LandingPage() {
               </Reveal>
               <Reveal delay={0.1}>
                 <div className="glass-panel rounded-2xl p-8 h-full relative overflow-hidden">
-                  <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full">
-                    In testing
+                  <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-3 py-1 rounded-full">
+                    Available now
                   </div>
                   <Smartphone size={28} className="text-blue-400 mb-5" />
                   <h3 className="text-lg font-bold text-white mb-2">
                     Mobile App
                   </h3>
                   <p className="text-zinc-400 text-sm leading-relaxed">
-                    A native-feeling app for phones and tablets. Currently in
-                    final testing launching soon.
+                    A native-feeling app for Android phones and tablets.
+                    Open VokiToki on your phone to get the download.
                   </p>
                 </div>
               </Reveal>
