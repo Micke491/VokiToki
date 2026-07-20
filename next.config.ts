@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.giphy.com https://giphy.com https://*.cloudinary.com https://res.cloudinary.com https://*.ytimg.com https://i.ytimg.com https://*.jsdelivr.net",
               "media-src 'self' blob: https://*.cloudinary.com https://res.cloudinary.com",
-              "connect-src 'self' http://localhost:8081 http://127.0.0.1:8081 ws://localhost:8081 ws://127.0.0.1:8081 wss://vokitoki.onrender.com https://vokitoki.onrender.com https://api.giphy.com https://*.cloudinary.com https://res.cloudinary.com",
+              "connect-src 'self' http://localhost:8081 http://127.0.0.1:8081 ws://localhost:8081 ws://127.0.0.1:8081 wss://vokitoki.onrender.com https://vokitoki.onrender.com https://api.giphy.com https://*.cloudinary.com https://res.cloudinary.com https://github.com https://objects.githubusercontent.com https://*.githubusercontent.com",
               "frame-src 'none'",
               "object-src 'none'",
               "base-uri 'self'",
