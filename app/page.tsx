@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode, MouseEvent } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSessionCheck } from "@/features/auth/hooks/useSessionCheck";
@@ -27,6 +27,7 @@ import {
   Sparkles,
   Download,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 
 const APK_URL = "/download";
@@ -45,6 +46,41 @@ const INSTALL_STEPS = [
     body: "Tap Install, then Open. Sign in with your VokiToki account and you're ready to go.",
   },
 ];
+
+function DownloadApkButton() {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (isDownloading) {
+      e.preventDefault();
+      return;
+    }
+    setIsDownloading(true);
+    setTimeout(() => setIsDownloading(false), 5000);
+  };
+
+  return (
+    <a
+      href={APK_URL}
+      download="vokitoki.apk"
+      onClick={handleClick}
+      aria-disabled={isDownloading}
+      className={`inline-flex items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-[0_0_40px_-10px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-0.5 hover:bg-blue-500 ${
+        isDownloading ? "pointer-events-none opacity-70" : ""
+      }`}
+    >
+      {isDownloading ? (
+        <>
+          <Loader2 size={20} className="animate-spin" /> Downloading…
+        </>
+      ) : (
+        <>
+          <Download size={20} /> Download for Android
+        </>
+      )}
+    </a>
+  );
+}
 
 function useIsMobileDevice() {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -379,13 +415,7 @@ function MobileGate() {
 
           {/* Download button */}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <a
-              href={APK_URL}
-              download="vokitoki.apk"
-              className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-[0_0_40px_-10px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-0.5 hover:bg-blue-500"
-            >
-              <Download size={20} /> Download for Android
-            </a>
+            <DownloadApkButton />
             <span className="text-sm text-zinc-500">
               .apk &middot; Android only
             </span>
