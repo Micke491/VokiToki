@@ -31,9 +31,6 @@ function VerifyEmailContent() {
         if (response.ok) {
           setStatus('success');
           setMessage(data.message || 'Email verified successfully!');
-          setTimeout(() => {
-            router.push('/auth-pages/login');
-          }, 3000);
         } else {
           setStatus('error');
           setMessage(data.message || 'Failed to verify email.');
@@ -78,8 +75,8 @@ function VerifyEmailContent() {
       </p>
 
       {status === 'success' && (
-        <p className="text-sm text-zinc-500 mt-6 animate-pulse">
-          Redirecting to login...
+        <p className="text-sm text-zinc-500 mt-6">
+          You can close this window.
         </p>
       )}
 
