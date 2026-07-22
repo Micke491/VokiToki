@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NotificationListener from "@/features/notifications/components/NotificationListener";
 import OfflineBanner from "@/components/ui/OfflineBanner";
+import ServerWakeGate from "@/components/ui/ServerWakeGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,7 +59,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ServerWakeGate>{children}</ServerWakeGate>
         <NotificationListener />
         <OfflineBanner />
       </body>
