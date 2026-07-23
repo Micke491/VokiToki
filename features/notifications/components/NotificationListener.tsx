@@ -10,10 +10,18 @@ import CallModal from "@/features/calls/components/CallModal";
 import { useCalls } from "@/features/calls/hooks/useCalls";
 import { getAuthToken } from "@/lib/storage";
 
+interface NotificationPrefs {
+  directMessages?: boolean;
+  groupMessages?: boolean;
+  calls?: boolean;
+  chatRequests?: boolean;
+}
+
 interface User {
   _id: string;
   username: string;
   avatar?: string;
+  notificationPrefs?: NotificationPrefs;
 }
 
 export default function NotificationListener({ currentUser: propUser }: { currentUser?: User | null }) {
@@ -87,13 +95,17 @@ export default function NotificationListener({ currentUser: propUser }: { curren
     const userChannel = wsClient.subscribe(`user-${currentUser._id}`);
 
     const handleChatUpdate = (data: any) => {
-      const { chatId, lastMessage } = data;
-      
+      const { chatId, lastMessage, isGroupChat } = data;
+
       if (isNotificationsEnabled() && lastMessage) {
         const senderId = lastMessage.sender?._id?.toString() || lastMessage.sender?.toString();
         const currentUserId = currentUser._id.toString();
 
         if (senderId === currentUserId) return;
+
+        const prefs = currentUser.notificationPrefs || {};
+        const typePref = isGroupChat ? prefs.groupMessages : prefs.directMessages;
+        if (typePref === false) return;
 
         const currentPath = pathnameRef.current;
         const currentChatId = currentPath.startsWith('/chat/') ? currentPath.split('/')[2] : null;

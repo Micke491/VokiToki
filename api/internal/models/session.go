@@ -11,6 +11,6 @@ type Session struct {
 	Token      string        `bson:"token" json:"token"`
 	Device     string        `bson:"device" json:"device"`
 	IP         string        `bson:"ip" json:"ip"`
-	FCMToken   string        `bson:"fcmToken,omitempty" json:"fcmToken,omitempty"`
+	ExpoPushToken string     `bson:"expoPushToken,omitempty" json:"expoPushToken,omitempty"`
 	LastActive time.Time     `bson:"lastActive" json:"lastActive"`
 }

@@ -34,6 +34,12 @@ interface User {
   autoPlayGifs?: boolean;
   autoPlayVoice?: boolean;
   botPersona?: BotPersona;
+  notificationPrefs?: {
+    directMessages?: boolean;
+    groupMessages?: boolean;
+    calls?: boolean;
+    chatRequests?: boolean;
+  };
 }
 
 type TabType = 'account' | 'privacy' | 'notifications' | 'appearance' | 'ai' | 'support' | 'danger';
@@ -201,7 +207,11 @@ export default function SettingsPage() {
                     />
                   )}
                   {activeTab === 'notifications' && (
-                    <NotificationSettingsTab />
+                    <NotificationSettingsTab
+                      currentUser={currentUser}
+                      onUserUpdate={handleUserUpdate}
+                      setFeedback={setFeedback}
+                    />
                   )}
                   {activeTab === 'appearance' && (
                     <AppearanceSettingsTab

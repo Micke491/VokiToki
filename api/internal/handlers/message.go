@@ -237,6 +237,7 @@ func SendMessage(c *gin.Context) {
 			utils.Broadcast("user-"+pid.Hex(), "chat-update", gin.H{
 				"chatId":      body.ChatID,
 				"lastMessage": populatedMsg,
+				"isGroupChat": chat.IsGroupChat,
 			})
 		}
 	}
@@ -250,11 +251,16 @@ func SendMessage(c *gin.Context) {
 	if len(fcmRecipients) > 0 {
 		title := currentUser.Username
 		bodyText := newMessage.Text
+		category := models.NotifyDirect
 		if chat.Status == "pending" {
 			title = "Chat Request"
 			bodyText = currentUser.Username + " requested to chat with you"
-		} else if chat.IsGroupChat && chat.Name != nil && *chat.Name != "" {
-			title = *chat.Name + " (" + currentUser.Username + ")"
+			category = models.NotifyRequest
+		} else if chat.IsGroupChat {
+			category = models.NotifyGroup
+			if chat.Name != nil && *chat.Name != "" {
+				title = *chat.Name + " (" + currentUser.Username + ")"
+			}
 		}
 		if bodyText == "" && newMessage.MediaType != "" {
 			bodyText = "Sent a " + newMessage.MediaType
@@ -264,7 +270,7 @@ func SendMessage(c *gin.Context) {
 			"chatId":    body.ChatID,
 			"messageId": newMessage.ID.Hex(),
 		}
-		services.SendPushNotification(context.Background(), fcmRecipients, chat.ID, title, bodyText, data)
+		services.SendPushNotification(context.Background(), fcmRecipients, chat.ID, category, title, bodyText, data)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": populatedMsg})

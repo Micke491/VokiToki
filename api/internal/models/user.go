@@ -40,6 +40,38 @@ type User struct {
 	AutoPlayVoice        bool                 `bson:"autoPlayVoice" json:"autoPlayVoice"`
 	StoryPrivacy         string               `bson:"storyPrivacy" json:"storyPrivacy"`
 	BotPersona           string               `bson:"botPersona" json:"botPersona"`
+	NotificationPrefs    NotificationPrefs    `bson:"notificationPrefs" json:"notificationPrefs"`
+}
+
+type NotificationPrefs struct {
+	DirectMessages *bool `bson:"directMessages,omitempty" json:"directMessages,omitempty"`
+	GroupMessages  *bool `bson:"groupMessages,omitempty" json:"groupMessages,omitempty"`
+	Calls          *bool `bson:"calls,omitempty" json:"calls,omitempty"`
+	ChatRequests   *bool `bson:"chatRequests,omitempty" json:"chatRequests,omitempty"`
+}
+
+const (
+	NotifyDirect  = "direct"
+	NotifyGroup   = "group"
+	NotifyCall    = "call"
+	NotifyRequest = "request"
+)
+
+func (p NotificationPrefs) Allows(category string) bool {
+	var pref *bool
+	switch category {
+	case NotifyDirect:
+		pref = p.DirectMessages
+	case NotifyGroup:
+		pref = p.GroupMessages
+	case NotifyCall:
+		pref = p.Calls
+	case NotifyRequest:
+		pref = p.ChatRequests
+	default:
+		return true
+	}
+	return pref == nil || *pref
 }
 
 type MutedChat struct {

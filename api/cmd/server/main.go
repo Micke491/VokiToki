@@ -8,7 +8,6 @@ import (
 	"chat-app/internal/db"
 	"chat-app/internal/handlers"
 	"chat-app/internal/middleware"
-	"chat-app/internal/services"
 	"chat-app/internal/utils"
 	"chat-app/internal/ws"
 
@@ -20,7 +19,6 @@ func main() {
 	config.LoadConfig()
 	db.ConnectMongo()
 	db.ConnectRedis()
-	services.InitFCM()
 
 	ws.GlobalHub = ws.NewHub()
 	go ws.GlobalHub.Run()

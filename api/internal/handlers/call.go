@@ -210,10 +210,12 @@ func InitiateCall(c *gin.Context) {
 		title := "Incoming Call"
 		bodyText := fmt.Sprintf("%s is calling you (%s call)", req.CallerName, req.CallType)
 		dataType := "call"
+		category := models.NotifyCall
 		if chat.Status == "pending" {
 			title = "Chat Request"
 			bodyText = fmt.Sprintf("%s requested to chat with you", req.CallerName)
 			dataType = "message"
+			category = models.NotifyRequest
 		}
 		data := map[string]string{
 			"type":       dataType,
@@ -223,7 +225,7 @@ func InitiateCall(c *gin.Context) {
 			"callerName": req.CallerName,
 			"chatId":     req.ChatID,
 		}
-		services.SendPushNotification(context.Background(), callRecipients, chatOID, title, bodyText, data)
+		services.SendPushNotification(context.Background(), callRecipients, chatOID, category, title, bodyText, data)
 	}
 
 	if req.ChatID != "" {

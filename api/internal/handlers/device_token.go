@@ -14,7 +14,7 @@ import (
 )
 
 type DeviceTokenRequest struct {
-	FCMToken string `json:"fcmToken" binding:"required"`
+	ExpoPushToken string `json:"expoPushToken" binding:"required"`
 }
 
 func UpdateDeviceToken(c *gin.Context) {
@@ -42,7 +42,7 @@ func UpdateDeviceToken(c *gin.Context) {
 	err := db.SessionCollection.FindOneAndUpdate(
 		ctx,
 		bson.M{"_id": sessID},
-		bson.M{"$set": bson.M{"fcmToken": req.FCMToken}},
+		bson.M{"$set": bson.M{"expoPushToken": req.ExpoPushToken}},
 	).Decode(&session)
 
 	if err != nil {
@@ -52,7 +52,7 @@ func UpdateDeviceToken(c *gin.Context) {
 
 	if db.RedisClient != nil {
 		tokenCacheKey := "session_token:" + session.Token
-		session.FCMToken = req.FCMToken
+		session.ExpoPushToken = req.ExpoPushToken
 		sessJSON, err := json.Marshal(session)
 		if err == nil {
 			db.RedisClient.Set(ctx, tokenCacheKey, sessJSON, 7*24*time.Hour)
