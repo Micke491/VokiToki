@@ -1,6 +1,7 @@
 'use client';
 
-import { Loader2, Shield, Lock, Eye, EyeOff, UserX, Smartphone } from 'lucide-react';
+import { useMemo } from 'react';
+import { Loader2, Shield, Lock, Eye, EyeOff, UserX, Smartphone, Monitor } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrivacySettings } from '@/features/settings/hooks/usePrivacySettings';
@@ -28,39 +29,80 @@ interface PrivacySettingsTabProps {
   setFeedback: (fb: { type: 'success' | 'error'; message: string } | null) => void;
 }
 
-const parseUserAgent = (userAgent: string): string => {
-  if (!userAgent) return 'Unknown Device';
-  
+interface Session {
+  _id: string;
+  device: string;
+  ip: string;
+  lastActive: string;
+  isCurrent: boolean;
+}
+
+const parseDeviceLabel = (device: string): { label: string; isMobile: boolean } => {
+  const ua = (device || '').trim();
+  if (!ua) return { label: 'Unknown Device', isMobile: false };
+
+  // Native apps send a friendly label (e.g. "iPhone 15 Pro (iOS 17.2)"); browser
+  // sessions always carry a full User-Agent string containing "Mozilla".
+  const looksLikeBrowser = /mozilla|applewebkit|gecko\/|chrome\/|version\//i.test(ua);
+  if (!looksLikeBrowser) {
+    const isMobile = /iphone|ipad|ipod|ios|android|mobile|pixel|galaxy|sm-/i.test(ua);
+    return { label: ua, isMobile };
+  }
+
   let os = 'Unknown OS';
   let browser = 'Unknown Browser';
 
-  if (/windows/i.test(userAgent)) {
+  if (/windows/i.test(ua)) {
     os = 'Windows PC';
-  } else if (/macintosh|mac os x/i.test(userAgent)) {
-    os = 'Mac';
-  } else if (/iphone|ipad|ipod/i.test(userAgent)) {
+  } else if (/iphone|ipad|ipod/i.test(ua)) {
     os = 'iOS Device';
-  } else if (/android/i.test(userAgent)) {
+  } else if (/android/i.test(ua)) {
     os = 'Android Device';
-  } else if (/linux/i.test(userAgent)) {
+  } else if (/macintosh|mac os x/i.test(ua)) {
+    os = 'Mac';
+  } else if (/linux/i.test(ua)) {
     os = 'Linux Device';
   }
 
-  if (/edg/i.test(userAgent)) {
+  if (/edg/i.test(ua)) {
     browser = 'Edge';
-  } else if (/chrome|crios/i.test(userAgent)) {
-    browser = 'Chrome';
-  } else if (/safari/i.test(userAgent) && !/chrome|crios/i.test(userAgent)) {
-    browser = 'Safari';
-  } else if (/firefox|fxios/i.test(userAgent)) {
-    browser = 'Firefox';
-  } else if (/opr\//i.test(userAgent)) {
+  } else if (/opr\//i.test(ua)) {
     browser = 'Opera';
-  } else if (/trident/i.test(userAgent)) {
+  } else if (/chrome|crios/i.test(ua)) {
+    browser = 'Chrome';
+  } else if (/safari/i.test(ua) && !/chrome|crios/i.test(ua)) {
+    browser = 'Safari';
+  } else if (/firefox|fxios/i.test(ua)) {
+    browser = 'Firefox';
+  } else if (/trident/i.test(ua)) {
     browser = 'Internet Explorer';
   }
 
-  return `${os} (${browser})`;
+  const isMobile = /iphone|ipad|ipod|android/i.test(ua);
+  return { label: `${os} (${browser})`, isMobile };
+};
+
+// Collapse sessions that resolve to the same device + IP into a single row,
+// keeping the current session (or the most recently active) and listing the
+// current device first — matching how large chat apps present devices.
+const dedupeSessions = (sessions: Session[]): Session[] => {
+  const byKey = new Map<string, Session>();
+  for (const s of sessions) {
+    const key = `${parseDeviceLabel(s.device).label.toLowerCase()}__${s.ip}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, s);
+      continue;
+    }
+    const preferNew =
+      s.isCurrent ||
+      (!existing.isCurrent && new Date(s.lastActive).getTime() > new Date(existing.lastActive).getTime());
+    if (preferNew) byKey.set(key, s);
+  }
+  return Array.from(byKey.values()).sort((a, b) => {
+    if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+    return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
+  });
 };
 
 export default function PrivacySettingsTab({
@@ -92,6 +134,8 @@ export default function PrivacySettingsTab({
     loadingSessions,
     revokeSession,
   } = usePrivacySettings({ currentUser, onUserUpdate, setFeedback });
+
+  const visibleSessions = useMemo(() => dedupeSessions(sessions as Session[]), [sessions]);
 
   return (
     <div className="space-y-10">
@@ -209,23 +253,31 @@ export default function PrivacySettingsTab({
           <div className="flex justify-center p-4">
             <Loader2 className="w-6 h-6 animate-spin text-chat-accent" />
           </div>
-        ) : sessions.length === 0 ? (
+        ) : visibleSessions.length === 0 ? (
           <p className="text-sm text-chat-text-tertiary italic">No active session details.</p>
         ) : (
           <div className="space-y-3">
-            {sessions.map((session) => (
+            {visibleSessions.map((session) => {
+              const { label, isMobile } = parseDeviceLabel(session.device);
+              const DeviceIcon = isMobile ? Smartphone : Monitor;
+              return (
               <div key={session._id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-chat-input/50 border rounded-2xl ${session.isCurrent ? 'border-emerald-500/30 shadow-lg shadow-emerald-500/5' : 'border-chat-border'}`}>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-chat-text-primary truncate">{parseUserAgent(session.device)}</p>
-                    {session.isCurrent && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full shrink-0">
-                        Current Device
-                      </span>
-                    )}
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className={`shrink-0 mt-0.5 flex items-center justify-center w-10 h-10 rounded-xl border ${session.isCurrent ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-chat-bg-primary border-chat-border text-chat-text-secondary'}`}>
+                    <DeviceIcon className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-chat-text-tertiary mt-1.5">IP Address: {session.ip}</p>
-                  <p className="text-xs text-chat-text-tertiary">Last Active: {new Date(session.lastActive).toLocaleString()}</p>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-bold text-chat-text-primary truncate">{label}</p>
+                      {session.isCurrent && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full shrink-0">
+                          Current Device
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-chat-text-tertiary mt-1.5">IP Address: {session.ip}</p>
+                    <p className="text-xs text-chat-text-tertiary">Last Active: {new Date(session.lastActive).toLocaleString()}</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => revokeSession(session._id)}
@@ -238,7 +290,8 @@ export default function PrivacySettingsTab({
                   {session.isCurrent ? 'Sign Out' : 'Revoke Access'}
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

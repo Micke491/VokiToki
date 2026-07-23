@@ -107,7 +107,12 @@ func Login(c *gin.Context) {
 	}
 
 	ctxBg := context.Background()
-	device := c.Request.UserAgent()
+	// Native clients send a friendly label (e.g. "iPhone 15 Pro (iOS 17.2)") via
+	// X-Device-Name; browsers only have a raw User-Agent. Prefer the friendly label.
+	device := c.GetHeader("X-Device-Name")
+	if device == "" {
+		device = c.Request.UserAgent()
+	}
 	ip := c.ClientIP()
 
 	// Upsert session by userId+device+IP to prevent duplicate entries

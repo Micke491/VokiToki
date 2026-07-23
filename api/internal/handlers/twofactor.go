@@ -192,7 +192,11 @@ func VerifyLogin2FA(c *gin.Context) {
 	}
 
 	ctxBg := context.Background()
-	device := c.Request.UserAgent()
+	// Prefer the friendly device label from native clients over the raw User-Agent.
+	device := c.GetHeader("X-Device-Name")
+	if device == "" {
+		device = c.Request.UserAgent()
+	}
 	ip := c.ClientIP()
 
 	// Upsert session by userId+device+IP to prevent duplicate entries
