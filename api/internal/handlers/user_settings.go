@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type MuteRequest struct {
@@ -176,15 +177,19 @@ func RevokeSession(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result, err := db.SessionCollection.DeleteOne(ctx, bson.M{"_id": sessionOID, "userId": authUser.ID})
+	var sess models.Session
+	err = db.SessionCollection.FindOneAndDelete(ctx, bson.M{"_id": sessionOID, "userId": authUser.ID}).Decode(&sess)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Session not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke session"})
 		return
 	}
 
-	if result.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Session not found"})
-		return
+	if db.RedisClient != nil {
+		db.RedisClient.Del(ctx, "session_token:"+sess.Token)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Session revoked"})

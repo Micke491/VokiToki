@@ -20,7 +20,7 @@ type DeviceTokenRequest struct {
 func UpdateDeviceToken(c *gin.Context) {
 	var req DeviceTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload, fcmToken is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload, expoPushToken is required"})
 		return
 	}
 
